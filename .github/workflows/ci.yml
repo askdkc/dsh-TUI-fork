@@ -518,6 +518,7 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      # 依赖装好即可；编译产物复用 build job 的 artifact，本组不再 compile。
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Restore compiled output
@@ -525,8 +526,13 @@ jobs:
         with:
           name: ci-build-${{ github.run_id }}
 
+      # 组内失败聚合（#466 收尾）：单条失败不再遮蔽同组后续测试——全部
+      # 跑完后统一 ✓/✗ 汇总，任一失败 exit 1。测试清单与逐条说明在
+      # scripts/run-ci-group.mjs 的 GROUPS 表（新增测试时同步登记）。
       - run: node scripts/run-ci-group.mjs flaky-observation
 
+      # 失败脚本的原始帧字节（run-ci-group 只保留失败条目的 DSH_TUI_RENDER_LOG）：
+      # 时序 flake 本地复现不出来，这份日志是唯一现场。
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
