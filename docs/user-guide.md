@@ -267,7 +267,8 @@ dsh-tui
 
 | 命令 | 参数 | 作用 |
 |---|---|---|
-| `/provider` | 无 | 交互式管理模型提供方（添加 / 编辑 / 删除；捆绑 dsh-auth 时可 **OAuth 订阅登录** ChatGPT / Claude / Grok，免 API key） |
+| `/provider` | 无 | 交互式管理模型提供方（添加 / 编辑 / 删除；捆绑 dsh-auth 时可使用 OAuth 或 API key 认证） |
+| `/auth` | `status` / `login [provider]` / `logout <provider>` | 查看、添加或删除提供方凭据，不显示密钥；登录后用 `/model` 选择模型 |
 | `/login` | 无 | 凭证状态（来源、存储可写性、base URL） |
 | `/logout` | 无 | 登出说明（env 来源需删环境变量并重启） |
 | `/permission` | 无 / `<preset>` / `status` | 查看/切换权限预设与策略（无参打开选择器） |
@@ -380,7 +381,7 @@ dsh-TUI 不预装通用技能；`/skills` 浏览 DSH 发现的技能，可直调
 - `dsh-tui <路径>` 同样接受工作区目标。
 - `/doctor` 自检：Node/平台、API key、模型路由、cwd、上下文窗口、会话存储、插件宿主。
 - `/provider` 交互向导管理模型提供方：添加 / 编辑 / 删除。
-  - 捆绑 dsh-auth 时提供 **OAuth 订阅登录**（ChatGPT / Claude / Grok，免 API key）。
+  - 捆绑 dsh-auth 时可认证 ChatGPT / Claude / Grok（OAuth）、OpenCode Zen / Go、OrcaRouter、Infron（API key）、OpenRouter（OAuth PKCE 或 API key）以及 Nous（设备码 OAuth 或手动 Bearer 兼容连接）。凭据保存在 dsh-auth；登录不自动切换当前模型。
 - 非环境变量密钥写入 `~/.dsh/.credentials.yaml`（0600），界面只显示 `••••••`。
   - 自定义端点需填路由名、API key、baseURL 与协议（`openai-completions` / `openai-responses` /
   `anthropic-messages`）。

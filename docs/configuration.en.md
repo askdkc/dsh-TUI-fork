@@ -287,10 +287,14 @@ Where it writes:
 | Provider profile | `llm-pi-ai.providers.<route>` in the active profile config on 0.1.7, or `~/.dsh/settings.yaml` on older hosts; the route registers on write and unregisters on delete |
 | API key | `~/.dsh/.credentials.yaml` (mode 0600), referenced as `<ROUTE>_API_KEY` |
 
-With the bundled dsh-auth plugin mounted, the add branch also offers
-**Subscription sign-in (OAuth)**: sign in to ChatGPT / Claude / Grok through
-the browser or device-code flow (no API key); `/auth status|login|logout`
-shares the same source.
+With the bundled dsh-auth plugin mounted, the add branch offers **provider
+authentication**. ChatGPT / Claude / Grok use OAuth; OpenCode Zen / Go,
+OrcaRouter, and Infron accept API keys; OpenRouter offers OAuth PKCE or an API
+key; Nous offers device-code OAuth or a manual Bearer compatibility path.
+`/auth status|login|logout` uses the same credential store at
+`$DSH_HOME/dsh-auth/credentials.json`. Sign in, then choose a model with
+`/model`; sign-in does not switch the active model. The manual Nous Bearer
+path has not been validated with a real account.
 
 ## Composition constraints
 

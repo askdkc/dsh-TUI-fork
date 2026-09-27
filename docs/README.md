@@ -50,7 +50,7 @@ The root README lists what ships; the details live here. Chinese files have no s
 
 ## 快速入口 / Quick links
 
-- 中文项目首页 [README_ZH.md](../README_ZH.md) · English project page [README.md](../README.md)
+- 中文项目首页 [README_ZH.md](../README_ZH.md) · English project page [README.md](../README.md) · 日本語のプロジェクト紹介 [README_JA.md](../README_JA.md)
 - npm 包：[`@deepseek-harness-tui/dsh-tui`](https://www.npmjs.com/package/@deepseek-harness-tui/dsh-tui)
 - DeepSeek Harness 配置目录：[官方参考](https://deepseek-harness.github.io/deepseek-harness/reference/config-catalog)
 

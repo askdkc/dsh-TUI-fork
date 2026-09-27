@@ -52,7 +52,7 @@ class FakeStdin extends PassThrough {
 
 const SECRET_SENTINEL = 'test-secret-must-not-appear'
 
-function makeChannel(status: unknown) {
+function makeChannel(status: unknown, authStatuses?: readonly unknown[]) {
   return {
     version: 0,
     whaleIdle: false, // 探针确定性：鲸鱼闲置动画不进测量窗口
@@ -111,7 +111,7 @@ function makeChannel(status: unknown) {
     listModels: () => Promise.resolve([]),
     // No dsh-auth-style plugin in this harness: /login renders exactly its
     // pre-plugin lines (the OAuth account section stays absent).
-    oauthProviderStatuses: async () => undefined,
+    oauthProviderStatuses: async () => authStatuses,
     commandCompletions(input: string) {
       const prefix = input.replace(/^\//u, '').trim().toLowerCase()
       return this.commandList
@@ -140,8 +140,8 @@ function makeChannel(status: unknown) {
   }
 }
 
-async function runLogin(status: unknown) {
-  const channel = makeChannel(status)
+async function runLogin(status: unknown, authStatuses?: readonly unknown[]) {
+  const channel = makeChannel(status, authStatuses)
   const stdin = new FakeStdin()
   const instance = await render(
     <Chat channel={channel as never} questionStore={new QuestionStore()} />,
@@ -187,6 +187,36 @@ assert.ok(unavailable.some(line => line.includes('service unavailable')), 'missi
 
 const rejected = await runLogin(new Error('credential backend unavailable'))
 assert.ok(rejected.some(line => line.includes('service unavailable')), 'describe failure must degrade safely')
+
+const apiKey = await runLogin(undefined, [{ provider: 'opencode', signedIn: true, expiresAt: undefined, expired: false }])
+assert.ok(apiKey.some(line => line.includes('opencode') && line.includes('signed in')), 'API-key status must appear in /login')
+assert.ok(apiKey.every(line => !line.includes('1970')), 'permanent API key must not show epoch-zero expiry')
+
+const eventChannel = makeChannel(undefined)
+let changed: ((provider: string) => void) | undefined
+let unsubscribed = false
+let invalidations = 0
+let modelReads = 0
+Object.assign(eventChannel, {
+  providerSetup: () => ({ oauth: { onCredentialChange: (listener: (provider: string) => void) => {
+    changed = listener
+    return () => { unsubscribed = true }
+  } } }),
+  invalidateModelCompletion: () => { invalidations += 1 },
+  listModels: async () => { modelReads += 1; return [] },
+  listProviders: async () => [],
+})
+const eventInstance = await render(
+  <Chat channel={eventChannel as never} questionStore={new QuestionStore()} />,
+  { stdout: new FakeStdout(), stdin: new FakeStdin(), stderr: new FakeStderr(), exitOnCtrlC: false, patchConsole: false },
+)
+assert.ok(await settled(() => changed !== undefined), 'Chat must subscribe to credential changes')
+const initialReads = modelReads
+changed!('opencode')
+assert.ok(await settled(() => invalidations === 1 && modelReads > initialReads),
+  'auth change must invalidate /model completion and refetch models without a restart')
+await eventInstance.unmount()
+assert.ok(unsubscribed, 'Chat must release the auth subscription on unmount')
 
 for (const lines of [configured, missing, unavailable, rejected]) {
   assert.ok(

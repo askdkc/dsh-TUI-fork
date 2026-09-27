@@ -58,6 +58,7 @@ const ANSWER_PASTE_MAX_POINTS = 8000
 export type AskUserQuestionPanelProps = {
   /** The question to render (from the QuestionStore snapshot). */
   readonly question: {
+    readonly id?: string
     readonly question: string
     readonly header?: string
     readonly detail?: string
@@ -525,6 +526,7 @@ export function AskUserQuestionPanel({
   // char and the visual split index into the point array — never raw
   // UTF-16 offsets, which could land inside a surrogate pair.
   const textPoints = [...customText]
+  const secretInput = question.id === 'dsh-auth-secret'
   const cursorChar = customCursor < textPoints.length ? textPoints[customCursor] : ' '
   /** Mouse: click the input row to focus it (same as Tab). */
   const focusInputRow = (): void => {
@@ -587,11 +589,11 @@ export function AskUserQuestionPanel({
           <Text ref={caretRef} dimColor>{t('question-direct-input')}</Text>
         ) : (
           <>
-            <Text wrap="wrap">{textPoints.slice(0, customCursor).join('')}</Text>
+            <Text wrap="wrap">{secretInput ? '•'.repeat(customCursor) : textPoints.slice(0, customCursor).join('')}</Text>
             {inputFocused
-              ? <Text ref={caretRef} inverse>{cursorChar}</Text>
+              ? <Text ref={caretRef} inverse>{secretInput && cursorChar !== ' ' ? '•' : cursorChar}</Text>
               : <Text ref={caretRef} color="suggestion">▏</Text>}
-            <Text wrap="wrap">{textPoints.slice(inputFocused ? customCursor + 1 : customCursor).join('')}</Text>
+            <Text wrap="wrap">{secretInput ? '•'.repeat(Math.max(0, textPoints.length - (inputFocused ? customCursor + 1 : customCursor))) : textPoints.slice(inputFocused ? customCursor + 1 : customCursor).join('')}</Text>
           </>
         )}
       </Box>

@@ -527,13 +527,42 @@ function oauthStub(behavior = {}) {
     login: async provider => {
       calls.logins.push(provider)
       if (behavior.loginThrows) throw new Error(behavior.loginThrows)
-      return { provider, oauthLabel: 'OpenAI (ChatGPT Plus/Pro)', expiresAt: 1_787_000_000_000 }
+      return behavior.loginResult ?? { provider, oauthLabel: 'OpenAI (ChatGPT Plus/Pro)', expiresAt: 1_787_000_000_000 }
     },
     logout: async provider => {
       calls.logouts.push(provider)
       return true
     },
   }
+}
+
+// A permanent API key has no expiry line and must never render epoch zero.
+{
+  const oauth = oauthStub({
+    providers: [{ provider: 'opencode', label: 'OpenCode Zen', oauthLabel: 'OpenCode Zen', signedIn: false, expiresAt: undefined, expired: false }],
+    loginResult: { provider: 'opencode', oauthLabel: 'OpenCode Zen', credentialKind: 'api-key' },
+  })
+  const { deps, calls } = makeDeps({
+    'mode': { selected: [t('provider-opt-oauth')] },
+    'oauth-provider': { selected: ['opencode'] },
+  }, { oauth })
+  check('API-key provider login succeeds', await runProviderWizard(deps) === 'added')
+  check('API-key summary has no fabricated expiry', calls.pushed.length === 1
+    && !calls.pushed[0].lines.some(line => line.includes('1970') || line.includes('到期') || line.includes('expires')))
+}
+
+{
+  const oauth = oauthStub({
+    providers: [{ provider: 'orcarouter', label: 'OrcaRouter', oauthLabel: 'OrcaRouter', signedIn: false, expiresAt: undefined, expired: false }],
+    loginResult: { provider: 'orcarouter', oauthLabel: 'OrcaRouter', credentialKind: 'api-key', modelWarning: 'HTTP 429' },
+  })
+  const { deps, calls } = makeDeps({
+    'mode': { selected: [t('provider-opt-oauth')] },
+    'oauth-provider': { selected: ['orcarouter'] },
+  }, { oauth })
+  check('saved credential remains a successful login when model discovery fails', await runProviderWizard(deps) === 'added')
+  check('model discovery failure is displayed separately', calls.pushed[0]?.lines.some(line => line.includes('HTTP 429'))
+    && calls.notifications.some(notification => notification.color === 'warning' && notification.text.includes('HTTP 429')))
 }
 
 // 13. OAuth branch: mode offers three options, picking an unsigned provider

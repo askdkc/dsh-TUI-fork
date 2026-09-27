@@ -7,6 +7,7 @@
  * output is captured raw and ANSI-stripped (no xterm dependency).
  */
 process.env.FORCE_COLOR = '3'
+process.env.DSH_TUI_LANG = 'zh'
 
 const [{ PassThrough, Writable }, React, { Terminal: XTerm }, { render }, { AskUserQuestionPanel }, { settle, settled, sleep, viewportLines }] = await Promise.all([
   import('node:stream'),
@@ -131,6 +132,20 @@ check('多选：勾选 + 文本一起提交', await settled(() => {
   const a3 = answer as { selected?: string[]; custom?: string } | undefined
   return a3?.selected?.join() === '甜' && a3?.custom === '少放糖'
 }))
+
+// 6. dsh-auth secrets are masked in the panel while the submitted answer
+// remains intact for the credential store.
+answer = undefined
+app.rerender(React.createElement(AskUserQuestionPanel, {
+  ...panelProps,
+  key: 'secret',
+  question: { id: 'dsh-auth-secret', question: 'API key:' },
+}))
+await settle(() => screen().includes('API key:'))
+stdin.write('secret-sentinel-4817')
+check('密钥输入在画面上被遮蔽', await settled(() => screen().includes('••••')) && !screen().includes('secret-sentinel-4817'))
+stdin.write('\r')
+check('遮蔽输入仍提交原始密钥', await settled(() => (answer as { custom?: string } | undefined)?.custom === 'secret-sentinel-4817'))
 
 app.unmount()
 // 固定窗:pacing unmount 后输出 flush 无可观测条件

@@ -511,6 +511,15 @@ export function Chat({
   const [models, setModels] = React.useState<readonly LlmModelInfo[]>([])
   /** Provider display identities for the /model group level; refreshed alongside `models`. */
   const [providerInfos, setProviderInfos] = React.useState<readonly LlmProviderInfo[]>([])
+  React.useEffect(() => {
+    const subscribe = channel.providerSetup?.()?.oauth?.onCredentialChange
+    if (subscribe === undefined) return
+    return subscribe(() => {
+      channel.invalidateModelCompletion()
+      void channel.listModels().then(setModels).catch(() => setModels([]))
+      void channel.listProviders().then(setProviderInfos).catch(() => setProviderInfos([]))
+    })
+  }, [channel])
   /** /model 最近使用分组：成功切换即记录（去重置顶，上限 10），重启保留。 */
   const [modelRecents, setModelRecents] = React.useState<readonly ModelRecentsRef[]>(() => readModelRecents())
   /** Two-level /model: the drilled-in provider route; undefined = group level.
@@ -2428,7 +2437,9 @@ export function Chat({
                     ...oauth.map(row => t('login-oauth-row', {
                       provider: row.provider,
                       state: row.signedIn
-                        ? t('login-oauth-in', { time: new Date(row.expiresAt ?? 0).toISOString() })
+                        ? row.expiresAt === undefined
+                          ? t('login-auth-in')
+                          : t('login-oauth-in', { time: new Date(row.expiresAt).toISOString() })
                         : row.expired
                           ? t('login-oauth-expired')
                           : t('login-oauth-signed-out'),

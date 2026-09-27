@@ -135,7 +135,13 @@ export function createChannelUi(channel: ChannelUi, mode: AdapterMode, lease: Ch
             discoverModels: 'mutate', writeCredential: 'mutate', removeCredential: 'mutate',
             writeProfile: 'mutate', mutateProfile: 'mutate', removeProfile: 'mutate',
           }),
-          ...(oauth === undefined ? {} : { oauth: methods(oauth, { providers: 'read-only', login: 'mutate', logout: 'mutate' }) }),
+          ...(oauth === undefined ? {} : { oauth: Object.freeze({
+            ...methods(oauth as Pick<typeof oauth, 'providers' | 'login' | 'logout'>,
+              { providers: 'read-only', login: 'mutate', logout: 'mutate' }),
+            ...(oauth.onCredentialChange === undefined ? {} : methods({
+              onCredentialChange: (listener: (provider: string) => void) => oauth.onCredentialChange!(listener),
+            }, { onCredentialChange: 'read-only' })),
+          }) }),
         })
       }
       // The session event log is an append-only, JSON-safe read whose snapshot

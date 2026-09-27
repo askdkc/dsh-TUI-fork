@@ -3,7 +3,7 @@
   <img src="docs/assets/readme/logo.svg" alt="dsh-TUI 像素鲸鱼标题动画" width="560">
 </p>
 <p align="center">
-  <a href="README.md">English</a> | <strong>简体中文</strong>
+  <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="README_JA.md">日本語</a>
 </p>
 
 <p align="center">
@@ -33,6 +33,7 @@
 - **会话工作流** — `/new` `/compact` `/export` `/btw`、模型热切换、fork、回溯、vim、全屏草稿编辑器。
 - **IDE 选区通道** — VS Code 里选中的代码进 prompt。
 - **DSH 集成** — presets、技能、MCP、目标、待办、子代理、问卷。
+- **提供商认证** — `/auth` 连接 ChatGPT、Claude、Grok、OpenCode Zen/Go、OrcaRouter、OpenRouter、Nous 与 Infron；再用 `/model` 单独选择模型。
 - **扩展** — 浏览器交互、computer use 等。
 - **为长会话设计** — 事件驱动投影、虚拟化、有界缓存。
 
@@ -177,17 +178,51 @@ TUI 只负责交互与呈现：会话日志是唯一事实源，模型、工具�
 
 完整清单见[架构与限制](docs/architecture.md)。
 
-## 开发
+## 从源码构建
 
 CI 使用 Node 24 与 pnpm 11，本包支持 Node `^22.19 || >=24`。
+先确认检出包含子模块；若 `vendor/dsh-std` 或 `dsh-auth` 为空，运行
+`git submodule update --init --recursive`。然后从 dsh-TUI 仓库根目录执行：
 
 ```sh
+cd ~/DIR/TO/dsh-TUI
 pnpm install --frozen-lockfile
-pnpm build
+TMPDIR=/tmp pnpm build
 pnpm smoke
+pnpm verify:package
+
+node scripts/with-publish-manifest.mjs \
+  npm pack \
+  --ignore-scripts
+
+TARBALL="$PWD/deepseek-harness-tui-dsh-tui-$(node -p "require('./package.json').version").tgz"
+cd ~/DIR/TO/deepseek-harness
+pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
 
-`lib/types/` 是被忽略的生成物。`pnpm build` 从干净输出目录重编译，并跑构建门禁。**不支持 Git URL 安装**。源码 manifest 把 `@dsh-std/*` 保留为 workspace 依赖，`vendor/dsh-std` 是子模块，pnpm ≥11 还默认拒绝 git 托管的 `prepare` 脚本。请安装 registry 包：`dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`。渲染、问卷或工具卡改动还需对应的回归脚本。
+最后一条命令假定 DeepSeek Harness 源码检出已安装依赖。`npm pack` 会打印
+tarball 文件名；`TARBALL` 指向 dsh-TUI 检出中的对应版本文件。包装脚本会临时
+把本地 bundled 依赖转换为可打包的 manifest，并在结束后恢复源码 manifest。
+此流程只把本地包安装到 `dsh-tui` profile，不会发布到 npm。
+
+`lib/types/` 是被忽略的生成物。`pnpm build` 从干净输出目录重编译，并跑构建门禁。**不支持 Git URL 安装**。源码 manifest 把 `@dsh-std/*` 保留为 workspace 依赖，`vendor/dsh-std` 是子模块，pnpm ≥11 还默认拒绝 git 托管的 `prepare` 脚本。已发布版本可安装 registry 包：`dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`；本地构建请使用上文的 tarball 步骤。渲染、问卷或工具卡改动还需对应的回归脚本。
+
+### 更新版本号
+
+打包前先在 dsh-TUI 检出中设置新的 SemVer。以下 `0.11.3` 只是示例，须替换成
+实际要发布的版本：
+
+```sh
+cd ~/DIR/TO/dsh-TUI
+npm pkg set version=0.11.3
+pnpm install --lockfile-only --ignore-scripts
+git diff -- package.json pnpm-lock.yaml
+```
+
+若改动了 `dsh-auth`，还须更新它独立的 `package.json` 版本与锁文件，并在本仓库
+记录新的子模块提交；否则干净检出仍会构建旧的子模块版本。再按上文重新构建、
+打包，确认 tarball 文件名与 `package.json` 的版本一致。发布是另一步：只有推送
+与 dsh-TUI 包版本完全一致的 `vX.Y.Z` tag，才会触发发布工作流。
 
 ## 插件生态
 

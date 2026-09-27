@@ -124,6 +124,7 @@ export interface OAuthSetupHost {
   providers(): Promise<readonly OAuthProviderStatus[]>
   login(provider?: string, signal?: AbortSignal): Promise<OAuthLoginResult>
   logout(provider: string): Promise<boolean>
+  onCredentialChange?(listener: (provider: string) => void): () => void
 }
 
 /** One OAuth-capable provider a dsh-auth-style plugin mounts (masked state only). */
@@ -132,8 +133,10 @@ export interface OAuthProviderStatus {
   readonly label: string
   readonly oauthLabel: string
   readonly loginLabel: string | undefined
+  readonly authMethods?: readonly string[]
+  readonly credentialKind?: 'oauth-token' | 'api-key'
   readonly signedIn: boolean
-  readonly expiresAt: number | undefined
+  readonly expiresAt?: number
   readonly expired: boolean
 }
 
@@ -141,7 +144,10 @@ export interface OAuthProviderStatus {
 export interface OAuthLoginResult {
   readonly provider: string
   readonly oauthLabel: string
-  readonly expiresAt: number
+  readonly authMethods?: readonly string[]
+  readonly credentialKind?: 'oauth-token' | 'api-key'
+  readonly expiresAt?: number
+  readonly modelWarning?: string
 }
 
 /**

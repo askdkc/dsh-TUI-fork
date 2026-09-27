@@ -289,7 +289,7 @@ jobs:
       # The ordinary CI groups also keep running the legacy fixture suite.
       - run: TSX_TSCONFIG_PATH="$DSH_HARNESS_SOURCE_ROOT/tsconfig.base.json" pnpm verify:live-session -- --real-upstream
 
-      # dsh-auth 的 48 项 provider 回归此前无任何 lane 执行（build 链只
+      # dsh-auth 的 provider 回归此前无任何 lane 执行（build 链只
       # 构建 dsh-auth 不跑其测试）。build:dsh-auth 已装好依赖与产物，
       # verify 零额外装配。（勘误：minimal-preset-tools 本就在
       # verify:build 聚合链里，原 PR 草稿里加的那步是重复执行，已移除。）

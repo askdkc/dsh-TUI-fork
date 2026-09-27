@@ -20,7 +20,11 @@ import {
 } from './providerGuard.js'
 
 export interface QuestionAnswerer {
-  ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>
+  ask(request: AskUserQuestionRequest, options?: { redact?: boolean }): Promise<AskUserQuestionAnswer>
+}
+
+function secretRequest(request: AskUserQuestionRequest): boolean {
+  return request.questions.some(question => question.id === 'dsh-auth-secret')
 }
 
 interface LegacyUserQuestionService {
@@ -86,12 +90,12 @@ export function prepareQuestionAnswerer(
       kind: 'waterfall',
       register: owner => events.on('user-questions/request', (request, next) => {
         if (request.agent !== undefined && String(request.agent.id) !== owner.agentId) return next()
-        return answerer.ask(request)
+        return answerer.ask(request, { redact: secretRequest(request) })
       }),
     }
   }
 
-  const provider: QuestionAnswerer = { ask: request => answerer.ask(request) }
+  const provider: QuestionAnswerer = { ask: request => answerer.ask(request, { redact: secretRequest(request) }) }
   tagTuiQuestionProvider(provider)
   try {
     ctx.effect(

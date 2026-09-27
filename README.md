@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>English</strong> | <a href="README_ZH.md">简体中文</a>
+  <strong>English</strong> | <a href="README_ZH.md">简体中文</a> | <a href="README_JA.md">日本語</a>
 </p>
 
 <p align="center">
@@ -34,6 +34,7 @@
 - **Session workflow** — `/new` `/compact` `/export` `/btw`, model hot-switch, fork, rewind, vim, fullscreen draft editor.
 - **IDE selection channel** — a VS Code selection lands in the prompt.
 - **DSH integrations** — presets, skills, MCP, goals, todos, subagents, questionnaires.
+- **Provider authentication** — `/auth` connects ChatGPT, Claude, Grok, OpenCode Zen/Go, OrcaRouter, OpenRouter, Nous, and Infron; choose the model separately with `/model`.
 - **Extensions** — browser interaction, computer use and more.
 - **Built for long sessions** — event-driven projection, virtualization, bounded caches.
 
@@ -196,23 +197,63 @@ Runtime path, module boundaries, performance notes and persistence locations: [A
 
 Full list: [Architecture and limitations → Known limitations](docs/architecture.en.md#known-limitations).
 
-## Development
+## Build from source
 
 CI uses Node 24 and pnpm 11. The package supports Node `^22.19 || >=24`.
+Run these commands from a checkout with its submodules initialized (use
+`git submodule update --init --recursive` if either `vendor/dsh-std` or
+`dsh-auth` is empty):
 
 ```sh
+cd ~/DIR/TO/dsh-TUI
 pnpm install --frozen-lockfile
-pnpm build
+TMPDIR=/tmp pnpm build
 pnpm smoke
+pnpm verify:package
+
+node scripts/with-publish-manifest.mjs \
+  npm pack \
+  --ignore-scripts
+
+TARBALL="$PWD/deepseek-harness-tui-dsh-tui-$(node -p "require('./package.json').version").tgz"
+cd ~/DIR/TO/deepseek-harness
+pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
+
+The final command assumes the DeepSeek Harness source checkout has its
+dependencies installed. `npm pack` prints the tarball name; `TARBALL` points
+to that versioned file in the dsh-TUI checkout. The wrapper temporarily
+converts local bundled dependencies into a publishable manifest and restores
+the source manifest afterwards. This installs the local archive into the
+`dsh-tui` profile; it does not publish it to npm.
 
 `lib/types/` is ignored generated output. `pnpm build` recompiles it from a
 clean output directory and runs the build gates. **Git URL installs are not
 supported.** The source manifest keeps `@dsh-std/*` as workspace deps and
 `vendor/dsh-std` as a submodule. pnpm ≥11 also refuses git-hosted `prepare`
 scripts by default. Install the registry package instead:
-`dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`. Rendering,
+`dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui` for a published
+release, or use the local tarball procedure above. Rendering,
 questionnaire, or tool-card changes also need the matching regression scripts.
+
+### Bump the version
+
+Set a new SemVer in the dsh-TUI checkout before building the archive. For
+example, replace `0.11.3` below with the intended version:
+
+```sh
+cd ~/DIR/TO/dsh-TUI
+npm pkg set version=0.11.3
+pnpm install --lockfile-only --ignore-scripts
+git diff -- package.json pnpm-lock.yaml
+```
+
+If `dsh-auth` changed, update its independent `package.json` version and
+lockfile too, then record its new submodule commit in this repository before
+creating a release. A clean checkout otherwise builds the old submodule
+revision. Rebuild and pack with the commands above; verify the archive name
+matches `package.json`. Publishing is separate: the release workflow runs only
+for a pushed `vX.Y.Z` tag that exactly matches the dsh-TUI package version.
 
 ## Plugin Ecosystem
 

@@ -101,7 +101,13 @@ function fixture(jobs?: unknown, options: { throwOnEvent?: string; effectCleanup
 
 // Real bare production startup, not raw createChannel passed to a renderer.
 {
-  const { ctx, raw, writes } = fixture()
+  const { ctx, raw, writes, services } = fixture()
+  let emitCredentialChange: ((provider: string) => void) | undefined
+  let credentialNotice = ''
+  ;(services.dshAuth as { api: Record<string, unknown> }).api.onCredentialChange = (listener: (provider: string) => void) => {
+    emitCredentialChange = listener
+    return () => { emitCredentialChange = undefined }
+  }
   const unregister = registerTuiChannel(ctx, raw)
   const mount = mountChannelUi(ctx, raw, undefined, 'new')
   bindChannelCommands(raw, mount.channel)
@@ -112,6 +118,11 @@ function fixture(jobs?: unknown, options: { throwOnEvent?: string; effectCleanup
   assert.ok(writes.includes('submit'))
   const settings = mount.channel.settingsHost()!
   const provider = mount.channel.providerSetup()!
+  const unsubscribe = provider.oauth!.onCredentialChange!(id => { credentialNotice = id })
+  emitCredentialChange?.('opencode')
+  assert.equal(credentialNotice, 'opencode', 'credential-change notification crosses the leased channel facade')
+  unsubscribe()
+  assert.equal(emitCredentialChange, undefined, 'credential-change subscription releases its listener')
   await settings.write('x', [])
   await provider.writeProfile('x', {})
   const retained = mount.channel.submit

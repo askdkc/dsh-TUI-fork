@@ -254,8 +254,12 @@ Profile 模式不再使用旧的 `DSH_TUI_COMPACT_RATIO`、`DSH_TUI_COMPACT_RETA
 | provider profile | 0.1.7 当前 profile 配置中的 `llm-pi-ai.providers.<路由名>`；旧版在 `~/.dsh/settings.yaml`，写入即注册路由，删除即注销 |
 | API key | `~/.dsh/.credentials.yaml`（0600），引用名为 `<路由名大写>_API_KEY` |
 
-捆绑 dsh-auth 挂载时，添加分支多出**订阅账号登录（OAuth）**：ChatGPT / Claude /
-Grok 走浏览器或设备码免 API key 登录；与 `/auth status|login|logout` 同源。
+捆绑 dsh-auth 挂载时，添加分支提供**提供商认证**。ChatGPT / Claude / Grok
+使用 OAuth；OpenCode Zen / Go、OrcaRouter、Infron 使用 API key；OpenRouter
+可选择 OAuth PKCE 或 API key；Nous 可选择设备码 OAuth 或手动 Bearer 兼容连接。
+`/auth status|login|logout` 使用同一份 `$DSH_HOME/dsh-auth/credentials.json`。
+登录后用 `/model` 选择模型；登录不会自动切换当前模型。Nous 的手动 Bearer
+路径尚未通过真实账户验证。
 
 ## 组合约束
 

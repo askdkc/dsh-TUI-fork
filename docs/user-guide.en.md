@@ -278,7 +278,8 @@ The command menu = built-in commands (50) + DSH registry commands (`/plan` `/goa
 
 | Command | Args | Effect |
 |---|---|---|
-| `/provider` | none | interactive model-provider wizard (add / edit / delete; with dsh-auth bound, **OAuth subscription login** for ChatGPT / Claude / Grok, no API key) |
+| `/provider` | none | interactive model-provider wizard (add / edit / delete; with dsh-auth bound, OAuth or API-key authentication) |
+| `/auth` | `status` / `login [provider]` / `logout <provider>` | inspect, add, or remove a provider credential without displaying the secret; sign in before choosing its model with `/model` |
 | `/login` | none | credential status (source, store writability, base URL) |
 | `/logout` | none | logout notes (env source: delete the variable and restart) |
 | `/permission` | none / `<preset>` / `status` | view/switch permission preset and policy (no arg opens the selector) |
@@ -395,7 +396,7 @@ Keys are in §2.7. Key points:
 - `dsh-tui <路径>` also accepts a workspace target.
 - `/doctor` check: Node/platform, API key, model routing, cwd, context window, session storage, plugin host.
 - `/provider` interactive wizard to manage model providers: add / edit / delete.
-  - With dsh-auth bound, **OAuth subscription login** (ChatGPT / Claude / Grok, no API key).
+  - With dsh-auth bound, authenticate ChatGPT / Claude / Grok (OAuth), OpenCode Zen / Go, OrcaRouter, Infron (API key), OpenRouter (OAuth PKCE or API key), and Nous (device-code OAuth or manual Bearer compatibility). Credentials remain in the dsh-auth store; signing in does not switch the active model.
 - Non-env-variable keys are written to `~/.dsh/.credentials.yaml` (0600), the UI shows only `••••••`.
   - Custom endpoints need route name, API key, baseURL, and protocol (`openai-completions` / `openai-responses` /
   `anthropic-messages`).
