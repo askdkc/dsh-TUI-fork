@@ -13,7 +13,7 @@ mkdirSync(target, { recursive: true })
 writeFileSync(join(target, '..', 'package.json'), JSON.stringify({ name: '@askdkc/dsh-cli' }))
 writeFileSync(join(target, 'dsh-tui.js'), 'if (process.argv[2] === "signal") setInterval(() => {}, 1000); else { console.log(process.argv.slice(2).join("|")); process.exit(7) }\n')
 writeFileSync(join(home, '.zshrc'), '# user setting\n')
-const options = { home, dshHome, shell: '/bin/zsh', path: '', platform: 'darwin' as const }
+const options = { home, dshHome, shell: '/bin/zsh', path: '', platform: 'darwin' as const, zdotdir: home }
 const result = ensureCliRegistered(options)
 assert.match(result, /Registered/)
 const command = join(home, '.local', 'bin', 'dsh-cli')
@@ -72,7 +72,7 @@ const actual = join(linkHome, 'actual-zshrc')
 writeFileSync(actual, '# retained\n')
 chmodSync(actual, 0o640)
 symlinkSync(actual, join(linkHome, '.zshrc'))
-ensureCliRegistered({ ...options, home: linkHome })
+ensureCliRegistered({ ...options, home: linkHome, zdotdir: linkHome })
 assert.equal(lstatSync(join(linkHome, '.zshrc')).isSymbolicLink(), true)
 assert.match(readFileSync(actual, 'utf8'), /# retained/)
 assert.equal(statSync(actual).mode & 0o777, 0o640)
@@ -80,7 +80,7 @@ assert.equal(statSync(actual).mode & 0o777, 0o640)
 const malformedHome = join(home, 'malformed')
 mkdirSync(malformedHome)
 writeFileSync(join(malformedHome, '.zshrc'), '# BEGIN dsh-cli managed PATH\n')
-assert.throws(() => ensureCliRegistered({ ...options, home: malformedHome }), /malformed dsh-cli PATH block/)
+assert.throws(() => ensureCliRegistered({ ...options, home: malformedHome, zdotdir: malformedHome }), /malformed dsh-cli PATH block/)
 assert.equal(readFileSync(join(malformedHome, '.zshrc'), 'utf8'), '# BEGIN dsh-cli managed PATH\n')
 
 const lockedHome = join(home, 'locked')
@@ -105,7 +105,7 @@ for (const startup of ['-ic', '-lc']) {
 }
 
 const fishHome = join(home, 'fish')
-ensureCliRegistered({ ...options, home: fishHome, shell: '/usr/bin/fish' })
+ensureCliRegistered({ ...options, home: fishHome, shell: '/usr/bin/fish', xdgConfigHome: join(fishHome, '.config') })
 assert.match(readFileSync(join(fishHome, '.config', 'fish', 'conf.d', 'dsh-cli.fish'), 'utf8'), /contains --/)
 
 const windowsHome = join(home, 'windows')
