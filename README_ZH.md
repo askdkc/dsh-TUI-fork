@@ -1,22 +1,20 @@
 
 <p align="center">
-  <img src="docs/assets/readme/logo.svg" alt="dsh-TUI 像素鲸鱼标题动画" width="560">
+  <img src="docs/assets/readme/logo.svg" alt="dsh-CLI 像素鲸鱼标题动画" width="560">
 </p>
 <p align="center">
   <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="README_JA.md">日本語</a>
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm" src="https://img.shields.io/npm/v/dsh-cli?style=flat-square&color=4b6fff"></a>
-  <a href="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
   <img alt="Public beta" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
-  <a href="https://github.com/askdkc/dsh-TUI-fork/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-TUI-fork?style=flat-square&color=4b6fff"></a>
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm downloads" src="https://img.shields.io/npm/dm/dsh-cli?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-cli/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-cli?style=flat-square&color=4b6fff"></a>
   <img alt="官方收录" src="https://img.shields.io/badge/DeepSeek%20Harness%20官方公众号-收录-brightgreen">
 </p>
 
-# dsh-TUI
+# dsh-cli
 
 > 面向 DeepSeek Harness 的交互式终端界面插件：像素鲸鱼顶栏、实时工作状态、流式思考展示、双击 Esc 时间回溯、上下文进度条与 TPS 仪表。
 > 零核心改动，纯插件挂载。安装即启用，卸载不留核心补丁。
@@ -44,13 +42,13 @@
 <div align="center">
   <picture>
     <source media="(max-width: 640px)" srcset="docs/assets/readme/preview-zh-mobile.svg">
-    <img src="docs/assets/readme/preview-zh.svg" alt="dsh-TUI 会话录制：欢迎界面、补全、帮助与输入，以及像素鲸鱼动画。" width="78%">
+    <img src="docs/assets/readme/preview-zh.svg" alt="dsh-cli 会话录制：欢迎界面、补全、帮助与输入，以及像素鲸鱼动画。" width="78%">
   </picture>
 </div>
 
 ## 官方收录
 
-本插件被 **DeepSeek Harness 官方公众号**推文收录，也被 [dshfind](https://dshfind.com/ccch1mneyyy/dsh-TUI) 插件目录收录，并登上 [GitHub Trending](https://trendshift.io/repositories/146168) 日榜第七（TypeScript 口径）。
+上游 dsh-TUI 项目被 **DeepSeek Harness 官方公众号**推文收录，也被 [dshfind](https://dshfind.com/ccch1mneyyy/dsh-TUI) 插件目录收录，并登上 [GitHub Trending](https://trendshift.io/repositories/146168) 日榜第七（TypeScript 口径）。
 
 <div align="center">
   <table>
@@ -85,53 +83,63 @@ profile 依赖须配套，包含 `@deepseek-ai/schemastery` 3.18.3 或更新版�
 Schema 不兼容时，TUI 在启动阶段报错并提示修复安装，不再显示不可编辑的设置页。
 旧 host 继续使用原有设置 scope。
 
-```sh
-# 安装（全局，自带 dsh-tui 命令）
-npm install -g @deepseek-ai/dsh dsh-cli
+从源码构建 fork，并安装到 `dsh-cli` profile。需要 Node `^22.19 || >=24`、
+pnpm 11，以及已安装依赖的 DeepSeek Harness 源码检出：
 
-# 启动（首次运行自动初始化 profile，需要 pnpm）
-dsh-tui
-# dst 是短别名，启动同一个 TUI
-dst
+```sh
+git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+cd dsh-cli
+pnpm install --frozen-lockfile
+TMPDIR=/tmp pnpm build
+
+node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
+TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
+
+cd ~/DIR/TO/deepseek-harness
+pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh --profile dsh-cli
 ```
 
-手动安装：跑仓库根目录的 `install.sh`，或 `dsh plugin --profile dsh-tui add dsh-cli`。之后 `dsh-tui` 与 `dsh --profile dsh-tui` 等价。
+将 `~/DIR/TO/deepseek-harness` 换成实际检出路径。tarball 文件名由当前包名
+`@askdkc/dsh-cli` 和版本号组成。若还需要 `dsh-cli` 全局命令，打包后执行
+`npm install -g --legacy-peer-deps "$TARBALL"`。旧命令 `dsh-tui` 和 `dst` 保留为兼容别名。
+本地 tarball 的后续更新应重新构建并安装，不要用指向 registry 的 `/update`。
 
-> **新用户提示**：pnpm ≥11 默认拦截带安装脚本的依赖，报 `ERR_PNPM_IGNORED_BUILDS`。更新时还会忽略异平台的 `@img/sharp-*` 原生包，省约 200MB 下载。`/update` 与 `dsh-tui update` 都会自动写好这两份配置，无需手工处理。细节见[安装与快速开始](docs/getting-started.md#pnpm-安装脚本拦截与异平台原生包)。
-
-TUI 启动后会在后台检查新版本，不阻塞首帧。有更新时输入 `/update` 一键升级，自动重启并恢复当前会话。profile 叠加机制、源码构建与常见问题见[安装与快速开始](docs/getting-started.md)。
+pnpm ≥11 可能对带安装脚本的依赖报告 `ERR_PNPM_IGNORED_BUILDS`；原生构建设置见
+[安装与快速开始](docs/getting-started.md#pnpm-安装脚本拦截与异平台原生包)。
+内置的 `/update` 和 `dsh-cli update` 会从 registry 更新。更新本地 fork 请重新构建并安装 tarball。
 
 ### CLI 子命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `dsh-tui` / `dst` | 启动 TUI；短别名是同一个程序 |
-| `dsh-tui --resume [id]` · `dsh-tui update` · `dsh-tui doctor` | 恢复会话 · 更新 profile 并对齐启动器 · 环境体检 |
-| `dsh-tui safe` | 只读诊断、插件清单与修复指引；`safe --rescue` 创建干净的救援 profile |
-| `dsh-tui version` · `dsh-tui help` | 启动器与 profile 版本、用法；没装 dsh 时这两条也能用 |
+| `dsh-cli` / `dst` | 启动 TUI；短别名是同一个程序 |
+| `dsh-cli --resume [id]` · `dsh-cli update` · `dsh-cli doctor` | 恢复会话 · 从 registry 更新 · 环境体检 |
+| `dsh-cli safe` | 只读诊断、插件清单与修复指引；`safe --rescue` 创建干净的救援 profile |
+| `dsh-cli version` · `dsh-cli help` | 启动器与 profile 版本、用法；没装 dsh 时这两条也能用 |
 
-其余参数转发给 `dsh --profile dsh-tui`。安全模式：[安装与快速开始](docs/getting-started.md)。
+其余参数转发给 `dsh --profile dsh-cli`。安全模式：[安装与快速开始](docs/getting-started.md)。
 
-### 迁移其他编程代理的对话（`dsh-tui migrate`）
+### 迁移其他编程代理的对话（`dsh-cli migrate`）
 
 把 Claude Code、Codex、OMP、zcode、Grok Build 的本地对话历史导入 DSH 会话库，之后用 `/resume` 按原工作目录浏览与恢复：
 
 ```sh
-dsh-tui migrate                # 列出各代理可迁移的对话数量（不写入）
-dsh-tui migrate claude-code    # 导入 Claude Code 的全部对话（codex / omp / zcode / grok-build 同理）
-dsh-tui migrate codex --dry-run  # 只预览将落盘的内容，不写入
+dsh-cli migrate                # 列出各代理可迁移的对话数量（不写入）
+dsh-cli migrate claude-code    # 导入 Claude Code 的全部对话（codex / omp / zcode / grok-build 同理）
+dsh-cli migrate codex --dry-run  # 只预览将落盘的内容，不写入
 ```
 
 - **只读源**：迁移只读取源代理的本地存储，绝不修改；产物经官方 `JsonlSessionPersistence` 后端写入 `$DSH_HOME/sessions`——导入的会话是一等公民（可打开、可续聊）
 - **幂等**：同一源对话命中同一确定性 UUID——重复导入跳过已存在项，不堆叠重复
 - **保留结构**：用户/助手消息与思考过程（reasoning）按轮次还原；工具调用流量不迁移（源格式不可忠实回放——迁移契约是「重读对话」而非「续跑任务」）
 TUI 内：`/migrate`（或 `/migrate <agent> [--dry-run]`）以子进程运行同一导入，经通知流汇报，不卡界面。
-CLI 形态：任意终端运行 `dsh-tui migrate ...`，与 TUI 内执行同一套导入。
+CLI 形态：任意终端运行 `dsh-cli migrate ...`，与 TUI 内执行同一套导入。
 完整指南：[会话迁移](docs/migrate.md)。
 
 - pi / opencode 等其他代理经 adapter 注册表逐步扩展；grok-build 支持读 `GROK_HOME` 环境变量
 
-**VS Code**：用集成终端，或用 `dsh-tui-vscode` 扩展。见 [VS Code 使用指南](docs/vscode.md)。**Herdr**：在 [Herdr](https://herdr.dev) 窗格运行 `dsh-tui`，经其本地集成 API 报告 `idle` / `working` / `blocked`。
+**VS Code**：用集成终端，或用 `dsh-tui-vscode` 扩展。见 [VS Code 使用指南](docs/vscode.md)。**Herdr**：在 [Herdr](https://herdr.dev) 窗格运行 `dsh-cli`，经其本地集成 API 报告 `idle` / `working` / `blocked`。
 
 ## 快捷键与鼠标
 
@@ -160,7 +168,7 @@ Agent 预设、主题、MCP 服务器、环境变量：[配置参考](docs/confi
 ## 工作原理
 
 ```text
-dsh profile → dsh-base → dsh-TUI Cordis patch → agent preset + DSH services
+dsh profile → dsh-base → dsh-cli Cordis patch → agent preset + DSH services
   → session/event → Channel projection → React components → Ink/Yoga renderer → terminal
 ```
 
@@ -182,38 +190,30 @@ TUI 只负责交互与呈现：会话日志是唯一事实源，模型、工具�
 
 CI 使用 Node 24 与 pnpm 11，本包支持 Node `^22.19 || >=24`。
 先确认检出包含子模块；若 `vendor/dsh-std` 或 `dsh-auth` 为空，运行
-`git submodule update --init --recursive`。然后从 dsh-TUI 仓库根目录执行：
+`git submodule update --init --recursive`。然后从 dsh-cli 仓库根目录执行：
+
+[快速开始](#快速开始)列出了完整的 clone、构建、打包与安装命令。
+修改源码时，打包前按改动范围运行验证：
 
 ```sh
-cd ~/DIR/TO/dsh-TUI
-pnpm install --frozen-lockfile
-TMPDIR=/tmp pnpm build
+cd ~/DIR/TO/dsh-cli
 pnpm smoke
 pnpm verify:package
-
-node scripts/with-publish-manifest.mjs \
-  npm pack \
-  --ignore-scripts
-
-TARBALL="$PWD/dsh-cli-$(node -p "require('./package.json').version").tgz"
-cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
 
-最后一条命令假定 DeepSeek Harness 源码检出已安装依赖。`npm pack` 会打印
-tarball 文件名；`TARBALL` 指向 dsh-TUI 检出中的对应版本文件。包装脚本会临时
-把本地 bundled 依赖转换为可打包的 manifest，并在结束后恢复源码 manifest。
-此流程只把本地包安装到 `dsh-tui` profile，不会发布到 npm。
-
-`lib/types/` 是被忽略的生成物。`pnpm build` 从干净输出目录重编译，并跑构建门禁。**不支持 Git URL 安装**。源码 manifest 把 `@dsh-std/*` 保留为 workspace 依赖，`vendor/dsh-std` 是子模块，pnpm ≥11 还默认拒绝 git 托管的 `prepare` 脚本。已发布版本可安装 registry 包：`dsh plugin --profile dsh-tui add dsh-cli`；本地构建请使用上文的 tarball 步骤。渲染、问卷或工具卡改动还需对应的回归脚本。
+`with-publish-manifest.mjs` 临时转换本地 bundled 依赖的 manifest，并在打包后
+恢复源码 manifest。tarball 只安装到 `dsh-cli` profile，不会发布到 npm。
+已有检出若缺少子模块，先运行 `git submodule update --init --recursive`。
+**不支持直接从 Git URL 安装包**：源码 manifest 中有 workspace 和本地链接，
+必须先构建并打包。
 
 ### 更新版本号
 
-打包前先在 dsh-TUI 检出中设置新的 SemVer。以下 `0.11.3` 只是示例，须替换成
+打包前先在 dsh-cli 检出中设置新的 SemVer。以下 `0.11.3` 只是示例，须替换成
 实际要发布的版本：
 
 ```sh
-cd ~/DIR/TO/dsh-TUI
+cd ~/DIR/TO/dsh-cli
 npm pkg set version=0.11.3
 pnpm install --lockfile-only --ignore-scripts
 git diff -- package.json pnpm-lock.yaml
@@ -222,7 +222,7 @@ git diff -- package.json pnpm-lock.yaml
 若改动了 `dsh-auth`，还须更新它独立的 `package.json` 版本与锁文件，并在本仓库
 记录新的子模块提交；否则干净检出仍会构建旧的子模块版本。再按上文重新构建、
 打包，确认 tarball 文件名与 `package.json` 的版本一致。发布是另一步：只有推送
-与 dsh-TUI 包版本完全一致的 `vX.Y.Z` tag，才会触发发布工作流。
+与 dsh-cli 包版本完全一致的 `vX.Y.Z` tag，才会触发发布工作流。
 
 ## 插件生态
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme/logo-en.svg" alt="dsh-TUI のピクセルクジラのアニメーションロゴ" width="560">
+  <img src="docs/assets/readme/logo-en.svg" alt="dsh-CLI のピクセルクジラのアニメーションロゴ" width="560">
 </p>
 
 <p align="center">
@@ -7,15 +7,13 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm" src="https://img.shields.io/npm/v/dsh-cli?style=flat-square&color=4b6fff"></a>
-  <a href="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
   <img alt="公開ベータ版" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
-  <a href="https://github.com/askdkc/dsh-TUI-fork/stargazers"><img alt="GitHub スター数" src="https://img.shields.io/github/stars/askdkc/dsh-TUI-fork?style=flat-square&color=4b6fff"></a>
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm ダウンロード数" src="https://img.shields.io/npm/dm/dsh-cli?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-cli/stargazers"><img alt="GitHub スター数" src="https://img.shields.io/github/stars/askdkc/dsh-cli?style=flat-square&color=4b6fff"></a>
 </p>
 
-# dsh-TUI
+# dsh-cli
 
 > DeepSeek Harness 向けの対話型ターミナル UI プラグインです。ピクセルクジラのヘッダー、
 > 作業状況のリアルタイム表示、思考過程のストリーミング表示、Esc 連打による巻き戻し、
@@ -51,7 +49,7 @@
 
 ## 掲載実績
 
-**DeepSeek Harness の公式 WeChat アカウント**で紹介され、プラグイン一覧の
+上流の dsh-TUI プロジェクトは **DeepSeek Harness の公式 WeChat アカウント**で紹介され、プラグイン一覧の
 [dshfind](https://dshfind.com/en/plugins/ccch1mneyyy/dsh-TUI) に掲載されました。
 また、TypeScript の [GitHub Trending](https://trendshift.io/repositories/146168) 日間ランキングで **7 位**になりました。
 
@@ -91,52 +89,56 @@ profile の依存関係には `@deepseek-ai/schemastery` 3.18.3 以降が必要�
 schema に互換性がない場合、編集できない設定画面を表示する代わりに、起動時に修復方法を示して停止します。
 以前の DSH では従来の設定 scope を使います。
 
-```sh
-# CLI とプラグインをグローバルにインストール（dsh-tui コマンドが使えるようになります）
-npm install -g @deepseek-ai/dsh dsh-cli
+この fork をソースからビルドし、`dsh-cli` profile にインストールします。
+Node `^22.19 || >=24` と pnpm 11、依存関係をインストール済みの DeepSeek Harness ソース checkout が必要です。
 
-# 起動（初回は profile を自動作成します。pnpm が必要です）
-dsh-tui
-# dsh-tui と短縮名 dst は、どちらも同じ TUI を起動します。
-dst
+```sh
+git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+cd dsh-cli
+pnpm install --frozen-lockfile
+TMPDIR=/tmp pnpm build
+
+node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
+TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
+
+cd ~/DIR/TO/deepseek-harness
+pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh --profile dsh-cli
 ```
 
-手動でインストールする場合は `dsh plugin --profile dsh-tui add dsh-cli` を実行します。
-リポジトリの `sh install.sh` でも同じ操作を行い、必要なコマンドを確認できます。
-インストール後は `dsh-tui` と `dsh --profile dsh-tui` が同じ TUI を起動します。
+`~/DIR/TO/deepseek-harness` を実際の checkout パスに置き換えてください。
+tarball 名は現在のパッケージ名 `@askdkc/dsh-cli` とバージョンから決まります。
+`dsh-cli` グローバルコマンドも必要なら、pack 後に
+`npm install -g --legacy-peer-deps "$TARBALL"` を実行します。
+旧コマンド `dsh-tui` と `dst` は互換エイリアスとして残します。
+ローカル tarball の更新には再ビルドと再インストールを使い、registry を参照する `/update` は使わないでください。
 
-> **初めて使う場合**：pnpm ≥11 はインストールスクリプトを含む依存関係を既定でブロックし、
-> `ERR_PNPM_IGNORED_BUILDS` を報告します。更新時には他プラットフォーム向けの
-> `@img/sharp-*` ネイティブパッケージも除外し、ダウンロードを約 200 MB 減らします。
-> `/update` と `dsh-tui update` が両方の設定を自動で書き込むため、手動設定は不要です。
-> 詳しくは[インストールガイド](docs/getting-started.en.md#pnpm-install-script-blocks-and-foreign-platform-natives)を参照してください。
-
-起動後はバックグラウンドで新しいバージョンを確認し、初回描画は待たせません。
-`/update` で更新すると自動で再起動し、現在のセッションに戻ります。
-profile の仕組み、ソースからのビルド、旧 `dsh-cc-tui` からの移行を含む問題解決は
-[インストールガイド](docs/getting-started.en.md)を参照してください。
+pnpm ≥11 はインストールスクリプトを含む依存関係に
+`ERR_PNPM_IGNORED_BUILDS` を報告する場合があります。ネイティブ依存関係の設定は
+[インストールガイド](docs/getting-started.en.md#pnpm-install-script-blocks-and-foreign-platform-natives)を参照してください。
+`/update` と `dsh-cli update` は registry から更新します。ローカル fork は tarball を再ビルドして再インストールしてください。
 
 ### CLI
 
 | コマンド | 用途 |
 | --- | --- |
-| `dsh-tui` / `dst` | TUI を起動します。`dst` は同じプログラムの短い別名です。 |
-| `dsh-tui --resume [id]` · `dsh-tui update` · `dsh-tui doctor` | セッションの再開 · profile とランチャーの更新 · 起動前の環境確認 |
-| `dsh-tui safe` | 読み取り専用の診断、プラグイン一覧、修復案内。`safe --rescue` は空の救済用 profile を作成します。 |
-| `dsh-tui version` · `dsh-tui help` | ランチャーと profile のバージョン、使い方。`dsh` 未インストールでも実行できます。 |
+| `dsh-cli` / `dst` | TUI を起動します。`dst` は同じプログラムの短い別名です。 |
+| `dsh-cli --resume [id]` · `dsh-cli update` · `dsh-cli doctor` | セッションの再開 · registry からの更新 · 起動前の環境確認 |
+| `dsh-cli safe` | 読み取り専用の診断、プラグイン一覧、修復案内。`safe --rescue` は空の救済用 profile を作成します。 |
+| `dsh-cli version` · `dsh-cli help` | ランチャーと profile のバージョン、使い方。`dsh` 未インストールでも実行できます。 |
 
-その他の引数は `dsh --profile dsh-tui` に渡されます。安全モードについては
+その他の引数は `dsh --profile dsh-cli` に渡されます。安全モードについては
 [インストールガイド](docs/getting-started.en.md)を参照してください。
 
-### 他のエージェントから会話を取り込む（`dsh-tui migrate`）
+### 他のエージェントから会話を取り込む（`dsh-cli migrate`）
 
 Claude Code、Codex、OMP、zcode、Grok Build の会話履歴を DSH のセッションストアに取り込みます。
 取り込み後は、元の作業ディレクトリから `/resume` で会話を探して再開できます。
 
 ```sh
-dsh-tui migrate                  # エージェント別の取り込み可能件数を表示（書き込みなし）
-dsh-tui migrate claude-code      # Claude Code の会話をすべて取り込む（codex / omp / zcode / grok-build も指定可）
-dsh-tui migrate codex --dry-run  # 取り込み内容を確認（書き込みなし）
+dsh-cli migrate                  # エージェント別の取り込み可能件数を表示（書き込みなし）
+dsh-cli migrate claude-code      # Claude Code の会話をすべて取り込む（codex / omp / zcode / grok-build も指定可）
+dsh-cli migrate codex --dry-run  # 取り込み内容を確認（書き込みなし）
 ```
 
 - **元データは読み取り専用**：他のエージェントのローカル保存領域は読み取るだけです。取り込んだデータは公式の `JsonlSessionPersistence` 経由で保存するため、通常のセッションとして開き、会話を続けられます。
@@ -144,13 +146,13 @@ dsh-tui migrate codex --dry-run  # 取り込み内容を確認（書き込みな
 - **会話の構造を保持**：ユーザーとアシスタントのメッセージ、推論の記録をターンごとに再構成します。ツールの通信は忠実に再生できないため移行しません。過去の会話を読むための機能であり、過去のタスクを実行途中から再開する機能ではありません。
 
 TUI 内では `/migrate` または `/migrate <agent> [--dry-run]` を実行します。子プロセスで取り込み、結果は通知に表示します。
-通常のシェルから `dsh-tui migrate ...` を実行しても同じ機能を使えます。
+通常のシェルから `dsh-cli migrate ...` を実行しても同じ機能を使えます。
 詳しくは[セッション移行ガイド](docs/migrate.en.md)を参照してください。
 
 - pi、opencode などは、adapter が追加されると取り込み対象になります。grok-build は `GROK_HOME` が設定されていれば参照します。
 
 **VS Code**：統合ターミナル、または `dsh-tui-vscode` 拡張機能を使えます。[VS Code ガイド](docs/vscode.en.md)を参照してください。
-**Herdr**：[Herdr](https://herdr.dev) のペインで `dsh-tui` を実行すると、ローカル連携 API を通して `idle` / `working` / `blocked` を報告します。
+**Herdr**：[Herdr](https://herdr.dev) のペインで `dsh-cli` を実行すると、ローカル連携 API を通して `idle` / `working` / `blocked` を報告します。
 
 ## キー操作とマウス
 
@@ -179,7 +181,7 @@ Agent preset、テーマ、MCP サーバー、環境変数については[設定
 ## 仕組み
 
 ```text
-dsh profile → dsh-base → dsh-TUI Cordis patch → agent preset + DSH services
+dsh profile → dsh-base → dsh-cli Cordis patch → agent preset + DSH services
   → session/event → Channel projection → React components → Ink/Yoga renderer → terminal
 ```
 
@@ -203,38 +205,28 @@ CI は Node 24 と pnpm 11 を使います。対応する Node は `^22.19 || >=
 submodule を初期化した checkout で実行してください。`vendor/dsh-std` または
 `dsh-auth` が空なら `git submodule update --init --recursive` で初期化します。
 
+[クイックスタート](#クイックスタート)に clone からインストールまでのコマンドをまとめています。
+ソースを変更した場合、pack 前に変更範囲に応じた確認を実行してください。
+
 ```sh
-cd ~/DIR/TO/dsh-TUI
-pnpm install --frozen-lockfile
-TMPDIR=/tmp pnpm build
+cd ~/DIR/TO/dsh-cli
 pnpm smoke
 pnpm verify:package
-
-node scripts/with-publish-manifest.mjs \
-  npm pack \
-  --ignore-scripts
-
-TARBALL="$PWD/dsh-cli-$(node -p "require('./package.json').version").tgz"
-cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
 
-最後のコマンドは、DeepSeek Harness のソース checkout に依存関係がインストールされていることを前提にしています。
-`npm pack` は tarball のファイル名を表示します。`TARBALL` には dsh-TUI の checkout にある、そのバージョンのファイルの絶対パスが入ります。
-ラッパースクリプトはローカルの同梱依存関係をパッケージ用 manifest に一時変換し、終了後に元へ戻します。
-この手順ではローカルの tarball を `dsh-tui` profile にインストールします。npm への公開は行いません。
-
-`lib/types/` は Git 管理外の生成物です。`pnpm build` は古い出力を消して再コンパイルし、ビルド時のチェックも実行します。
-**Git URL からのインストールには対応していません。** ソースの manifest は `@dsh-std/*` を workspace の依存関係として扱い、`vendor/dsh-std` は submodule です。pnpm ≥11 は Git 上の `prepare` スクリプトも既定で拒否します。
-公開済みの版は `dsh plugin --profile dsh-tui add dsh-cli` でインストールし、ローカルビルドは上記の tarball を使ってください。
-描画、質問フォーム、ツールカードを変更した場合は、対応する回帰スクリプトも実行する必要があります。
+`with-publish-manifest.mjs` は同梱するローカル依存関係用の manifest を一時的に作り、
+pack の終了後に元へ戻します。tarball は `dsh-cli` profile にのみインストールされ、npm には公開されません。
+既存の checkout で submodule が足りない場合は、依存関係のインストール前に
+`git submodule update --init --recursive` を実行してください。
+**Git URL からのパッケージインストールには対応していません。** ソースの manifest には
+workspace とローカルのリンクがあるため、先にビルドして pack する必要があります。
 
 ### バージョンを上げる
 
-tarball を作る前に、dsh-TUI の checkout で SemVer を更新します。以下の `0.11.3` は例です。実際に付けるバージョンに置き換えてください。
+tarball を作る前に、dsh-cli の checkout で SemVer を更新します。以下の `0.11.3` は例です。実際に付けるバージョンに置き換えてください。
 
 ```sh
-cd ~/DIR/TO/dsh-TUI
+cd ~/DIR/TO/dsh-cli
 npm pkg set version=0.11.3
 pnpm install --lockfile-only --ignore-scripts
 git diff -- package.json pnpm-lock.yaml
@@ -242,7 +234,7 @@ git diff -- package.json pnpm-lock.yaml
 
 `dsh-auth` を変更した場合は、そちらの `package.json` と lockfile も独立して更新し、新しい submodule の commit をこのリポジトリに記録してからリリースしてください。そうしなければ、クリーンな checkout では古い submodule のままビルドされます。
 続けて上記の手順でビルド・pack し、tarball のファイル名が `package.json` のバージョンと一致することを確認します。
-公開は別の操作です。dsh-TUI のパッケージバージョンと完全に一致する `vX.Y.Z` tag を push したときだけ、公開 workflow が動きます。
+公開は別の操作です。dsh-cli のパッケージバージョンと完全に一致する `vX.Y.Z` tag を push したときだけ、公開 workflow が動きます。
 
 ## プラグインエコシステム
 
@@ -277,7 +269,7 @@ git diff -- package.json pnpm-lock.yaml
 
 > **Windows のセキュリティ上の注意**：Windows profile は既定で `danger-full-access`、承認は `never` です。ツールは制限なしでアクセスできます。機密情報を含む環境や信頼できないリポジトリで使う前に、profile を確認して権限を絞ってください。
 
-dsh-TUI 独自の sandbox はありません。実行中の DSH profile のファイルシステム、Shell、sandbox、承認ポリシーを使います。権限 preset は DSH の `permissionPresets` registry から取得します。
+dsh-cli 独自の sandbox はありません。実行中の DSH profile のファイルシステム、Shell、sandbox、承認ポリシーを使います。権限 preset は DSH の `permissionPresets` registry から取得します。
 
 詳しくは[権限とセキュリティの境界](docs/architecture.en.md#permissions-and-security-boundary)を参照してください。
 

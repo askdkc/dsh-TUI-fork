@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * dsh-tui — 双态启动器（delegating launcher，0.9.3）。
+ * dsh-cli — 双态启动器（delegating launcher，0.9.3）。
  *
  * 同一个文件按“自己住在哪”决定扮演的角色：
  *
- *   全局安装副本（npm i -g 得到的 `dsh-tui` 命令）→ 瘦壳：
- *     1. 找到 $DSH_HOME/profiles/dsh-tui 里的同包 bin；
+ *   全局安装副本（npm i -g 得到的 `dsh-cli` 命令）→ 瘦壳：
+ *     1. 找到 $DSH_HOME/profiles/dsh-cli 里的同包 bin；
  *     2. 可读 → 原样转发 argv 委托它执行（完整逻辑永远来自 profile 副本，
  *        版本随 /update 一起前进，启动器滞后问题从结构上消失）；
  *     3. 不可读（首次运行）→ 探测 dsh/pnpm 后自举
- *        `dsh plugin --profile dsh-tui add <本包>@<本包版本>`，成功后委托。
+ *        `dsh plugin --profile dsh-cli add <本包>@<本包版本>`，成功后委托。
  *
  *   profile 内副本（被委托执行，或 junction/源码目录里直接运行）→ 完整
  *   启动逻辑（与 0.8.6 及之前一致）：
  *     dsh 预检 / profile 版本核对 / --resume 与工作区目标拦截 /
- *     `dsh --profile dsh-tui` 启动与退出码透传。
+ *     `dsh --profile dsh-cli` 启动与退出码透传。
  *
  * 自举角色判定用 realpath：Windows Junction 轨（profile 指回仓库）与
  * `pnpm run dev` 源码运行都会折叠成同一物理目录 → 走完整逻辑，不会
@@ -59,9 +59,9 @@ const readJson = p => {
   }
 }
 const ownPackage = readJson(join(ownDir, 'package.json'))
-const ownVersion = ownPackage?.name === 'dsh-cli' ? ownPackage.version : undefined
-const PACKAGE = 'dsh-cli'
-const PROFILE = 'dsh-tui'
+const PACKAGE = '@askdkc/dsh-cli'
+const ownVersion = ownPackage?.name === PACKAGE ? ownPackage.version : undefined
+const PROFILE = 'dsh-cli'
 // 救援 profile（最小可用）：同 home 下的空白 profile（仅 base+TUI，无第三方
 // 插件），是主 profile 装炸时的干净启动通道——创建走官方 dsh plugin add
 // （钉当前版本，同 bootstrap 语义）。
@@ -71,7 +71,7 @@ const PROFILE = 'dsh-tui'
 // profileDir 这个新目录里，任何一次 dsh 启动都会维护**共享**的
 // `$DSH_HOME/profiles/node_modules` 模块回退链接（上游 dsh 的
 // healProfilesModuleFallback，无开关），救援启动也不例外。
-const RESCUE_PROFILE = 'dsh-tui-safe'
+const RESCUE_PROFILE = 'dsh-cli-safe'
 // 安装钉版本：ownVersion 缺失（bin 被单独拿走、package.json 不可读/改名）
 // 时拼出 `@undefined` 只会让 add 失败得更晚、更难懂——退回 @latest。
 const installVersion = ownVersion ?? 'latest'
@@ -136,72 +136,72 @@ const isVersionNewer = (a, b) => {
 const lang = process.env.DSH_TUI_LANG === 'en' ? 'en' : 'zh'
 const MSG = {
   noDsh: {
-    en: '[dsh-tui] dsh CLI not found. Install the official client first:\n  npm install -g @deepseek-ai/dsh',
-    zh: '[dsh-tui] 未检测到 dsh CLI。请先安装官方客户端：\n  npm install -g @deepseek-ai/dsh',
+    en: '[dsh-cli] dsh CLI not found. Install the official client first:\n  npm install -g @deepseek-ai/dsh',
+    zh: '[dsh-cli] 未检测到 dsh CLI。请先安装官方客户端：\n  npm install -g @deepseek-ai/dsh',
   },
   noPnpm: {
-    en: '[dsh-tui] The first-time setup needs pnpm (dsh plugin delegates installs to it):\n  npm install -g pnpm   (or via corepack: corepack enable pnpm)',
-    zh: '[dsh-tui] 首次安装需要 pnpm（dsh plugin 会把安装转发给它）：\n  npm install -g pnpm   （或启用 corepack：corepack enable pnpm）',
+    en: '[dsh-cli] The first-time setup needs pnpm (dsh plugin delegates installs to it):\n  npm install -g pnpm   (or via corepack: corepack enable pnpm)',
+    zh: '[dsh-cli] 首次安装需要 pnpm（dsh plugin 会把安装转发给它）：\n  npm install -g pnpm   （或启用 corepack：corepack enable pnpm）',
   },
   bootstrapStart: {
-    en: `[dsh-tui] First run — initializing the ${PROFILE} profile (${PACKAGE}@${installVersion})…`,
-    zh: `[dsh-tui] 首次运行，正在初始化 ${PROFILE} profile（${PACKAGE}@${installVersion}）…`,
+    en: `[dsh-cli] First run — initializing the ${PROFILE} profile (${PACKAGE}@${installVersion})…`,
+    zh: `[dsh-cli] 首次运行，正在初始化 ${PROFILE} profile（${PACKAGE}@${installVersion}）…`,
   },
   bootstrapRetryW: {
-    en: '[dsh-tui] pnpm refused to add to the workspace root (ERR_PNPM_ADDING_TO_ROOT) — retrying with -w…',
-    zh: '[dsh-tui] pnpm 拒绝写入 workspace 根（ERR_PNPM_ADDING_TO_ROOT）——带 -w 重试…',
+    en: '[dsh-cli] pnpm refused to add to the workspace root (ERR_PNPM_ADDING_TO_ROOT) — retrying with -w…',
+    zh: '[dsh-cli] pnpm 拒绝写入 workspace 根（ERR_PNPM_ADDING_TO_ROOT）——带 -w 重试…',
   },
   installFailed: {
-    en: `[dsh-tui] Plugin install failed. Retry manually later:\n  dsh plugin --profile ${PROFILE} add -w ${PACKAGE}@${installVersion}`,
-    zh: `[dsh-tui] 插件安装失败。可稍后手工重试：\n  dsh plugin --profile ${PROFILE} add -w ${PACKAGE}@${installVersion}`,
+    en: `[dsh-cli] Plugin install failed. Retry manually later:\n  dsh plugin --profile ${PROFILE} add -w ${PACKAGE}@${installVersion}`,
+    zh: `[dsh-cli] 插件安装失败。可稍后手工重试：\n  dsh plugin --profile ${PROFILE} add -w ${PACKAGE}@${installVersion}`,
   },
   bootstrapUnreadable: {
     en: dir =>
-      `[dsh-tui] install reported success but the plugin package is still unreadable under:\n` +
+      `[dsh-cli] install reported success but the plugin package is still unreadable under:\n` +
       `  ${dir}\n` +
       `  pnpm treats this half-installed profile as already up to date, so every retry\n` +
       `  reports success while boot keeps failing. Recovery:\n` +
-      `  rm -rf ${dir} && dsh-tui`,
+      `  rm -rf ${dir} && dsh-cli`,
     zh: dir =>
-      `[dsh-tui] 安装报告成功，但插件包仍不可读：\n` +
+      `[dsh-cli] 安装报告成功，但插件包仍不可读：\n` +
       `  ${dir}\n` +
       `  pnpm 把半残的 profile 视为已装好，重试永远「成功」而启动照旧崩溃。\n` +
       `  恢复方法：\n` +
-      `  rm -rf ${dir} 后重新运行 dsh-tui`,
+      `  rm -rf ${dir} 后重新运行 dsh-cli`,
   },
   launchFailed: {
-    en: err => `[dsh-tui] Failed to launch: ${err.message}`,
-    zh: err => `[dsh-tui] 启动失败：${err.message}`,
+    en: err => `[dsh-cli] Failed to launch: ${err.message}`,
+    zh: err => `[dsh-cli] 启动失败：${err.message}`,
   },
   delegateFailed: {
     en: path =>
-      `[dsh-tui] cannot launch the profile copy:\n  ${path}\nReinstall the global launcher:\n  npm install -g --legacy-peer-deps ${PACKAGE}@latest\n(--legacy-peer-deps avoids an npm 12 peer-resolution crash; the launcher is a thin shim, so skipping global peer resolution is safe.)`,
+      `[dsh-cli] cannot launch the profile copy:\n  ${path}\nReinstall the global launcher:\n  npm install -g --legacy-peer-deps ${PACKAGE}@latest\n(--legacy-peer-deps avoids an npm 12 peer-resolution crash; the launcher is a thin shim, so skipping global peer resolution is safe.)`,
     zh: path =>
-      `[dsh-tui] 无法启动 profile 内副本：\n  ${path}\n请重装全局启动器：\n  npm install -g --legacy-peer-deps ${PACKAGE}@latest\n（--legacy-peer-deps 可绕过 npm 12 的 peer 解析崩溃；启动器是瘦壳，跳过全局 peer 解析是安全的。）`,
+      `[dsh-cli] 无法启动 profile 内副本：\n  ${path}\n请重装全局启动器：\n  npm install -g --legacy-peer-deps ${PACKAGE}@latest\n（--legacy-peer-deps 可绕过 npm 12 的 peer 解析崩溃；启动器是瘦壳，跳过全局 peer 解析是安全的。）`,
   },
   profileExited: {
-    en: code => `[dsh-tui] dsh profile exited with code ${code}. Run it directly for diagnostics:\n  dsh --profile ${PROFILE}`,
-    zh: code => `[dsh-tui] dsh profile 已退出（退出码 ${code}）。可直接运行以下命令查看诊断：\n  dsh --profile ${PROFILE}`,
+    en: code => `[dsh-cli] dsh profile exited with code ${code}. Run it directly for diagnostics:\n  dsh --profile ${PROFILE}`,
+    zh: code => `[dsh-cli] dsh profile 已退出（退出码 ${code}）。可直接运行以下命令查看诊断：\n  dsh --profile ${PROFILE}`,
   },
   safeAsk: {
-    en: code => `dsh-tui exited unexpectedly (code ${code}). Enter safe mode? [Y/n] `,
-    zh: code => `dsh-tui 异常退出（码 ${code}）。进入安全模式？[Y/n] `,
+    en: code => `dsh-cli exited unexpectedly (code ${code}). Enter safe mode? [Y/n] `,
+    zh: code => `dsh-cli 异常退出（码 ${code}）。进入安全模式？[Y/n] `,
   },
   safeHint: {
-    en: code => `[dsh-tui] Exited with code ${code}. Run dsh-tui safe for diagnostics and repair guidance.`,
-    zh: code => `[dsh-tui] 异常退出（码 ${code}）。可运行 dsh-tui safe 进入安全模式`,
+    en: code => `[dsh-cli] Exited with code ${code}. Run dsh-cli safe for diagnostics and repair guidance.`,
+    zh: code => `[dsh-cli] 异常退出（码 ${code}）。可运行 dsh-cli safe 进入安全模式`,
   },
   safeRetrySignaled: {
-    en: signal => `[dsh-tui] retry signaled: ${signal}`,
-    zh: signal => `[dsh-tui] 重试被信号中断：${signal}`,
+    en: signal => `[dsh-cli] retry signaled: ${signal}`,
+    zh: signal => `[dsh-cli] 重试被信号中断：${signal}`,
   },
   safeTitle: {
-    en: role => `dsh-tui safe · safe mode (read-only control plane)  [${role}]`,
-    zh: role => `dsh-tui safe · 安全模式（控制面只读）  [${role}]`,
+    en: role => `dsh-cli safe · safe mode (read-only control plane)  [${role}]`,
+    zh: role => `dsh-cli safe · 安全模式（控制面只读）  [${role}]`,
   },
   safeIgnoredArgs: {
-    en: n => `[dsh-tui] ignored ${n} extra argument(s) after \`safe\``,
-    zh: n => `[dsh-tui] 已忽略附加参数：${n} 个`,
+    en: n => `[dsh-cli] ignored ${n} extra argument(s) after \`safe\``,
+    zh: n => `[dsh-cli] 已忽略附加参数：${n} 个`,
   },
   safeListUnreadable: {
     en: reason => `Profile inventory unreadable (${reason}). See repair guidance below.`,
@@ -212,45 +212,45 @@ const MSG = {
     zh: '修复命令（需自行执行——安全模式只读）：',
   },
   safeRescueCreating: {
-    en: `[dsh-tui] Creating the blank rescue profile (${RESCUE_PROFILE})…`,
-    zh: `[dsh-tui] 正在创建空白救援 profile（${RESCUE_PROFILE}）…`,
+    en: `[dsh-cli] Creating the blank rescue profile (${RESCUE_PROFILE})…`,
+    zh: `[dsh-cli] 正在创建空白救援 profile（${RESCUE_PROFILE}）…`,
   },
   safeRescueExists: {
-    en: `[dsh-tui] Rescue profile already exists — starting it as-is.`,
-    zh: `[dsh-tui] 救援 profile 已存在——按现状直接启动。`,
+    en: `[dsh-cli] Rescue profile already exists — starting it as-is.`,
+    zh: `[dsh-cli] 救援 profile 已存在——按现状直接启动。`,
   },
   safeRescueCreated: {
-    en: `[dsh-tui] Rescue profile created (base + TUI only, no third-party plugins) — starting it.`,
-    zh: `[dsh-tui] 救援 profile 已创建（仅 base + TUI，无第三方插件）——正在启动。`,
+    en: `[dsh-cli] Rescue profile created (base + TUI only, no third-party plugins) — starting it.`,
+    zh: `[dsh-cli] 救援 profile 已创建（仅 base + TUI，无第三方插件）——正在启动。`,
   },
   // 上面两条是**交互**路径的措辞（菜单选项 5 与 TTY 下的 `safe --rescue` 都经
   // runRescue → startDshSession），说「正在启动」属实。非交互 `safe --rescue`
   // 只做门禁 + 创建/复用就退出（没有终端可交接，见文件末尾该分支），一条会话
   // 都不启动，故它单独用下面两条：不承诺启动，把启动动作交回用户。
   safeRescueExistsNonInteractive: {
-    en: `[dsh-tui] Rescue profile already exists and is ready — nothing was started here (no terminal). Start it in a terminal: dsh --profile ${RESCUE_PROFILE}`,
-    zh: `[dsh-tui] 救援 profile 已存在且已就绪——此处没有终端，未启动任何会话。请在终端里启动：dsh --profile ${RESCUE_PROFILE}`,
+    en: `[dsh-cli] Rescue profile already exists and is ready — nothing was started here (no terminal). Start it in a terminal: dsh --profile ${RESCUE_PROFILE}`,
+    zh: `[dsh-cli] 救援 profile 已存在且已就绪——此处没有终端，未启动任何会话。请在终端里启动：dsh --profile ${RESCUE_PROFILE}`,
   },
   safeRescueCreatedNonInteractive: {
-    en: `[dsh-tui] Rescue profile created (base + TUI only, no third-party plugins) and ready — nothing was started here (no terminal). Start it in a terminal: dsh --profile ${RESCUE_PROFILE}`,
-    zh: `[dsh-tui] 救援 profile 已创建（仅 base + TUI，无第三方插件）且已就绪——此处没有终端，未启动任何会话。请在终端里启动：dsh --profile ${RESCUE_PROFILE}`,
+    en: `[dsh-cli] Rescue profile created (base + TUI only, no third-party plugins) and ready — nothing was started here (no terminal). Start it in a terminal: dsh --profile ${RESCUE_PROFILE}`,
+    zh: `[dsh-cli] 救援 profile 已创建（仅 base + TUI，无第三方插件）且已就绪——此处没有终端，未启动任何会话。请在终端里启动：dsh --profile ${RESCUE_PROFILE}`,
   },
   safeRescueFailed: {
-    en: detail => `[dsh-tui] Rescue profile creation failed (${detail}). See the diagnostics above and the guidance (option 4).`,
-    zh: detail => `[dsh-tui] 救援 profile 创建失败（${detail}）。请看上方诊断与指引（选项 4）。`,
+    en: detail => `[dsh-cli] Rescue profile creation failed (${detail}). See the diagnostics above and the guidance (option 4).`,
+    zh: detail => `[dsh-cli] 救援 profile 创建失败（${detail}）。请看上方诊断与指引（选项 4）。`,
   },
   // 干净性门禁的三条拒绝文案：救援的前置是「可证明的干净」，证不出就不启动
   // ——把路径与处置办法交给用户（安全模式只读，不代劳改文件）。
   safeRescueHomePatch: {
     en: path =>
-      `[dsh-tui] Rescue refused: the home-level patch layer exists:\n` +
+      `[dsh-cli] Rescue refused: the home-level patch layer exists:\n` +
       `  ${path}\n` +
       `  dsh applies that file over EVERY profile, so a broken layer here breaks the\n` +
       `  rescue too — "clean" cannot be proven, and this launcher neither parses YAML\n` +
       `  nor sees the composed result. Move or fix the file yourself (safe mode is\n` +
       `  read-only), then retry.`,
     zh: path =>
-      `[dsh-tui] 救援被拒绝：home 层补丁文件存在：\n` +
+      `[dsh-cli] 救援被拒绝：home 层补丁文件存在：\n` +
       `  ${path}\n` +
       `  dsh 把它叠加在每个 profile 之上，home 层坏掉时救援一起坏——「干净」\n` +
       `  无法证明（启动器既不解析 YAML 也拿不到组合结果）。请先自行移走或修好\n` +
@@ -258,24 +258,24 @@ const MSG = {
   },
   safeRescueUnrecognized: {
     en: path =>
-      `[dsh-tui] Rescue refused: ${path} exists but is not a recognizable profile\n` +
+      `[dsh-cli] Rescue refused: ${path} exists but is not a recognizable profile\n` +
       `  (no valid root package.json), so it may belong to someone else. Refusing to\n` +
       `  install into an unknown directory. Move or remove it yourself:\n` +
       `  rm -rf ${path}`,
     zh: path =>
-      `[dsh-tui] 救援被拒绝：${path} 已存在，但不是可识别的 profile（根\n` +
+      `[dsh-cli] 救援被拒绝：${path} 已存在，但不是可识别的 profile（根\n` +
       `  package.json 缺失或非法），可能是别的用途的目录。拒绝向未知目录安装。\n` +
       `  请自行移走或删除后重试：\n` +
       `  rm -rf ${path}`,
   },
   safeRescueUnclean: {
     en: (path, extras) =>
-      `[dsh-tui] Rescue refused: the existing ${RESCUE_PROFILE} profile declares third-party\n` +
+      `[dsh-cli] Rescue refused: the existing ${RESCUE_PROFILE} profile declares third-party\n` +
       `  plugins (${extras}), so starting it would not be clean:\n  ${path}\n` +
       `  Remove them yourself, or delete the profile and retry:\n` +
       `  rm -rf ${path}`,
     zh: (path, extras) =>
-      `[dsh-tui] 救援被拒绝：既有的 ${RESCUE_PROFILE} profile 声明了第三方插件\n` +
+      `[dsh-cli] 救援被拒绝：既有的 ${RESCUE_PROFILE} profile 声明了第三方插件\n` +
       `  （${extras}），启动它就不是干净环境：\n  ${path}\n` +
       `  请自行卸载它们，或删除该 profile 后重试：\n` +
       `  rm -rf ${path}`,
@@ -284,13 +284,13 @@ const MSG = {
   // 与 home 层同一类隐藏面，同样不解析 YAML——非默认内容一律拒绝。
   safeRescuePatched: {
     en: path =>
-      `[dsh-tui] Rescue refused: the profile's own patch layer carries entries:\n` +
+      `[dsh-cli] Rescue refused: the profile's own patch layer carries entries:\n` +
       `  ${path}\n` +
       `  dsh composes that file into the profile after the bundle layers, and this\n` +
       `  launcher neither parses YAML nor sees the composed result, so "clean" cannot\n` +
       `  be proven. Empty the file (or move it aside) yourself, then retry.`,
     zh: path =>
-      `[dsh-tui] 救援被拒绝：profile 自带的补丁层里有条目：\n` +
+      `[dsh-cli] 救援被拒绝：profile 自带的补丁层里有条目：\n` +
       `  ${path}\n` +
       `  dsh 会把该文件组合进 profile（排在 bundle 层之后），而启动器既不解析\n` +
       `  YAML 也拿不到组合结果——「干净」无法证明。请自行清空该文件（或移走）\n` +
@@ -298,30 +298,30 @@ const MSG = {
   },
   safeRescueStray: {
     en: (path, stray) =>
-      `[dsh-tui] Rescue refused: ${path} holds entries this launcher did not generate\n` +
+      `[dsh-cli] Rescue refused: ${path} holds entries this launcher did not generate\n` +
       `  (${stray}), so removing the half-installed profile would delete your files.\n` +
       `  Move them aside yourself, then retry (or delete the whole directory):\n` +
       `  rm -rf ${path}`,
     zh: (path, stray) =>
-      `[dsh-tui] 救援被拒绝：${path} 里有不是本启动器生成的条目（${stray}），\n` +
+      `[dsh-cli] 救援被拒绝：${path} 里有不是本启动器生成的条目（${stray}），\n` +
       `  清理半装状态会连你的文件一起删掉，因此不代劳。请先自行移走，再重试\n` +
       `  （或整个删除该目录）：\n` +
       `  rm -rf ${path}`,
   },
   safeRescueCleanup: {
     en: path =>
-      `[dsh-tui] removed the half-installed profile (only dsh/pnpm-generated files were\n` +
+      `[dsh-cli] removed the half-installed profile (only dsh/pnpm-generated files were\n` +
       `  present, checked before removing) so the next attempt starts clean:\n  ${path}`,
     zh: path =>
-      `[dsh-tui] 已清理半装的 profile（删除前已确认目录里只有 dsh/pnpm 生成的文件），\n` +
+      `[dsh-cli] 已清理半装的 profile（删除前已确认目录里只有 dsh/pnpm 生成的文件），\n` +
       `  下次尝试将从零开始：\n  ${path}`,
   },
   safeRescueRemoveFailed: {
     en: (path, reason) =>
-      `[dsh-tui] could not remove the half-installed profile:\n  ${path}\n  ${reason}\n` +
+      `[dsh-cli] could not remove the half-installed profile:\n  ${path}\n  ${reason}\n` +
       `  Remove it yourself, then retry.`,
     zh: (path, reason) =>
-      `[dsh-tui] 无法删除半装的 profile：\n  ${path}\n  ${reason}\n` +
+      `[dsh-cli] 无法删除半装的 profile：\n  ${path}\n  ${reason}\n` +
       `  请自行删除后重试。`,
   },
   safeMenuLabels: {
@@ -330,7 +330,7 @@ const MSG = {
       doctor: 'Run environment diagnostics',
       inventory: 'Show profile plugin inventory (read-only)',
       guide: 'Show repair command guidance',
-      rescue: 'Create blank rescue profile and start clean (dsh-tui-safe)',
+      rescue: 'Create blank rescue profile and start clean (dsh-cli-safe)',
       exit: code => `Exit (exit code ${code})`,
       prompt: 'safe> ',
       invalid: 'Invalid choice — enter 1-6:',
@@ -346,7 +346,7 @@ const MSG = {
       doctor: '运行环境诊断',
       inventory: '查看 profile 插件清单（只读）',
       guide: '显示修复命令指引',
-      rescue: '创建空白救援 profile 并干净启动（dsh-tui-safe）',
+      rescue: '创建空白救援 profile 并干净启动（dsh-cli-safe）',
       exit: code => `退出（退出码 ${code}）`,
       prompt: 'safe> ',
       invalid: '无效选择——请输入 1-6：',
@@ -367,7 +367,7 @@ const MSG = {
       notReadyReason: 'profile not ready (missing or half-installed)',
       uninstallThird: '  # Remove third-party plugins (one by one):',
       nothingThird: '  # No third-party direct dependencies to uninstall',
-      reinstallTui: '  # Reinstall/align the TUI (see dsh-tui doctor for the version):',
+      reinstallTui: '  # Reinstall/align the TUI (see dsh-cli doctor for the version):',
       versionPlaceholder: '<version>',
       diagnostics: '  # Environment diagnostics:',
       globalUpgrade: '  # Global upgrade when the launcher is too old:',
@@ -382,7 +382,7 @@ const MSG = {
       notReadyReason: 'profile 未就绪（未安装或残缺）',
       uninstallThird: '  # 卸载第三方插件（逐个执行）:',
       nothingThird: '  # 无第三方直接依赖可卸载',
-      reinstallTui: '  # 重装/对齐 TUI（版本见 dsh-tui doctor）:',
+      reinstallTui: '  # 重装/对齐 TUI（版本见 dsh-cli doctor）:',
       versionPlaceholder: '<版本>',
       diagnostics: '  # 环境诊断:',
       globalUpgrade: '  # 启动器过旧时的全局升级:',
@@ -400,7 +400,7 @@ const MSG = {
     en: {
       dshMissing: 'not found — install it first:  npm install -g @deepseek-ai/dsh',
       pnpmMissing: 'not found — needed for install/update:  npm install -g pnpm',
-      profileMissing: 'not installed — run `dsh-tui` once to bootstrap it',
+      profileMissing: 'not installed — run `dsh-cli` once to bootstrap it',
       aligned: 'aligned',
       profileNewer: v => `profile is newer — align the launcher:  npm install -g ${PACKAGE}@${v}`,
       profileOlder: v => `profile is older — align it:  dsh plugin --profile ${PROFILE} add ${PACKAGE}@${v}`,
@@ -413,7 +413,7 @@ const MSG = {
     zh: {
       dshMissing: '未找到——请先安装：  npm install -g @deepseek-ai/dsh',
       pnpmMissing: '未找到——安装/升级需要它：  npm install -g pnpm',
-      profileMissing: '未安装——运行一次 `dsh-tui` 即可自举',
+      profileMissing: '未安装——运行一次 `dsh-cli` 即可自举',
       aligned: '已对齐',
       profileNewer: v => `profile 较新——对齐启动器：  npm install -g ${PACKAGE}@${v}`,
       profileOlder: v => `profile 较旧——对齐它：  dsh plugin --profile ${PROFILE} add ${PACKAGE}@${v}`,
@@ -426,23 +426,23 @@ const MSG = {
   },
   updateUnavailable: {
     en:
-      `[dsh-tui] \`update\` needs the profile's compiled copy, but it is missing or too old to carry the CLI entry.\n` +
+      `[dsh-cli] \`update\` needs the profile's compiled copy, but it is missing or too old to carry the CLI entry.\n` +
       `Update manually instead:\n  dsh plugin --profile ${PROFILE} add ${PACKAGE}@latest`,
     zh:
-      `[dsh-tui] \`update\` 需要 profile 的编译产物，但它缺失或版本过旧、不含 CLI 入口。\n` +
+      `[dsh-cli] \`update\` 需要 profile 的编译产物，但它缺失或版本过旧、不含 CLI 入口。\n` +
       `请改用手工升级：\n  dsh plugin --profile ${PROFILE} add ${PACKAGE}@latest`,
   },
   migrateUnavailable: {
     en:
-      `[dsh-tui] \`migrate\` needs the profile's compiled copy, but it is missing or too old to carry the CLI entry.\n` +
-      `Update first:\n  dsh-tui update`,
+      `[dsh-cli] \`migrate\` needs the profile's compiled copy, but it is missing or too old to carry the CLI entry.\n` +
+      `Update first:\n  dsh-cli update`,
     zh:
-      `[dsh-tui] \`migrate\` 需要 profile 的编译产物，但它缺失或版本过旧、不含 CLI 入口。\n` +
-      `请先升级：\n  dsh-tui update`,
+      `[dsh-cli] \`migrate\` 需要 profile 的编译产物，但它缺失或版本过旧、不含 CLI 入口。\n` +
+      `请先升级：\n  dsh-cli update`,
   },
   helpText: {
     en:
-      `Usage: dsh-tui|dst [command] [options] [path|url]\n\n` +
+      `Usage: dsh-cli|dst [command] [options] [path|url]\n\n` +
       `Commands:\n` +
       `  update                 Update the ${PROFILE} profile to the latest release\n` +
       `  migrate [agent]        Import conversations from claude-code/codex/omp/zcode/grok-build (--dry-run to preview)\n` +
@@ -457,7 +457,7 @@ const MSG = {
       `  <path|url>             Open with the given workspace target\n\n` +
       `Any other argument is forwarded to \`dsh --profile ${PROFILE}\`.`,
     zh:
-      `用法：dsh-tui|dst [命令] [选项] [路径|URL]\n\n` +
+      `用法：dsh-cli|dst [命令] [选项] [路径|URL]\n\n` +
       `命令：\n` +
       `  update                 将 ${PROFILE} profile 升级到最新版本\n` +
       `  migrate [agent]        迁移 claude-code/codex/omp/zcode/grok-build 的对话（--dry-run 预览）\n` +
@@ -489,12 +489,12 @@ const sameDir = (a, b) => {
 
 const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh')
 const profileDir = join(dshHome, 'profiles', PROFILE)
-const profilePkgDir = join(profileDir, 'node_modules', 'dsh-cli')
+const profilePkgDir = join(profileDir, 'node_modules', '@askdkc', 'dsh-cli')
 const profileBin = join(profilePkgDir, 'bin', 'dsh-tui.js')
 const installedPkgPath = join(profilePkgDir, 'package.json')
 const runningInsideProfile = sameDir(ownDir, profilePkgDir)
 const rescueProfileDir = join(dshHome, 'profiles', RESCUE_PROFILE)
-const rescueInstalledPkg = join(rescueProfileDir, 'node_modules', 'dsh-cli', 'package.json')
+const rescueInstalledPkg = join(rescueProfileDir, 'node_modules', '@askdkc', 'dsh-cli', 'package.json')
 // profile 层补丁文件：dsh 给**每个**新建 profile 都写它（默认只有注释与 `[]`），
 // 并在 bundle 层之后把它组合进 profile（dsh-app-boot `loadProfile` →
 // `composed.profile.patches`）。它与下面的 home 层是同一类隐藏面——见
@@ -526,7 +526,7 @@ const GENERATED_FILE_ENTRIES = new Set([
 
 // ─── 子命令：version / help ──────────────────────────────────────────────────
 // 只认第一个参数，且在角色分支之前应答：两种角色都不经过委托与自举——
-// `dsh-tui --help` 在没装 dsh、profile 残缺时也必须能出（否则求助命令
+// `dsh-cli --help` 在没装 dsh、profile 残缺时也必须能出（否则求助命令
 // 本身先触发一轮安装）。后续位置的同名字符串不截获，保持既有透传与
 // 工作区目标嗅探行为不变。
 const subcommand = process.argv[2]
@@ -575,7 +575,7 @@ const runDoctorChecks = () => {
   const lines = []
   let hardFailure = false
   const report = (ok, label, detail) => lines.push(`${ok ? '✓' : '✗'} ${label}: ${detail}`)
-  lines.push(`dsh-tui doctor · ${PACKAGE} ${ownVersion ?? 'unknown'}`)
+  lines.push(`dsh-cli doctor · ${PACKAGE} ${ownVersion ?? 'unknown'}`)
   report(true, 'node', `${process.version} · ${process.platform} ${process.arch}`)
   const probeVersion = command => {
     const probe = spawnSync(...cmd(command, ['--version']), { stdio: 'pipe', encoding: 'utf8', ...shellOpt })
@@ -668,7 +668,7 @@ const renderGuide = lines => {
   lines.push(L.reinstallTui)
   lines.push(`  dsh plugin --profile ${PROFILE} add ${PACKAGE}@${L.versionPlaceholder}`)
   lines.push(L.diagnostics)
-  lines.push(`  dsh-tui doctor`)
+  lines.push(`  dsh-cli doctor`)
   lines.push(L.globalUpgrade)
   lines.push(`  npm install -g --legacy-peer-deps ${PACKAGE}@${L.versionPlaceholder}`)
   lines.push(L.rescueProfile)
@@ -1163,14 +1163,14 @@ const checkProfileAlignment = installedVersion => {
   const [ownMajor, ownMinor] = majorMinor(ownVersion)
   if (installedMajor < ownMajor || (installedMajor === ownMajor && installedMinor < ownMinor)) {
     console.error(
-      `[dsh-tui] cannot start: the profile runs v${installedVersion} but this launcher is v${ownVersion}.\n` +
+      `[dsh-cli] cannot start: the profile runs v${installedVersion} but this launcher is v${ownVersion}.\n` +
         `  dsh plugin --profile ${PROFILE} add ${PACKAGE}@${ownVersion}`,
     )
     process.exit(1)
   }
   if (isVersionNewer(installedVersion, ownVersion)) {
     console.error(
-      `[dsh-tui] note: the profile is already v${installedVersion}; this launcher copy is v${ownVersion}.\n` +
+      `[dsh-cli] note: the profile is already v${installedVersion}; this launcher copy is v${ownVersion}.\n` +
         `  npm install -g --legacy-peer-deps ${PACKAGE}@${installedVersion}\n` +
         `(--legacy-peer-deps avoids an npm 12 peer-resolution crash, see issue #459)`,
     )
@@ -1178,7 +1178,7 @@ const checkProfileAlignment = installedVersion => {
     // profile 更旧但同 minor（patch 级错位）：允许启动，指引用 add 把
     // profile 对齐到启动器版本（精确版本，@latest 可能越过对齐点）。
     console.error(
-      `[dsh-tui] note: the profile is running v${installedVersion} but this launcher is v${ownVersion}.\n` +
+      `[dsh-cli] note: the profile is running v${installedVersion} but this launcher is v${ownVersion}.\n` +
         `  dsh plugin --profile ${PROFILE} add ${PACKAGE}@${ownVersion}`,
     )
   }
@@ -1270,7 +1270,7 @@ if (subcommand === 'migrate') {
 if (!runningInsideProfile && ownVersion !== undefined && process.env.DSH_TUI_NO_DELEGATE !== '1') {
   if (!profileReady()) bootstrapProfile()
   // Refuse to delegate into a profile from an older release line: the profile
-  // copy would launch `dsh --profile dsh-tui` against a composition built from
+  // copy would launch `dsh --profile dsh-cli` against a composition built from
   // this launcher's patch surface and fail inside the loader.
   checkProfileAlignment(profileVersion())
   // 委托 profile 内副本执行全部启动逻辑。外层代际通过

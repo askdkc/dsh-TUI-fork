@@ -64,7 +64,7 @@ function freezeDeep<T>(value: T, seen = new WeakSet<object>()): T {
 export function readOwnPackageVersion(): string {
   const candidates: string[] = []
   try {
-    candidates.push(fileURLToPath(import.meta.resolve('dsh-cli/package.json')))
+    candidates.push(fileURLToPath(import.meta.resolve('@askdkc/dsh-cli/package.json')))
   } catch {
     // Fall through to the source/package walk-up path.
   }
@@ -78,7 +78,7 @@ export function readOwnPackageVersion(): string {
   for (const candidate of candidates) {
     try {
       const manifest = JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string; version?: string }
-      if (manifest.name === 'dsh-cli'
+      if (manifest.name === '@askdkc/dsh-cli'
         && typeof manifest.version === 'string'
         && manifest.version !== '') return manifest.version
     } catch {

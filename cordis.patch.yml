@@ -293,22 +293,22 @@
     # Generic terminal workspace registry. Optional plugins add providers;
     # the TUI itself always supplies LOCAL and has no provider-specific code.
     - id: dsh-tui-workspaces
-      name: 'dsh-cli/workspaces'
+      name: '@askdkc/dsh-cli/workspaces'
 
     # Optional plugins contribute nested slash-command completion here;
     # execution and durable command events remain owned by dsh-commands.
     - id: dsh-tui-command-trees
-      name: 'dsh-cli/command-trees'
+      name: '@askdkc/dsh-cli/command-trees'
     # Optional plugins declare editable settings sections here (issue #165);
     # storage, validation and writes remain owned by the dsh settings service.
     - id: dsh-tui-settings-sections
-      name: 'dsh-cli/settings-sections'
+      name: '@askdkc/dsh-cli/settings-sections'
 
     # Optional plugins register full-screen scenes (trajectory-style whole-
     # terminal views) here and open them from their own command handlers;
     # rendering and input ownership remain owned by the TUI's Chat screen.
     - id: dsh-tui-scenes
-      name: 'dsh-cli/scenes'
+      name: '@askdkc/dsh-cli/scenes'
 
     # Plugin-interop anchor (Community Consensus v0.15): the unified grant
     # store, runtime generation id, and Host Descriptor live here; later
@@ -317,7 +317,7 @@
     # once for the whole alignment. Mounted ahead of the extensions row and
     # any third-party plugin row.
     - id: dsh-tui-plugin-host
-      name: 'dsh-cli/plugin-host'
+      name: '@askdkc/dsh-cli/plugin-host'
 
     # Plugin-facing UI seams (the pi-style extension surface): managed
     # dialogs (select/confirm/input), keyed status-line contributions,
@@ -326,7 +326,7 @@
     # tui/compact, …) are fired by the channel on the cordis bus directly
     # and need no row.
     - id: dsh-tui-extensions
-      name: 'dsh-cli/extensions'
+      name: '@askdkc/dsh-cli/extensions'
 
     # The agent-preset roster (issue #8): `ctx.agentPresets`, the service the
     # TUI composes every session's model-facing world from. 0.1.2 packages
@@ -393,7 +393,7 @@
     # the plugin module's own inject is empty so a stale patch cannot
     # deadlock a composition lacking these services (#183 pattern).
     - id: dsh-tui-auth
-      name: 'dsh-cli/oauth'
+      name: '@askdkc/dsh-cli/oauth'
       inject: [llm, commands]
 
     # The interactive front door. The plugin creates/resumes its agent at
@@ -402,7 +402,7 @@
     # feeds the session id through DSH_TUI_RESUME_SESSION (see
     # src/sessionHistory.ts for the launcher contract).
     - id: dsh-tui
-      name: 'dsh-cli'
+      name: '@askdkc/dsh-cli'
       # The entry-level dependency augments the plugin's `agents` inject and
       # prevents startup Session creation from racing WorkspaceRegistry init.
       inject: [workspaceRegistry, agents, tuiWorkspaces, tuiScenes, tuiDialogs, tuiStatus, tuiShortcuts, tuiRenderers, tuiThemes]
@@ -476,7 +476,7 @@
     # TUI's working line comes from; never persist activity/status, so the
     # shared log remains Web-readable.
     - id: working-activity
-      name: 'dsh-cli/working-activity'
+      name: '@askdkc/dsh-cli/working-activity'
       config:
         publish: false
         publishIntervalMs: 500

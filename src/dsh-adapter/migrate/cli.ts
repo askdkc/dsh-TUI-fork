@@ -1,12 +1,12 @@
 /**
- * CLI surface for migration, reached via `dsh-tui migrate ...` (the bin
+ * CLI surface for migration, reached via `dsh-cli migrate ...` (the bin
  * launcher delegates here exactly like it delegates `update`; the TUI's
  * `/migrate` command spawns this same CLI in a child process).
  *
  * Usage:
- *   dsh-tui migrate                     # list agents and discoverable counts (writes nothing)
- *   dsh-tui migrate <agent>             # import every conversation found from that agent
- *   dsh-tui migrate <agent> --dry-run   # show what would land, write nothing
+ *   dsh-cli migrate                     # list agents and discoverable counts (writes nothing)
+ *   dsh-cli migrate <agent>             # import every conversation found from that agent
+ *   dsh-cli migrate <agent> --dry-run   # show what would land, write nothing
  *
  * One agent per run, and `--dry-run` always names one: both are usage errors
  * rather than silent fallbacks, matching the TUI's `/migrate` entry points.
@@ -42,7 +42,7 @@ export async function cliMigrate(argv: readonly string[]): Promise<number> {
     // A top-level failure (e.g. persistence never becomes ready because the
     // target root is unwritable) must land as one CLI-style summary line,
     // not a bare Node stack trace (deep-review i1).
-    process.stderr.write(`dsh-tui migrate: ${error instanceof Error ? safe(error.message) : String(error)}\n`)
+    process.stderr.write(`dsh-cli migrate: ${error instanceof Error ? safe(error.message) : String(error)}\n`)
     return 1
   }
 }
@@ -51,7 +51,7 @@ async function cliMigrateInner(argv: readonly string[]): Promise<number> {
   const dryRun = argv.includes('--dry-run')
   const words = argv.filter(word => word !== '--dry-run')
   if (words.length > 1) {
-    process.stderr.write('usage: dsh-tui migrate [<agent>] [--dry-run]\n')
+    process.stderr.write('usage: dsh-cli migrate [<agent>] [--dry-run]\n')
     return MIGRATE_CLI_USAGE_EXIT
   }
   const wanted = words[0]
@@ -60,7 +60,7 @@ async function cliMigrateInner(argv: readonly string[]): Promise<number> {
     // flag fell through to the listing below and was silently ignored (the
     // TUI's `/migrate --dry-run` says the same thing).
     if (dryRun) {
-      process.stderr.write('usage: dsh-tui migrate <agent> --dry-run\n')
+      process.stderr.write('usage: dsh-cli migrate <agent> --dry-run\n')
       return MIGRATE_CLI_USAGE_EXIT
     }
     // Bare `migrate` only reports; importing requires an explicit agent.
@@ -70,13 +70,13 @@ async function cliMigrateInner(argv: readonly string[]): Promise<number> {
       // scan candidates; import filters unreadable/empty ones, so it may
       // land slightly above the imported total.
       const available = adapter.count !== undefined ? adapter.count() : adapter.discover().sessions.length
-      console.log(`[${adapter.id}] ${available} session file(s) to scan (run \`dsh-tui migrate ${adapter.id}\` to import)`)
+      console.log(`[${adapter.id}] ${available} session file(s) to scan (run \`dsh-cli migrate ${adapter.id}\` to import)`)
     }
     return 0
   }
   const agent = MIGRATION_ADAPTERS.find(adapter => adapter.id === wanted)
   if (agent === undefined) {
-    process.stderr.write(`dsh-tui migrate: unknown agent "${safe(wanted)}"; known: ${MIGRATION_ADAPTERS.map(adapter => adapter.id).join(', ')}\n`)
+    process.stderr.write(`dsh-cli migrate: unknown agent "${safe(wanted)}"; known: ${MIGRATION_ADAPTERS.map(adapter => adapter.id).join(', ')}\n`)
     return MIGRATE_CLI_USAGE_EXIT
   }
   const found = agent.discover()

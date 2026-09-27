@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const bin = join(root, 'bin', 'dsh-tui.js')
 const ownVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-const PACKAGE = 'dsh-cli'
+const PACKAGE = '@askdkc/dsh-cli'
 const isWin = process.platform === 'win32'
 
 let failures = 0
@@ -138,7 +138,7 @@ if (command === 'plugin') {
     process.exit(1)
   }
   if (process.env.DSH_STUB_PLUGIN_EXIT) process.exit(Number(process.env.DSH_STUB_PLUGIN_EXIT))
-  const root = join(process.env.DSH_HOME, 'profiles', 'dsh-tui-safe')
+  const root = join(process.env.DSH_HOME, 'profiles', 'dsh-cli-safe')
   // pnpm 的「已是最新」：profile 根 manifest 已经在了就地不再装（issue #209 /
   // bootstrapUnreadable 记录的正是这个失败模式）。没有这条，半装清理的断言
   // 就杀不掉「删掉实现」的变异。
@@ -148,9 +148,9 @@ if (command === 'plugin') {
   place(join(state, 'cordis.patch.yml'), join(root, 'cordis.patch.yml'))
   place(join(state, 'pnpm-workspace.yaml'), join(root, 'pnpm-workspace.yaml'))
   if (process.env.DSH_STUB_NOOP) process.exit(0)
-  const pkgDir = join(root, 'node_modules', 'dsh-cli')
+  const pkgDir = join(root, 'node_modules', '@askdkc', 'dsh-cli')
   mkdirSync(pkgDir, { recursive: true })
-  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: 'stub' }))
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: '@askdkc/dsh-cli', version: 'stub' }))
   process.exit(0)
 }
 process.exit(0)
@@ -247,19 +247,19 @@ const section = (text, start, end) => {
 }
 
 // 结论行 = stdout 最后一条非空行。非交互救援的结论文案必须钉在这一行上：
-// 整段 stdout 里 renderGuide 早就打过 `dsh --profile dsh-tui-safe`，拿整段
+// 整段 stdout 里 renderGuide 早就打过 `dsh --profile dsh-cli-safe`，拿整段
 // includes 比「有没有给出启动命令」会被指引区段顶替（假通过）。
 const lastLine = text => text.split('\n').map(l => l.trim()).filter(l => l !== '').pop() ?? ''
 
 // 在指定 home 下预置救援 profile 的脚手架。
-const rescueDirOf = home => join(home, 'profiles', 'dsh-tui-safe')
-const rescuePkgOf = home => join(rescueDirOf(home), 'node_modules', 'dsh-cli', 'package.json')
+const rescueDirOf = home => join(home, 'profiles', 'dsh-cli-safe')
+const rescuePkgOf = home => join(rescueDirOf(home), 'node_modules', '@askdkc', 'dsh-cli', 'package.json')
 const writeRescueManifest = (home, manifest) => {
   mkdirSync(rescueDirOf(home), { recursive: true })
   writeFileSync(join(rescueDirOf(home), 'package.json'), JSON.stringify(manifest))
 }
 const cleanManifest = {
-  name: 'dsh-profile-dsh-tui-safe',
+  name: 'dsh-profile-dsh-cli-safe',
   private: true,
   dependencies: { [PACKAGE]: ownVersion },
   dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', PACKAGE], patchReload: 'live' } },
@@ -269,14 +269,14 @@ const cleanManifest = {
 {
   const r = run(['doctor'])
   const expected = [
-    `dsh-tui doctor · dsh-cli ${ownVersion}`,
+    `dsh-cli doctor · @askdkc/dsh-cli ${ownVersion}`,
     `✓ node: ${process.version} · ${process.platform} ${process.arch}`,
     `✗ dsh: 未找到——请先安装：  npm install -g @deepseek-ai/dsh`,
     `✗ pnpm: 未找到——安装/升级需要它：  npm install -g pnpm`,
-    `✗ profile: 未安装——运行一次 \`dsh-tui\` 即可自举  (${join(emptyHome, 'profiles', 'dsh-tui')})`,
+    `✗ profile: 未安装——运行一次 \`dsh-cli\` 即可自举  (${join(emptyHome, 'profiles', 'dsh-cli')})`,
     `✗ DEEPSEEK_API_KEY: 未设置——环境变量与 DSH 凭据库中都没有 DEEPSEEK_API_KEY`,
     `✗ config: ${join(fakeUserHome, '.dsh-tui', 'cordis.yml')}  缺失`,
-    `✗ config: ${join(emptyHome, 'profiles', 'dsh-tui', 'cordis.patch.yml')}  缺失`,
+    `✗ config: ${join(emptyHome, 'profiles', 'dsh-cli', 'cordis.patch.yml')}  缺失`,
   ]
   const actual = r.stdout.split('\n').filter(l => l !== '')
   check(
@@ -291,7 +291,7 @@ const cleanManifest = {
   const stub = makeStub()
   // profile 已装且与启动器同版：版本核对不产生额外输出，stderr 断言干净。
   const profHome = join(tmp, 'fb-home')
-  const pkgDir = join(profHome, 'profiles', 'dsh-tui', 'node_modules', 'dsh-cli')
+  const pkgDir = join(profHome, 'profiles', 'dsh-cli', 'node_modules', '@askdkc', 'dsh-cli')
   mkdirSync(pkgDir, { recursive: true })
   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const runFb = (env = {}) => run([], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: profHome, DSH_TUI_NO_DELEGATE: '1', ...env })
@@ -299,19 +299,19 @@ const cleanManifest = {
     const r = runFb()
     // 判「有没有 safe 提示」必须断真正的提示串：沙箱临时目录叫 verify-safe-*，
     // 用 includes('safe') 会把任何带路径的子进程噪声当成提示（假敏感）。
-    check('fallback: exit 0 无提示', r.status === 0 && !r.stderr.includes('dsh-tui safe'), `status=${r.status}`)
+    check('fallback: exit 0 无提示', r.status === 0 && !r.stderr.includes('dsh-cli safe'), `status=${r.status}`)
   }
   {
     const r = runFb({ DSH_STUB_PROFILE_EXIT: '42' })
     check(
       'fallback: exit 42 → 保留 profileExited 诊断 + 追加 safeHint + 退出码保真',
-      r.status === 42 && r.stderr.includes('退出码 42') && r.stderr.includes('dsh-tui safe') && r.stderr.indexOf('已退出') < r.stderr.indexOf('safe'),
+      r.status === 42 && r.stderr.includes('退出码 42') && r.stderr.includes('dsh-cli safe') && r.stderr.indexOf('已退出') < r.stderr.indexOf('safe'),
       `status=${r.status}`,
     )
   }
   {
     const r = runFb({ DSH_STUB_PROFILE_EXIT: '42', DSH_TUI_LANG: 'en' })
-    check('fallback: safeHint 双语', r.stderr.includes('Run dsh-tui safe'), `status=${r.status}`)
+    check('fallback: safeHint 双语', r.stderr.includes('Run dsh-cli safe'), `status=${r.status}`)
   }
   if (isWin) {
     skip('fallback: 信号透传且无 safe 提示', 'Windows has no POSIX signal semantics (Node turns kill into TerminateProcess, so spawnSync reports a code, never a signal)')
@@ -320,7 +320,7 @@ const cleanManifest = {
     // 信号名必须是 'SIGINT'：Node 的 process.kill 不做前缀补全，裸 'INT' 直接
     // 抛 ERR_UNKNOWN_SIGNAL（实测）。
     const r = runFb({ DSH_STUB_PROFILE_SIGNAL: 'SIGINT' })
-    check('fallback: 信号透传且无 safe 提示', r.status === null && r.signal === 'SIGINT' && !r.stderr.includes('dsh-tui safe'), `signal=${r.signal}`)
+    check('fallback: 信号透传且无 safe 提示', r.status === null && r.signal === 'SIGINT' && !r.stderr.includes('dsh-cli safe'), `signal=${r.signal}`)
   }
 }
 
@@ -336,7 +336,7 @@ const cleanManifest = {
   check('safe: 零环境非 TTY 退出 0', r.status === 0, `status=${r.status}`)
   check('safe: 打印标题', r.stdout.includes('安全模式'))
   check('safe: 内嵌 doctor 诊断', r.stdout.includes('✗ dsh'))
-  check('safe: 打印修复指引', r.stdout.includes('dsh plugin --profile dsh-tui'))
+  check('safe: 打印修复指引', r.stdout.includes('dsh plugin --profile dsh-cli'))
   check('safe: 清单不可读降级（空 profile）', r.stdout.includes('清单不可读'))
   check('safe: 控制面只读（DSH_HOME 逐文件 sha256 不变）', sameSnapshot(before, after), diffOf(before, after).join(','))
   check('safe: 控制面只读（HOME 逐文件 sha256 不变）', sameSnapshot(beforeHome, afterHome), diffOf(beforeHome, afterHome).join(','))
@@ -405,13 +405,13 @@ const cleanManifest = {
     !lastLine(r.stdout).includes('正在启动') &&
       !lastLine(r.stdout).includes('直接启动') &&
       lastLine(r.stdout).includes('未启动任何会话') &&
-      lastLine(r.stdout).includes(`dsh --profile dsh-tui-safe`),
+      lastLine(r.stdout).includes(`dsh --profile dsh-cli-safe`),
     lastLine(r.stdout),
   )
   check('救援: 插件包落位（安装判定文件可读）', existsSync(rescuePkgOf(home)))
   check(
     '救援: 走官方 dsh plugin add 且钉本副本版本',
-    adds.length === 1 && adds[0].argv === `plugin --profile dsh-tui-safe add ${PACKAGE}@${ownVersion}`,
+    adds.length === 1 && adds[0].argv === `plugin --profile dsh-cli-safe add ${PACKAGE}@${ownVersion}`,
     adds[0]?.argv ?? 'no add call',
   )
   // 2) 再跑一次：已存在 → 复用，绝不覆盖重装。
@@ -422,7 +422,7 @@ const cleanManifest = {
     !lastLine(second.stdout).includes('正在启动') &&
       !lastLine(second.stdout).includes('直接启动') &&
       lastLine(second.stdout).includes('未启动任何会话') &&
-      lastLine(second.stdout).includes(`dsh --profile dsh-tui-safe`),
+      lastLine(second.stdout).includes(`dsh --profile dsh-cli-safe`),
     lastLine(second.stdout),
   )
   check('救援: 复用不重复 add', pluginCalls(stub.state).length === 1, `adds=${pluginCalls(stub.state).length}`)
@@ -439,7 +439,7 @@ const cleanManifest = {
     ren.status === 0 &&
       !enLine.includes('starting it') &&
       enLine.includes('nothing was started here') &&
-      enLine.includes(`dsh --profile dsh-tui-safe`),
+      enLine.includes(`dsh --profile dsh-cli-safe`),
     enLine,
   )
 }
@@ -540,7 +540,7 @@ const cleanManifest = {
   mkdirSync(home, { recursive: true })
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home, DSH_STUB_NOOP: '1' })
   check('救援: no-op 假成功报失败（退出 1）', r.status === 1 && r.stderr.includes('no-op install'), `status=${r.status}`)
-  check('救援: no-op 后清掉半成品（不再永久锁死选项 5）', !existsSync(rescueDirOf(home)) && r.stderr.includes(join(home, 'profiles', 'dsh-tui-safe')))
+  check('救援: no-op 后清掉半成品（不再永久锁死选项 5）', !existsSync(rescueDirOf(home)) && r.stderr.includes(join(home, 'profiles', 'dsh-cli-safe')))
   // 清理之后紧接着再跑一次必须能成功（旧版这里会一直失败）。
   const retry = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
   check('救援: no-op 清理后重试即可成功', retry.status === 0 && retry.stdout.includes('救援 profile 已创建'), `status=${retry.status}`)
@@ -568,7 +568,7 @@ const cleanManifest = {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), [...REAL_PATCH_LAYER.split('\n').slice(0, 3), '- id: cool-plugin', '  disabled: true', ''].join('\n'))
-  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', '@askdkc', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const before = snapshot(home)
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
@@ -587,7 +587,7 @@ const cleanManifest = {
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), REAL_PATCH_LAYER)
   writeFileSync(join(dir, 'pnpm-workspace.yaml'), REAL_WORKSPACE)
-  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', '@askdkc', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const before = snapshot(home)
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
@@ -604,7 +604,7 @@ const cleanManifest = {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), '[\n]\n')
-  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', '@askdkc', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
   check('救援: 多行空数组（[] 折行）仍算无补丁层', r.status === 0 && r.stdout.includes('救援 profile 已存在'), `status=${r.status}`)
@@ -644,10 +644,10 @@ const cleanManifest = {
   // 正常清单：bundles 两项 + dependencies 三项（含一个保护包）
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), JSON.stringify({
-      name: 'dsh-profile-dsh-tui',
+      name: 'dsh-profile-dsh-cli',
       dependencies: { [PACKAGE]: '1.0.0', '@deepseek-ai/dsh-base': '1.0.0', 'cool-plugin': '0.1.0' },
       dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', PACKAGE] } },
     }))
@@ -666,10 +666,10 @@ const cleanManifest = {
     check('清单: 组合层区段独立标注内置', section(r.stdout, '组合层（dsh.profile.bundles，有序）：', '直接依赖').includes('(内置)'))
     check('清单: 第三方依赖列出', r.stdout.includes('cool-plugin'))
     // 指引的卸载候选 = 第三方直接依赖
-    check('指引: 卸载候选只列第三方', r.stdout.includes('dsh plugin --profile dsh-tui remove cool-plugin'))
+    check('指引: 卸载候选只列第三方', r.stdout.includes('dsh plugin --profile dsh-cli remove cool-plugin'))
     // 救援 profile（最小可用）：指引须给出干净环境的手动命令——非交互
     // 用户即使不进菜单也能看到这条路。
-    check('指引: 含救援 profile 创建与启动命令', r.stdout.includes('dsh plugin --profile dsh-tui-safe add') && r.stdout.includes('dsh --profile dsh-tui-safe'))
+    check('指引: 含救援 profile 创建与启动命令', r.stdout.includes('dsh plugin --profile dsh-cli-safe add') && r.stdout.includes('dsh --profile dsh-cli-safe'))
     // 双语契约：en 模式指引全量英文，不得残留中文指引串。
     const ren = run(['safe'], { DSH_HOME: invHome, DSH_TUI_LANG: 'en' })
     check('指引: 英文模式输出英文指引且无中文残留', ren.stdout.includes('# Remove third-party plugins') && !ren.stdout.includes('卸载第三方插件'))
@@ -699,16 +699,16 @@ const cleanManifest = {
   // 字段缺失：无 dsh.profile.bundles
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
-    writeFileSync(join(profDir, 'package.json'), JSON.stringify({ name: 'dsh-profile-dsh-tui', dependencies: {} }))
+    writeFileSync(join(profDir, 'package.json'), JSON.stringify({ name: 'dsh-profile-dsh-cli', dependencies: {} }))
     const r = run(['safe'], { DSH_HOME: invHome })
     check('清单: 字段缺失降级', r.stdout.includes('清单不可读'))
   }
   // 字段类型错误：bundles 为字符串
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), JSON.stringify({ dependencies: {}, dsh: { profile: { bundles: 'oops' } } }))
     const r = run(['safe'], { DSH_HOME: invHome })
@@ -717,7 +717,7 @@ const cleanManifest = {
   // 字段类型错误：dependencies 为数组（仅该字段非法，dsh 保持合法）
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), JSON.stringify({ dependencies: [], dsh: { profile: { bundles: [] } } }))
     const r = run(['safe'], { DSH_HOME: invHome })
@@ -726,7 +726,7 @@ const cleanManifest = {
   // 字段类型错误：dsh 为 null（仅该字段非法，dependencies 保持合法）
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), JSON.stringify({ dependencies: {}, dsh: null }))
     const r = run(['safe'], { DSH_HOME: invHome })
@@ -735,7 +735,7 @@ const cleanManifest = {
   // 边角：bundles 混入非字符串项 → 非字符串被过滤，合法字符串项正常列出
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), JSON.stringify({ dependencies: { 'cool-plugin': '0.1.0' }, dsh: { profile: { bundles: [1, 'x'] } } }))
     const r = run(['safe'], { DSH_HOME: invHome })
@@ -744,7 +744,7 @@ const cleanManifest = {
   // 损坏 JSON：文件存在但非法
   {
     rmSync(invHome, { recursive: true, force: true })
-    const profDir = join(invHome, 'profiles', 'dsh-tui')
+    const profDir = join(invHome, 'profiles', 'dsh-cli')
     mkdirSync(profDir, { recursive: true })
     writeFileSync(join(profDir, 'package.json'), '{oops')
     const r = run(['safe'], { DSH_HOME: invHome })

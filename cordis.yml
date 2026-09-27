@@ -25,32 +25,32 @@
     policy: !!js "process.platform === 'win32' ? 'never' : ((process.env.DSH_PERMISSION_MODE ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask')"
 
 - id: dsh-tui-workspaces
-  name: 'dsh-cli/workspaces'
+  name: '@askdkc/dsh-cli/workspaces'
 
 - id: dsh-tui-command-trees
-  name: 'dsh-cli/command-trees'
+  name: '@askdkc/dsh-cli/command-trees'
 
 # Optional plugins declare editable settings sections here (issue #165);
 # storage, validation and writes remain owned by the dsh settings service.
 - id: dsh-tui-settings-sections
-  name: 'dsh-cli/settings-sections'
+  name: '@askdkc/dsh-cli/settings-sections'
 
 - id: dsh-tui-scenes
-  name: 'dsh-cli/scenes'
+  name: '@askdkc/dsh-cli/scenes'
 
 # Plugin-interop anchor (v0.15): unified grant store, runtime generation
 # id, Host Descriptor; later contract surfaces mount off this row's apply.
 - id: dsh-tui-plugin-host
-  name: 'dsh-cli/plugin-host'
+  name: '@askdkc/dsh-cli/plugin-host'
 
 # Plugin-facing UI seams: managed dialogs, status-line contributions,
 # keyboard shortcuts, custom session-entry renderers, and runtime themes
 # (decision events are fired by the channel and need no row).
 - id: dsh-tui-extensions
-  name: 'dsh-cli/extensions'
+  name: '@askdkc/dsh-cli/extensions'
 
 - id: dsh-tui
-  name: 'dsh-cli'
+  name: '@askdkc/dsh-cli'
   # Entry-level only: orders/rebinds optional extension services on reload;
   # dsh-tui does not hard-inject them at code level, so stale profiles degrade
   # to static themes and inert extension surfaces instead of deadlocking boot.
@@ -215,7 +215,7 @@
 # from install layouts that never link transitive dependencies into the
 # boot anchor's node_modules — pnpm's isolated profile layout, issue #60.
 - id: working-activity
-  name: 'dsh-cli/working-activity'
+  name: '@askdkc/dsh-cli/working-activity'
   config:
     publish: false
     publishIntervalMs: 500

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme/logo-en.svg" alt="dsh-TUI animated whale logo" width="560">
+  <img src="docs/assets/readme/logo-en.svg" alt="dsh-cli animated whale logo" width="560">
 </p>
 
 <p align="center">
@@ -7,15 +7,13 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm" src="https://img.shields.io/npm/v/dsh-cli?style=flat-square&color=4b6fff"></a>
-  <a href="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
   <img alt="Public beta" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
-  <a href="https://github.com/askdkc/dsh-TUI-fork/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-TUI-fork?style=flat-square&color=4b6fff"></a>
-  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm downloads" src="https://img.shields.io/npm/dm/dsh-cli?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-cli/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-cli?style=flat-square&color=4b6fff"></a>
 </p>
 
-# dsh-TUI
+# dsh-cli
 
 > An interactive terminal UI plugin for DeepSeek Harness. It ships a
 > pixel-whale header, live work status, streaming thinking, double-Esc time
@@ -45,13 +43,13 @@ Keys and commands: [Interaction and commands](docs/interaction.en.md). Everythin
 <div align="center">
   <picture>
     <source media="(max-width: 640px)" srcset="docs/assets/readme/preview-en-mobile.svg">
-    <img src="docs/assets/readme/preview-en.svg" alt="Recorded dsh-TUI session: welcome, completion, help and typing, with animated pixel whale." width="78%">
+    <img src="docs/assets/readme/preview-en.svg" alt="Recorded dsh-cli session: welcome, completion, help and typing, with animated pixel whale." width="78%">
   </picture>
 </div>
 
 ## Featured & Listed
 
-Featured by the **DeepSeek Harness official WeChat account**, listed in the
+The upstream dsh-TUI project was featured by the **DeepSeek Harness official WeChat account** and listed in the
 [dshfind](https://dshfind.com/en/plugins/ccch1mneyyy/dsh-TUI) plugin
 directory, and ranked **#7 on [GitHub Trending](https://trendshift.io/repositories/146168)
 daily** (TypeScript).
@@ -60,12 +58,12 @@ daily** (TypeScript).
   <table>
     <tr>
       <td align="center" valign="middle" width="50%">
-        <img src="screenshots/wechat-official.png" alt="dsh-TUI featured by the DeepSeek Harness official WeChat account" width="480">
+        <img src="screenshots/wechat-official.png" alt="Upstream dsh-TUI featured by the DeepSeek Harness official WeChat account" width="480">
         <br>
         <strong>Featured by the official WeChat account</strong>
       </td>
       <td align="center" valign="middle" width="50%">
-        <a href="https://dshfind.com/en/plugins/ccch1mneyyy/dsh-TUI"><img src="https://dshfind.com/api/card/ccch1mneyyy/dsh-TUI?lang=en" alt="dsh-TUI on dshfind" width="420"></a>
+        <a href="https://dshfind.com/en/plugins/ccch1mneyyy/dsh-TUI"><img src="https://dshfind.com/api/card/ccch1mneyyy/dsh-TUI?lang=en" alt="Upstream dsh-TUI on dshfind" width="420"></a>
         <br>
         <strong>Listed in the dshfind directory</strong>
         <br><br>
@@ -92,65 +90,68 @@ IDs. It requires matching profile dependencies with `@deepseek-ai/schemastery`
 3.18.3 or newer; an incompatible schema stops TUI startup with repair guidance
 instead of showing an uneditable settings page. Older hosts keep their legacy settings scope.
 
-```sh
-# Install the CLI and this plugin globally (ships the dsh-tui command)
-npm install -g @deepseek-ai/dsh dsh-cli
+Install this fork from source into the `dsh-cli` profile. Use Node
+`^22.19 || >=24` and pnpm 11. The final two commands run in a DeepSeek
+Harness source checkout whose dependencies are already installed:
 
-# Start (first run auto-initializes the profile; needs pnpm)
-dsh-tui
-# Both `dsh-tui` and the short `dst` alias start the same TUI.
-dst
+```sh
+git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+cd dsh-cli
+pnpm install --frozen-lockfile
+TMPDIR=/tmp pnpm build
+
+node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
+TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
+
+cd ~/DIR/TO/deepseek-harness
+pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh --profile dsh-cli
 ```
 
-Manual alternative: `dsh plugin --profile dsh-tui add dsh-cli`.
-The repo's `sh install.sh` runs that step and checks the required commands.
-Afterwards `dsh-tui` and `dsh --profile dsh-tui` are equivalent.
+Replace `~/DIR/TO/deepseek-harness` with your checkout path. The tarball name
+comes from the package's current name, `@askdkc/dsh-cli`, and version. To
+install the optional `dsh-cli` shell command, run
+`npm install -g --legacy-peer-deps "$TARBALL"` after creating the tarball.
+The existing `dsh-tui` and `dst` commands remain compatibility aliases.
+A locally packed fork should be updated by rebuilding and reinstalling the
+archive, rather than by using the registry-backed `/update` command.
 
-> **New-user note**: pnpm ≥11 blocks dependencies with install scripts by
-> default and reports `ERR_PNPM_IGNORED_BUILDS`. Updates skip foreign-platform
-> `@img/sharp-*` native packages, saving about 200MB of downloads. `/update`
-> and `dsh-tui update` write both settings automatically. No manual step
-> needed. Details:
-> [Getting started](docs/getting-started.en.md#pnpm-install-script-blocks-and-foreign-platform-natives).
-
-After startup the TUI checks for newer versions in the background. It never
-blocks the first frame. Type `/update` for a one-shot upgrade. It restarts
-automatically and resumes the current session. See
-[Getting started](docs/getting-started.en.md) for the profile lifecycle,
-source builds, and troubleshooting, including migration from the former
-`dsh-cc-tui` package.
+pnpm ≥11 may report `ERR_PNPM_IGNORED_BUILDS` for dependencies with install
+scripts. See [Getting started](docs/getting-started.en.md#pnpm-install-script-blocks-and-foreign-platform-natives)
+for the native build settings. The built-in `/update` and `dsh-cli update`
+commands use the registry, so use the tarball procedure above to update this fork.
 
 ### CLI
 
 | Command | Purpose |
 | --- | --- |
-| `dsh-tui` / `dst` | Start the TUI; `dst` is a short alias for the same program |
-| `dsh-tui --resume [id]` · `dsh-tui update` · `dsh-tui doctor` | Resume a session · update the profile and align the launcher · pre-flight environment checks |
-| `dsh-tui safe` | Read-only diagnostics, plugin inventory and repair guidance; `safe --rescue` builds a clean rescue profile |
-| `dsh-tui version` · `dsh-tui help` | Launcher and profile versions and usage; both work even without a `dsh` install |
+| `dsh-cli` / `dst` | Start the TUI; `dst` is a short alias for the same program |
+| `dsh-cli --resume [id]` · `dsh-cli update` · `dsh-cli doctor` | Resume a session · registry update · pre-flight environment checks |
+| `dsh-cli safe` | Read-only diagnostics, plugin inventory and repair guidance; `safe --rescue` builds a clean rescue profile |
+| `dsh-cli version` · `dsh-cli help` | Launcher and profile versions and usage; both work even without a `dsh` install |
 
-Other arguments go to `dsh --profile dsh-tui`. Safe mode: [Getting started](docs/getting-started.en.md).
+Other arguments go to `dsh --profile dsh-cli`. Safe mode: [Getting started](docs/getting-started.en.md).
 
-### Importing conversations from other agents (`dsh-tui migrate`)
+### Importing conversations from other agents (`dsh-cli migrate`)
 
 Bring Claude Code, Codex, OMP, zcode, or Grok Build conversation histories into the DSH session store, then browse and resume them by their original working directory via `/resume`:
 
 ```sh
-dsh-tui migrate                # list importable counts per agent (writes nothing)
-dsh-tui migrate claude-code    # import every Claude Code conversation (likewise codex / omp / zcode / grok-build)
-dsh-tui migrate codex --dry-run  # preview what would land, write nothing
+dsh-cli migrate                # list importable counts per agent (writes nothing)
+dsh-cli migrate claude-code    # import every Claude Code conversation (likewise codex / omp / zcode / grok-build)
+dsh-cli migrate codex --dry-run  # preview what would land, write nothing
 ```
 
 - **Read-only source**: migration only reads the foreign agent's local store; artifacts are written through the official `JsonlSessionPersistence` backend, so imported sessions are first-class (openable, continuable).
 - **Idempotent**: one deterministic UUID per source conversation — re-importing skips what is already present instead of stacking duplicates.
 - **Structure preserved**: user/assistant messages and reasoning traces are rebuilt turn by turn; tool traffic is not migrated (source formats cannot replay it faithfully — the contract is "re-read the conversation", not "resume the task").
 In-TUI: `/migrate` (optionally `/migrate <agent> [--dry-run]`) runs the same import in a child process and reports through the notification flow.
-CLI alternative: `dsh-tui migrate ...` from any shell runs the same import.
+CLI alternative: `dsh-cli migrate ...` from any shell runs the same import.
 Full guide: [Session migration](docs/migrate.en.md).
 
 - More agents (pi, opencode, …) extend the adapter registry as adapters land; grok-build reads `GROK_HOME` when set.
 
-**VS Code**: use the integrated terminal or the `dsh-tui-vscode` extension. See [VS Code guide](docs/vscode.en.md). **Herdr**: run `dsh-tui` in a [Herdr](https://herdr.dev) pane; `idle` / `working` / `blocked` are reported through its local integration API.
+**VS Code**: use the integrated terminal or the `dsh-tui-vscode` extension. See [VS Code guide](docs/vscode.en.md). **Herdr**: run `dsh-cli` in a [Herdr](https://herdr.dev) pane; `idle` / `working` / `blocked` are reported through its local integration API.
 
 ## Keybindings & Mouse
 
@@ -179,7 +180,7 @@ Agent presets, themes, MCP servers, environment variables: [Configuration](docs/
 ## How It Works
 
 ```text
-dsh profile → dsh-base → dsh-TUI Cordis patch → agent preset + DSH services
+dsh profile → dsh-base → dsh-cli Cordis patch → agent preset + DSH services
   → session/event → Channel projection → React components → Ink/Yoga renderer → terminal
 ```
 
@@ -204,45 +205,32 @@ Run these commands from a checkout with its submodules initialized (use
 `git submodule update --init --recursive` if either `vendor/dsh-std` or
 `dsh-auth` is empty):
 
+The [Quick Start](#quick-start) includes the complete clone, build, pack,
+and installation commands. Before packing, run the focused checks if you
+changed the source:
+
 ```sh
-cd ~/DIR/TO/dsh-TUI
-pnpm install --frozen-lockfile
-TMPDIR=/tmp pnpm build
+cd ~/DIR/TO/dsh-cli
 pnpm smoke
 pnpm verify:package
-
-node scripts/with-publish-manifest.mjs \
-  npm pack \
-  --ignore-scripts
-
-TARBALL="$PWD/dsh-cli-$(node -p "require('./package.json').version").tgz"
-cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
 
-The final command assumes the DeepSeek Harness source checkout has its
-dependencies installed. `npm pack` prints the tarball name; `TARBALL` points
-to that versioned file in the dsh-TUI checkout. The wrapper temporarily
-converts local bundled dependencies into a publishable manifest and restores
-the source manifest afterwards. This installs the local archive into the
-`dsh-tui` profile; it does not publish it to npm.
+`npm pack` prints the archive name. `with-publish-manifest.mjs` temporarily
+turns local bundled dependencies into a publishable manifest and restores the
+source manifest afterwards. The archive installs into the `dsh-cli` profile;
+it is not published to npm. If a submodule is missing in an existing checkout,
+run `git submodule update --init --recursive` before installing dependencies.
 
-`lib/types/` is ignored generated output. `pnpm build` recompiles it from a
-clean output directory and runs the build gates. **Git URL installs are not
-supported.** The source manifest keeps `@dsh-std/*` as workspace deps and
-`vendor/dsh-std` as a submodule. pnpm ≥11 also refuses git-hosted `prepare`
-scripts by default. Install the registry package instead:
-`dsh plugin --profile dsh-tui add dsh-cli` for a published
-release, or use the local tarball procedure above. Rendering,
-questionnaire, or tool-card changes also need the matching regression scripts.
+**Git URL package installs are unsupported.** The source manifest contains
+workspace and local links that require this build and pack step.
 
 ### Bump the version
 
-Set a new SemVer in the dsh-TUI checkout before building the archive. For
+Set a new SemVer in the dsh-cli checkout before building the archive. For
 example, replace `0.11.3` below with the intended version:
 
 ```sh
-cd ~/DIR/TO/dsh-TUI
+cd ~/DIR/TO/dsh-cli
 npm pkg set version=0.11.3
 pnpm install --lockfile-only --ignore-scripts
 git diff -- package.json pnpm-lock.yaml
@@ -253,7 +241,7 @@ lockfile too, then record its new submodule commit in this repository before
 creating a release. A clean checkout otherwise builds the old submodule
 revision. Rebuild and pack with the commands above; verify the archive name
 matches `package.json`. Publishing is separate: the release workflow runs only
-for a pushed `vX.Y.Z` tag that exactly matches the dsh-TUI package version.
+for a pushed `vX.Y.Z` tag that exactly matches the dsh-cli package version.
 
 ## Plugin Ecosystem
 
@@ -283,9 +271,9 @@ Everything, bilingual: [docs/README.md](docs/README.md).
   [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.en.md) before taking
   part.
 
-| WeChat group (dsh-TUI community 4) | QQ group (ID 572549239) |
+| WeChat group (dsh-cli community 4) | QQ group (ID 572549239) |
 | :---: | :---: |
-| <img src="screenshots/wechat-group.jpg" alt="dsh-TUI community WeChat group 4 QR code" width="200"> | <img src="screenshots/qq-group.png" alt="dsh-TUI community QQ group QR code" width="200"> |
+| <img src="screenshots/wechat-group.jpg" alt="dsh-cli community WeChat group 4 QR code" width="200"> | <img src="screenshots/qq-group.png" alt="dsh-cli community QQ group QR code" width="200"> |
 
 > The WeChat QR code expires roughly every 7 days; if it stops working, use
 > the QQ group (572549239) or open an issue to nudge us for a refresh.
@@ -294,7 +282,7 @@ Everything, bilingual: [docs/README.md](docs/README.md).
 
 > **Windows security warning:** the Windows profile defaults to `danger-full-access` with approval set to `never`, so tools have unrestricted access. Inspect and tighten the profile before starting next to sensitive credentials or in an untrusted repository.
 
-No sandbox of its own: dsh-TUI uses the active DSH profile's filesystem, shell, sandbox and approval policies. Permission presets come from the DSH `permissionPresets` registry.
+No sandbox of its own: dsh-cli uses the active DSH profile's filesystem, shell, sandbox and approval policies. Permission presets come from the DSH `permissionPresets` registry.
 
 Details: [Permissions and security boundary](docs/architecture.en.md#permissions-and-security-boundary).
 
@@ -312,9 +300,6 @@ Details: [Permissions and security boundary](docs/architecture.en.md#permissions
 Community, related projects, and companion tools built by friends:
 [see the links page](docs/links.md)
 
-## Stars
-
-[![Star History](https://raw.githubusercontent.com/ccch1mneyyy/dsh-TUI/bot-star-history/assets/star-history/star-history.png)](https://star-history.com/#ccch1mneyyy/dsh-TUI&Date)
 
 ## License
 

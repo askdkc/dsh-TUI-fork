@@ -12,9 +12,10 @@ import { DATA_DIR } from './utils/paths.js'
 // the compiled copy at lib/types/utils/shellQuote.js.
 export { shellQuote }
 
-const PACKAGE_NAME = 'dsh-cli'
+const PACKAGE_NAME = '@askdkc/dsh-cli'
+const PACKAGE_BASENAME = 'dsh-cli'
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org'
-const GITHUB_REPO = 'askdkc/dsh-TUI-fork'
+const GITHUB_REPO = 'askdkc/dsh-cli'
 const UPDATE_CHECK_TIMEOUT_MS = 4000
 const STANDALONE_DOWNLOAD_TIMEOUT_MS = 300000
 /**
@@ -214,7 +215,7 @@ async function fetchLatestVersion(registryBase: string): Promise<string | undefi
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), UPDATE_CHECK_TIMEOUT_MS)
   try {
-    const response = await fetch(`${registryBase}/${PACKAGE_NAME}/latest`, {
+    const response = await fetch(`${registryBase}/${encodeURIComponent(PACKAGE_NAME)}/latest`, {
       headers: { accept: 'application/json' },
       signal: controller.signal,
     })
@@ -930,7 +931,7 @@ function runProcess(
       resolve(code)
     }
     child.once('error', error => {
-      process.stderr.write(`dsh-tui: failed to run ${command}: ${error.message}\n`)
+      process.stderr.write(`dsh-cli: failed to run ${command}: ${error.message}\n`)
       finish(127)
     })
     child.once('close', code => finish(code ?? 1))
@@ -1417,7 +1418,7 @@ export function removeStalePackageInstall(profile: string): StaleInstallRemoval 
   }
   try {
     for (const name of readdirSync(scopeDir)) {
-      if (!name.startsWith(`${PACKAGE_NAME}_tmp_`) || !/^\d+_\d+$/.test(name.slice(PACKAGE_NAME.length + 5))) continue
+      if (!name.startsWith(`${PACKAGE_BASENAME}_tmp_`) || !/^\d+_\d+$/.test(name.slice(PACKAGE_BASENAME.length + 5))) continue
       const staging = join(scopeDir, name)
       try {
         rmSync(staging, { recursive: true, force: true })
@@ -1509,7 +1510,7 @@ export interface TuiUpdateOutcome {
  * Install-only half of `/update`: run `dsh plugin add`, refuse boot-deadlock
  * targets, verify the profile actually advanced, and migrate the global
  * launcher. No restart — `updateTuiAndRestart` layers the session-preserving
- * restart on top, and the `dsh-tui update` CLI stops here.
+ * restart on top, and the `dsh-cli update` CLI stops here.
  *
  * @param profile - The dsh profile to update.
  * @param targetVersion - Exact version from the preflight registry check, or
@@ -1536,16 +1537,16 @@ export async function updateTui(
     const checksumUrl = target.kind === 'update' ? target.checksumUrl : undefined
 
     if (downloadUrl === undefined || latestVersion === undefined) {
-      process.stderr.write('dsh-tui: 无法解析便携包更新下载地址\n')
+      process.stderr.write('dsh-cli: 无法解析便携包更新下载地址\n')
       return { code: 1, updatedFrom }
     }
 
-    process.stderr.write(`dsh-tui: 正在更新便携包 (${updatedFrom || 'current'} → ${latestVersion})…\n`)
+    process.stderr.write(`dsh-cli: 正在更新便携包 (${updatedFrom || 'current'} → ${latestVersion})…\n`)
     const result = await downloadAndReplaceStandaloneBinary(downloadUrl, msg => {
-      process.stderr.write(`dsh-tui: ${msg}\n`)
+      process.stderr.write(`dsh-cli: ${msg}\n`)
     }, checksumUrl)
     if (!result.success) {
-      process.stderr.write(`dsh-tui: 便携包更新失败: ${result.error ?? '未知错误'}\n`)
+      process.stderr.write(`dsh-cli: 便携包更新失败: ${result.error ?? '未知错误'}\n`)
       return { code: 1, updatedFrom }
     }
     return { code: 0, updatedFrom, installed: latestVersion }
@@ -1560,7 +1561,7 @@ export async function updateTui(
   const allowBuilds = ensureProfileAllowBuilds(profile)
   if (allowBuilds !== undefined && allowBuilds.added.length > 0) {
     process.stderr.write(
-      `dsh-tui: pre-seeded profile pnpm allowBuilds (${allowBuilds.added.join(', ')}) — ` +
+      `dsh-cli: pre-seeded profile pnpm allowBuilds (${allowBuilds.added.join(', ')}) — ` +
         'postinstall-only deps are explicitly ignored\n',
     )
   }
@@ -1570,7 +1571,7 @@ export async function updateTui(
   const sharpFilter = ensureProfileSharpPlatformFilter(profile)
   if (sharpFilter !== undefined && sharpFilter.changed) {
     process.stderr.write(
-      `dsh-tui: sharp platform filter updated (${sharpFilter.entries.length} foreign-platform patterns ignored) — ` +
+      `dsh-cli: sharp platform filter updated (${sharpFilter.entries.length} foreign-platform patterns ignored) — ` +
         `this profile's install keeps only the current platform's natives\n`,
     )
   }
@@ -1583,7 +1584,7 @@ export async function updateTui(
     const releaseAge = ensureProfileReleaseAgeExclude(profile, targetVersion)
     if (releaseAge !== undefined && releaseAge.changed) {
       process.stderr.write(
-        `dsh-tui: pre-seeded profile release-age exclusion (${PACKAGE_NAME}@${targetVersion}) — ` +
+        `dsh-cli: pre-seeded profile release-age exclusion (${PACKAGE_NAME}@${targetVersion}) — ` +
           'a freshly published version installs without the 24h supply-chain delay\n',
       )
     }
@@ -1595,7 +1596,7 @@ export async function updateTui(
   // command once — it succeeds on a clean second run, and only the
   // `_tmp_<pid>` race signature qualifies, never a real resolution error.
   if (updateCode !== 0 && isTransientUpdateFailure(updateStderr)) {
-    process.stderr.write('dsh-tui: transient pnpm failure (Windows tmp-rename race) — retrying once…\n')
+    process.stderr.write('dsh-cli: transient pnpm failure (Windows tmp-rename race) — retrying once…\n')
     updateStderr = ''
     updateCode = await runProcess(dsh, updateArgs, { shell: true, onStderr: capture })
   }
@@ -1610,7 +1611,7 @@ export async function updateTui(
     const removal = removeStalePackageInstall(profile)
     const stagingNote = removal.tmpDirs.length > 0 ? ` + ${removal.tmpDirs.length} staging dir(s)` : ''
     process.stderr.write(
-      `dsh-tui: pnpm tmp-rename race (${flavor}) — cleared the stale install ` +
+      `dsh-cli: pnpm tmp-rename race (${flavor}) — cleared the stale install ` +
         `(package dir: ${removal.packageDir}${stagingNote}) and rerunning the update…\n`,
     )
     updateStderr = ''
@@ -1627,7 +1628,7 @@ export async function updateTui(
   const installedNow = installedTuiVersion()
   if (installedNow !== undefined && installedNow !== updatedFrom && isBootDeadlockTarget(installedNow)) {
     process.stderr.write(
-      `dsh-tui: update landed on ${installedNow}, which can permanently deadlock boot under older launcher patches ` +
+      `dsh-cli: update landed on ${installedNow}, which can permanently deadlock boot under older launcher patches ` +
         `(#183/#307) — NOT restarting into it. Repair with:\n` +
         `  dsh plugin --profile ${profile} add ${PACKAGE_NAME}@latest\n` +
         `(if the mirror has not synced the latest release yet, retry later)\n`,
@@ -1648,7 +1649,7 @@ export async function updateTui(
     }
     if (installed !== targetVersion) {
       process.stderr.write(
-        `dsh-tui: update completed but the profile still runs ${installed ?? 'an unreadable version'} ` +
+        `dsh-cli: update completed but the profile still runs ${installed ?? 'an unreadable version'} ` +
           `(expected ${targetVersion}) — the profile is half-updated. Repair manually with:\n` +
           `  dsh plugin --profile ${profile} add ${PACKAGE_NAME}@${targetVersion}\n`,
       )
@@ -1661,7 +1662,7 @@ export async function updateTui(
   // time the outer copy can lag. Best-effort; the alignment warning stays as
   // the fallback when the copy is impossible.
   if (migrateGlobalLauncher()) {
-    process.stderr.write('dsh-tui: global launcher aligned to the delegating shim (no manual npm i -g needed anymore).\n')
+    process.stderr.write('dsh-cli: global launcher aligned to the delegating shim (no manual npm i -g needed anymore).\n')
   }
 
   return { code: 0, updatedFrom, installed: installedTuiVersion() }
@@ -1709,7 +1710,7 @@ export async function updateTuiAndRestart(
 }
 
 /**
- * Headless `dsh-tui update`: the `/update` decision flow (preflight, deadlock
+ * Headless `dsh-cli update`: the `/update` decision flow (preflight, deadlock
  * refusal, mirror-lag note, `--latest` fallback) followed by the install-only
  * half — no TUI, no restart. The bin launcher dynamic-imports this from the
  * profile copy's compiled lib.
@@ -1720,19 +1721,19 @@ export async function updateTuiAndRestart(
 export async function cliUpdate(profile: string): Promise<number> {
   const target = await resolveTuiUpdateTarget()
   if (target.kind === 'latest') {
-    process.stdout.write(`dsh-tui: already the latest version (${target.current}).\n`)
+    process.stdout.write(`dsh-cli: already the latest version (${target.current}).\n`)
     return 0
   }
   if (isStandaloneRuntime()) {
     if (target.kind === 'update') {
-      process.stdout.write(`dsh-tui: updating standalone binary ${target.current} → ${target.latest}…\n`)
+      process.stdout.write(`dsh-cli: updating standalone binary ${target.current} → ${target.latest}…\n`)
       const outcome = await updateTui(profile, target.latest)
       if (outcome.code === 0) {
-        process.stdout.write(`dsh-tui: standalone binary updated successfully (${outcome.updatedFrom || target.current} → ${outcome.installed}).\n`)
+        process.stdout.write(`dsh-cli: standalone binary updated successfully (${outcome.updatedFrom || target.current} → ${outcome.installed}).\n`)
       }
       return outcome.code
     }
-    process.stderr.write('dsh-tui: version check failed (offline or unreachable registry).\n')
+    process.stderr.write('dsh-cli: version check failed (offline or unreachable registry).\n')
     return 1
   }
   let targetVersion: string | undefined
@@ -1742,7 +1743,7 @@ export async function cliUpdate(profile: string): Promise<number> {
     // instead of installing it.
     if (isBootDeadlockTarget(target.latest)) {
       process.stderr.write(
-        `dsh-tui: refusing to update onto ${target.latest} — that range can permanently deadlock boot ` +
+        `dsh-cli: refusing to update onto ${target.latest} — that range can permanently deadlock boot ` +
           `(#183/#307). Latest on the official registry: ${target.authoritative ?? target.latest}. ` +
           `If you use a mirror, retry after it syncs.\n`,
       )
@@ -1750,13 +1751,13 @@ export async function cliUpdate(profile: string): Promise<number> {
     }
     if (target.authoritative !== undefined) {
       process.stdout.write(
-        `dsh-tui: note — your registry serves ${target.latest} while npmjs.org has ${target.authoritative} (mirror lag).\n`,
+        `dsh-cli: note — your registry serves ${target.latest} while npmjs.org has ${target.authoritative} (mirror lag).\n`,
       )
     }
     targetVersion = target.latest
-    process.stdout.write(`dsh-tui: updating ${target.current} → ${target.latest}…\n`)
+    process.stdout.write(`dsh-cli: updating ${target.current} → ${target.latest}…\n`)
   } else {
-    process.stdout.write('dsh-tui: version check failed (offline or unreadable install) — falling back to `--latest`.\n')
+    process.stdout.write('dsh-cli: version check failed (offline or unreadable install) — falling back to `--latest`.\n')
   }
   const outcome = await updateTui(profile, targetVersion)
   if (outcome.code === 0) {
@@ -1766,11 +1767,11 @@ export async function cliUpdate(profile: string): Promise<number> {
     // the DSH_TUI_UPDATED_FROM stamp on restart.
     if (targetVersion === undefined && outcome.installed !== undefined && outcome.installed === outcome.updatedFrom) {
       process.stdout.write(
-        `dsh-tui: version did not advance (still ${outcome.installed}) — already the latest, or the registry has no newer release yet.\n`,
+        `dsh-cli: version did not advance (still ${outcome.installed}) — already the latest, or the registry has no newer release yet.\n`,
       )
     } else {
       process.stdout.write(
-        `dsh-tui: updated ${outcome.updatedFrom || '(unknown)'} → ${outcome.installed ?? '(unreadable)'}.\n`,
+        `dsh-cli: updated ${outcome.updatedFrom || '(unknown)'} → ${outcome.installed ?? '(unreadable)'}.\n`,
       )
     }
   }
@@ -1924,7 +1925,7 @@ export async function restartTui(sessionId: string, options: TuiRestartOptions =
     child.once('error', error => {
       clearTimeout(timer)
       logRestartEvent(`${tag}: spawn error`, { message: error.message })
-      writeHandoffNotice(`dsh-tui: failed to spawn the restart: ${error.message}\n`)
+      writeHandoffNotice(`dsh-cli: failed to spawn the restart: ${error.message}\n`)
       resolve(127)
     })
     child.once('close', (code, signal) => {
@@ -1941,13 +1942,13 @@ export async function restartTui(sessionId: string, options: TuiRestartOptions =
         // and a vanished diagnosis is indistinguishable from silent failure.
         const suffix = childStderr.trim() === '' ? '' : `\n${childStderr.trimEnd()}`
         writeHandoffNotice(
-          `dsh-tui: restart child exited during the handoff (code ${code ?? 'null'}` +
+          `dsh-cli: restart child exited during the handoff (code ${code ?? 'null'}` +
             `${signal === undefined || signal === null ? '' : `, signal ${signal}`}) — the TUI did not come up.` +
             `${suffix}\nYour session is preserved; resume with the launcher or retry the command.\n`,
         )
       } else if (code !== 0 && code !== null) {
         // Late nonzero exit: the session ended abnormally, say so briefly.
-        writeHandoffNotice(`\ndsh-tui: the restarted session exited with code ${code}.\n`)
+        writeHandoffNotice(`\ndsh-cli: the restarted session exited with code ${code}.\n`)
       }
       resolve(code ?? 1)
     })

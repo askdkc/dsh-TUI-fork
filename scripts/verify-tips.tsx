@@ -131,7 +131,7 @@ for (const lang of ['zh', 'en'] as const) {
   const expectedTip = lang === 'zh' ? tip.zh : tip.en
   if (!plain.includes(expectedTip)) throw new Error(`logo (${lang}): random tip "${expectedTip}" missing`)
   if (!plain.includes('/tips')) throw new Error(`logo (${lang}): /tips pointer missing`)
-  if (!plain.includes('dsh-TUI')) throw new Error(`logo (${lang}): wordmark missing`)
+  if (!plain.includes('dsh-CLI')) throw new Error(`logo (${lang}): wordmark missing`)
   // This repo's tree is coherent (CI gate verify:contract), so the drift
   // notice must stay hidden without an explicit pin.
   if (plain.includes('⚠')) throw new Error(`logo (${lang}): drift notice shown on a coherent install`)

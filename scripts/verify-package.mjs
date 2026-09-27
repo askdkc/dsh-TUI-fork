@@ -16,6 +16,9 @@ if (report === undefined || !Array.isArray(report.files)) {
 }
 
 const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+if (manifest.bin?.['dsh-cli'] !== './bin/dsh-tui.js') {
+  throw new Error('package must expose the dsh-cli command through the launcher')
+}
 const packed = new Set(report.files.map(file => file.path.replaceAll('\\', '/')))
 const targets = new Set()
 

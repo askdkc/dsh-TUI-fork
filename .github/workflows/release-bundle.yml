@@ -38,6 +38,11 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - name: Install and compile the fork for local packaging
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm compile
+
       - name: Generate installer bundle
         run: node scripts/make-installer-bundle.mjs --out dist-bundle
 
@@ -80,4 +85,3 @@ jobs:
           [ -n "$tag" ] || { echo "no tag given"; exit 1; }
           echo "Uploading release artifacts -> $tag"
           gh release upload "$tag" dist-bundle/dsh-tui-setup.zip dist-standalone/* --clobber
-

@@ -12,7 +12,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const OWNER = 'dsh-cli'
+const OWNER = '@askdkc/dsh-cli'
+const PREVIOUS_OWNER = 'dsh-cli'
 const LEGACY_OWNER = '@deepseek-harness-tui/dsh-tui'
 const MARKER = '.dsh-tui-managed.json'
 
@@ -37,7 +38,7 @@ function readMarker(directory: string): ManagedMarker | undefined {
   try {
     const value = JSON.parse(readFileSync(join(directory, MARKER), 'utf8')) as Partial<ManagedMarker>
     if (
-      (value.owner === OWNER || value.owner === LEGACY_OWNER)
+      (value.owner === OWNER || value.owner === PREVIOUS_OWNER || value.owner === LEGACY_OWNER)
       && typeof value.preset === 'string'
       && typeof value.revision === 'string'
       && value.revision.length > 0

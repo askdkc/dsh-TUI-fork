@@ -116,7 +116,7 @@ async function renderHeader({ columns, whale, ready }) {
   await settle(() => {
     const raw = stdout.writes.join('')
     const plain = stripAnsi(raw)
-    return plain.includes('dsh-TUI') && plain.includes('whale-model-probe')
+    return plain.includes('dsh-CLI') && plain.includes('whale-model-probe')
       && (ready === undefined || ready(raw))
   })
   const raw = stdout.writes.join('')
@@ -147,20 +147,20 @@ check('setWhale(true) restores the default view', () => {
 const wideDefault = await renderHeader({ columns: 100, ready: raw => raw.includes(WHALE_OUTLINE) })
 check('wide LogoHeader shows whale by default', () => {
   assert.ok(wideDefault.raw.includes(WHALE_OUTLINE), 'whale palette marker missing')
-  assert.ok(wideDefault.plain.includes('dsh-TUI'), 'text logo missing')
+  assert.ok(wideDefault.plain.includes('dsh-CLI'), 'text logo missing')
 })
 
 const wideDisabled = await renderHeader({ columns: 100, whale: false })
 check('LogoHeader forwards whale=false while preserving the text logo', () => {
   assert.ok(!wideDisabled.raw.includes(WHALE_OUTLINE), 'whale palette marker still rendered')
-  assert.ok(wideDisabled.plain.includes('dsh-TUI'), 'text logo missing')
+  assert.ok(wideDisabled.plain.includes('dsh-CLI'), 'text logo missing')
   assert.ok(wideDisabled.plain.includes('whale-model-probe'), 'header details missing')
 })
 
 const narrowDefault = await renderHeader({ columns: 63 })
 check('narrow terminal hides whale but preserves the text logo', () => {
   assert.ok(!narrowDefault.raw.includes(WHALE_OUTLINE), 'whale should hide below 64 columns')
-  assert.ok(narrowDefault.plain.includes('dsh-TUI'), 'text logo missing')
+  assert.ok(narrowDefault.plain.includes('dsh-CLI'), 'text logo missing')
   assert.ok(narrowDefault.plain.includes('whale-model-probe'), 'header details missing')
 })
 

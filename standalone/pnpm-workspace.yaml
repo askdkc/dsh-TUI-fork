@@ -23,6 +23,3 @@ allowBuilds:
   koffi: true
   node-pty: true
   '@deepseek-ai/dsh-subprocess-local': true
-
-minimumReleaseAgeExclude:
-  - 'dsh-cli@0.11.2'

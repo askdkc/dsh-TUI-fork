@@ -17,6 +17,7 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  mkdtempSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -25,6 +26,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -39,44 +41,26 @@ const argTargets = process.argv.indexOf('--targets')
 const defaultTargets = 'node24-linux-x64,node24-linux-arm64,node24-win-x64,node24-macos-arm64,node24-macos-x64'
 const targets = argTargets >= 0 ? process.argv[argTargets + 1] : defaultTargets
 
-const standaloneDir = join(root, 'standalone')
+const temporaryDir = mkdtempSync(join(tmpdir(), 'dsh-cli-standalone-'))
+const standaloneDir = join(temporaryDir, 'standalone')
+mkdirSync(standaloneDir, { recursive: true })
+for (const name of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'entry.mjs', 'cacheGuard.cjs', 'pkg.config.json']) {
+  copyFileSync(join(root, 'standalone', name), join(standaloneDir, name))
+}
+process.on('exit', () => rmSync(temporaryDir, { recursive: true, force: true }))
 const entryFile = join(standaloneDir, 'entry.mjs')
 const pkgConfig = join(standaloneDir, 'pkg.config.json')
 const runtimeTar = join(standaloneDir, 'runtime.tar.gz')
 
 // ── 发布自助同步（一劳永逸）──────────────────────────────────────────
-// 本脚本在构建时把 standalone/package.json 的 dsh-tui 依赖 spec 改写为当前
-// 版本，而仓库提交的 pnpm-lock.yaml 仍解析上一个发行版——frozen install 会
-// 因 spec 失配直接失败；且 pnpm ≥11 的 minimumReleaseAge（默认 24h）会拒绝
-// 安装"刚发布"的自家包。以下三步让构建自愈，发版不再需要手工同步任何
-// standalone 文件：
-//   ① 临时关闭 minimumReleaseAge，用 --lockfile-only 只重解析被改写的
-//      spec（其余依赖沿用 lock 的既有解析，供应链面不放大）；
-//   ② 从重生成的 lockfile 解析自家包（dsh-tui / dsh-working-activity）的
-//      实际版本，写入精确版本的 minimumReleaseAgeExclude 条目（替换旧条目）；
-//   ③ 恢复配置后 --frozen-lockfile 严格按 lock 安装（#585 的供应链锁）。
-const FIRST_PARTY_PACKAGES = ['dsh-cli', 'dsh-working-activity']
+// 本脚本从本地源码打包 fork，standalone/package.json 指向这个 tarball；
+// 构建在临时目录运行，不改写仓库里的 manifest 或 lockfile。lockfile-only
+// 仍遵守 minimumReleaseAge，避免选到刚发布的第三方依赖；随后 frozen
+// install 严格使用生成的锁文件。
+const FIRST_PARTY_PACKAGES = ['dsh-working-activity']
 const workspaceYamlPath = join(standaloneDir, 'pnpm-workspace.yaml')
 const lockfilePath = join(standaloneDir, 'pnpm-lock.yaml')
-
-/**
- * Run `fn` with `minimumReleaseAge: <value>` temporarily forced in the
- * standalone workspace config; the original bytes are restored afterwards
- * (and on failure), including the key-absent case.
- */
-function withMinimumReleaseAge(value, fn) {
-  const original = readFileSync(workspaceYamlPath, 'utf8')
-  const existing = /^minimumReleaseAge:.*$/m.exec(original)
-  const modified = existing !== null
-    ? original.replace(existing[0], `minimumReleaseAge: ${value}`)
-    : `minimumReleaseAge: ${value}\n${original}`
-  writeFileSync(workspaceYamlPath, modified, 'utf8')
-  try {
-    return fn()
-  } finally {
-    writeFileSync(workspaceYamlPath, original, 'utf8')
-  }
-}
+const standalonePkgPath = join(standaloneDir, 'package.json')
 
 /**
  * Distinct resolved versions of each first-party package in the lockfile —
@@ -157,12 +141,25 @@ console.log(`============================================\n`)
 
 // 1. 同步版本号
 console.log('==> 同步版本号到 standalone 配置…')
-const standalonePkgPath = join(standaloneDir, 'package.json')
 if (existsSync(standalonePkgPath)) {
   const sPkg = JSON.parse(readFileSync(standalonePkgPath, 'utf8'))
-  if (sPkg.dependencies && sPkg.dependencies['dsh-cli']) {
-    sPkg.dependencies['dsh-cli'] = version
+  if (!existsSync(join(root, 'lib', 'types', 'index.js'))) {
+    throw new Error('Compile the fork before building standalone bundles: pnpm compile')
   }
+  const packJson = execFileSync(process.execPath, [
+    join(root, 'scripts', 'with-publish-manifest.mjs'),
+    'npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', temporaryDir,
+  ], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, npm_config_cache: join(temporaryDir, 'npm-cache') },
+  })
+  const packed = JSON.parse(packJson)[0]
+  if (packed?.name !== pkg.name || packed?.version !== version || !packed?.filename) {
+    throw new Error('Local fork tarball identity does not match package.json')
+  }
+  delete sPkg.dependencies['dsh-cli']
+  sPkg.dependencies[pkg.name] = `file:${join(temporaryDir, packed.filename)}`
   writeFileSync(standalonePkgPath, `${JSON.stringify(sPkg, null, 2)}\n`, 'utf8')
 }
 
@@ -179,12 +176,8 @@ if (existsSync(entryFile)) {
 console.log('==> 构建 runtime.tar.gz 运行时资源包…')
 rmSync(runtimeTar, { force: true })
 console.log('    正在同步 lockfile（仅重解析改写的 spec）…')
-// 版本号同步改写了 dsh-tui 的依赖 spec，提交的 lockfile 仍解析上一发行版；
-// --lockfile-only 只重解析该 spec（其余依赖沿用既有解析），且需临时关闭
-// minimumReleaseAge——刚发布的版本必然落在 24h 窗口内。失败即中止构建。
-withMinimumReleaseAge(0, () => {
-  execSync('pnpm install --lockfile-only', { cwd: standaloneDir, stdio: 'inherit' })
-})
+// 本地 tarball 改写了 fork 的依赖 spec；供应链年龄策略在解析时继续生效。
+execSync('pnpm install --lockfile-only', { cwd: standaloneDir, stdio: 'inherit' })
 const firstParty = firstPartyLockfileVersions()
 if (syncReleaseAgeExcludes(firstParty)) {
   const described = [...firstParty.entries()]
@@ -199,7 +192,7 @@ console.log('    正在执行 pnpm install…')
 // 构建重新解析依赖，被投毒的镜像/registry 能在构建机无感知换入恶意
 // 版本并打进发布产物）。lock 失配会直接失败，提示提交新的 lock 而非
 // 构建期静默重解析；上面的 lockfile-only 预同步保证 spec 与 lock 一致，
-// 刚发布自家包的 24h 门禁由精确版本豁免承接。
+// fork 本体使用本地 tarball，不需要 registry 年龄豁免。
 execSync('pnpm install --frozen-lockfile', { cwd: standaloneDir, stdio: 'inherit' })
 console.log('    正在打包 node_modules 到 runtime.tar.gz…')
 execFileSync('tar', ['-czf', runtimeTar, 'node_modules'], { cwd: standaloneDir, stdio: 'inherit' })
@@ -207,6 +200,8 @@ const tarStat = statSync(runtimeTar)
 console.log(`    [OK] runtime.tar.gz (${(tarStat.size / 1024 / 1024).toFixed(2)} MB)`)
 
 if (process.argv.includes('--skip-pkg')) {
+  mkdirSync(outDir, { recursive: true })
+  copyFileSync(runtimeTar, join(outDir, 'runtime.tar.gz'))
   console.log('\n[OK] --skip-pkg 指定，跳过 pkg 二进制编译。')
   process.exit(0)
 }

@@ -22,8 +22,8 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-const PACKAGE = 'dsh-cli'
-const PROFILE = 'dsh-tui'
+const PACKAGE = '@askdkc/dsh-cli'
+const PROFILE = 'dsh-cli'
 
 const checkOnly = process.argv.includes('--check')
 

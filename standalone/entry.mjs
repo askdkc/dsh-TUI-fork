@@ -61,7 +61,7 @@ const { ensureRuntime } = require('./cacheGuard.cjs')
 const TUI_VERSION = '0.11.2'
 const DSH_VERSION = '0.1.1-rc.2'
 const BUNDLE_ID = `tui-${TUI_VERSION}-dsh-${DSH_VERSION}`
-const PROFILE = 'dsh-tui'
+const PROFILE = 'dsh-cli'
 const archivePath = fileURLToPath(new URL('./runtime.tar.gz', import.meta.url))
 
 const cacheBase = resolve(
@@ -70,7 +70,7 @@ const cacheBase = resolve(
 )
 const runtimeRoot = join(cacheBase, BUNDLE_ID)
 const dshBin = join(runtimeRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
-const tuiRoot = join(runtimeRoot, 'node_modules', 'dsh-cli')
+const tuiRoot = join(runtimeRoot, 'node_modules', '@askdkc', 'dsh-cli')
 
 /**
  * Ensure the bundled runtime archive is unpacked into the cache directory.
@@ -85,7 +85,7 @@ async function ensureRuntimeReady() {
     extract: extractTar,
     requiredPaths: [
       'node_modules/@deepseek-ai/dsh/lib/bin.js',
-      'node_modules/dsh-cli/cordis.patch.yml',
+      'node_modules/@askdkc/dsh-cli/cordis.patch.yml',
     ],
     log: text => process.stderr.write(text),
   })
@@ -124,10 +124,10 @@ function ensureProfile() {
   writeFileSync(
     join(profileDir, 'package.json'),
     `${JSON.stringify({
-      name: 'dsh-profile-dsh-tui-standalone',
+      name: 'dsh-profile-dsh-cli-standalone',
       private: true,
       dependencies: {
-        'dsh-cli': TUI_VERSION,
+        '@askdkc/dsh-cli': TUI_VERSION,
       },
       dsh: {
         profile: {
@@ -158,4 +158,3 @@ process.env.DSH_TUI_STANDALONE_BINARY = process.execPath
 process.env.DSH_TUI_LAUNCHER_VERSION = TUI_VERSION
 process.argv = [process.execPath, dshBin, '--profile', PROFILE, ...process.argv.slice(2)]
 await import(pathToFileURL(dshBin).href)
-

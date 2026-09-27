@@ -3,7 +3,7 @@
  * verify-launcher.mjs — bin/dsh-tui.js 直达启动器回归（issue #108）。
  *
  * PATH 上放一个逐参数记录 argv 的 dsh stub（外加空 pnpm stub），覆盖：
- *   - 参数原样透传给 `dsh --profile dsh-tui`（含空格参数不拆分）
+ *   - 参数原样透传给 `dsh --profile dsh-cli`（含空格参数不拆分）
  *   - 残骸 profile（目录在、package.json 不可读）触发重新自举，且版本号
  *     与本包对齐
  *   - ERR_PNPM_ADDING_TO_ROOT 签名在 stdout（issue #239 / PR #241 回归）：
@@ -31,9 +31,9 @@ import { shellQuote } from '../lib/types/utils/shellQuote.js'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const bin = join(root, 'bin', 'dsh-tui.js')
 const ownVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-const PROFILE = 'dsh-tui'
-const PACKAGE = 'dsh-cli'
-const PKG_DIR = join('profiles', 'dsh-tui', 'node_modules', 'dsh-cli')
+const PROFILE = 'dsh-cli'
+const PACKAGE = '@askdkc/dsh-cli'
+const PKG_DIR = join('profiles', 'dsh-cli', 'node_modules', '@askdkc', 'dsh-cli')
 
 let failures = 0
 function check(name, ok) {
@@ -56,7 +56,7 @@ mkdirSync(stubDir, { recursive: true })
 // 成功路径模拟真实安装创建判定文件（DSH_STUB_PKG_VERSION），DSH_STUB_ADD_
 // NOCREATE=1 模拟 no-op 假成功（pnpm 对残缺 profile 的 already-up-to-date
 // 行为：报告成功、什么都不装）。
-writeFileSync(join(stubDir, 'dsh'), '#!/bin/sh\nfor a in "$@"; do printf \'<%s>\' "$a"; done >> "$DSH_STUB_LOG"\nprintf \'\\n\' >> "$DSH_STUB_LOG"\nif [ "$1" = "plugin" ]; then\n  c="$DSH_STUB_LOG.count"\n  n=$(cat "$c" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$c"\n  if [ "$n" -le "${DSH_STUB_ADD_FAILS:-0}" ]; then\n    [ -n "$DSH_STUB_ADD_SIG" ] && printf \'%s\\n\' "$DSH_STUB_ADD_SIG"\n    exit "${DSH_STUB_ADD_EXIT_CODE:-1}"\n  fi\n  if [ -z "$DSH_STUB_ADD_NOCREATE" ]; then\n    d="$DSH_HOME/profiles/dsh-tui/node_modules/dsh-cli"\n    mkdir -p "$d" && printf \'{"version":"%s"}\' "${DSH_STUB_PKG_VERSION:-0.0.0-stub}" > "$d/package.json"\n  fi\n  exit 0\nfi\nif [ "$1" = "--profile" ]; then exit "${DSH_STUB_EXIT:-0}"; fi\nexit 0\n')
+writeFileSync(join(stubDir, 'dsh'), '#!/bin/sh\nfor a in "$@"; do printf \'<%s>\' "$a"; done >> "$DSH_STUB_LOG"\nprintf \'\\n\' >> "$DSH_STUB_LOG"\nif [ "$1" = "plugin" ]; then\n  c="$DSH_STUB_LOG.count"\n  n=$(cat "$c" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$c"\n  if [ "$n" -le "${DSH_STUB_ADD_FAILS:-0}" ]; then\n    [ -n "$DSH_STUB_ADD_SIG" ] && printf \'%s\\n\' "$DSH_STUB_ADD_SIG"\n    exit "${DSH_STUB_ADD_EXIT_CODE:-1}"\n  fi\n  if [ -z "$DSH_STUB_ADD_NOCREATE" ]; then\n    d="$DSH_HOME/profiles/dsh-cli/node_modules/@askdkc/dsh-cli"\n    mkdir -p "$d" && printf \'{"version":"%s"}\' "${DSH_STUB_PKG_VERSION:-0.0.0-stub}" > "$d/package.json"\n  fi\n  exit 0\nfi\nif [ "$1" = "--profile" ]; then exit "${DSH_STUB_EXIT:-0}"; fi\nexit 0\n')
 writeFileSync(join(stubDir, 'pnpm'), '#!/bin/sh\nexit 0\n')
 chmodSync(join(stubDir, 'dsh'), 0o755)
 chmodSync(join(stubDir, 'pnpm'), 0o755)
@@ -66,7 +66,7 @@ chmodSync(join(stubDir, 'pnpm'), 0o755)
 if (isWin) {
   writeFileSync(
     join(stubDir, 'dsh.cmd'),
-    '@echo off\r\nnode -e "const fs=require(\'fs\');const a=process.argv.slice(1);fs.appendFileSync(process.env.DSH_STUB_LOG,a.map(v=>\'<\'+v+\'>\').join(\'\')+\'\\n\');if(a[0]===\'plugin\'){const c=process.env.DSH_STUB_LOG+\'.count\';let n=0;try{n=Number(fs.readFileSync(c,\'utf8\'))||0}catch(e){}n++;fs.writeFileSync(c,String(n));if(n<=Number(process.env.DSH_STUB_ADD_FAILS||0)){if(process.env.DSH_STUB_ADD_SIG)console.log(process.env.DSH_STUB_ADD_SIG);process.exit(Number(process.env.DSH_STUB_ADD_EXIT_CODE||1));}if(!process.env.DSH_STUB_ADD_NOCREATE){const d=process.env.DSH_HOME+\'/profiles/dsh-tui/node_modules/dsh-cli\';fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+\'/package.json\',JSON.stringify({version:process.env.DSH_STUB_PKG_VERSION||\'0.0.0-stub\'}));}process.exit(0);}process.exit(a[0]===\'--profile\'?Number(process.env.DSH_STUB_EXIT||0):0)" -- %*\r\n@exit /b %errorlevel%\r\n',
+    '@echo off\r\nnode -e "const fs=require(\'fs\');const a=process.argv.slice(1);fs.appendFileSync(process.env.DSH_STUB_LOG,a.map(v=>\'<\'+v+\'>\').join(\'\')+\'\\n\');if(a[0]===\'plugin\'){const c=process.env.DSH_STUB_LOG+\'.count\';let n=0;try{n=Number(fs.readFileSync(c,\'utf8\'))||0}catch(e){}n++;fs.writeFileSync(c,String(n));if(n<=Number(process.env.DSH_STUB_ADD_FAILS||0)){if(process.env.DSH_STUB_ADD_SIG)console.log(process.env.DSH_STUB_ADD_SIG);process.exit(Number(process.env.DSH_STUB_ADD_EXIT_CODE||1));}if(!process.env.DSH_STUB_ADD_NOCREATE){const d=process.env.DSH_HOME+\'/profiles/dsh-cli/node_modules/@askdkc/dsh-cli\';fs.mkdirSync(d,{recursive:true});fs.writeFileSync(d+\'/package.json\',JSON.stringify({version:process.env.DSH_STUB_PKG_VERSION||\'0.0.0-stub\'}));}process.exit(0);}process.exit(a[0]===\'--profile\'?Number(process.env.DSH_STUB_EXIT||0):0)" -- %*\r\n@exit /b %errorlevel%\r\n',
     'ascii',
   )
   writeFileSync(join(stubDir, 'pnpm.cmd'), '@echo off\r\n@exit /b 0\r\n', 'ascii')
@@ -122,8 +122,8 @@ setProfileVersion(undefined) // 目录在、package.json 不可读
 resetStubLog()
 let r = runBin([])
 check('bootstrap: broken profile triggers reinstall', stubCalls().some(c => c.includes('<plugin>') && c.includes('<add>')))
-check('bootstrap: pinned to the launcher version', stubCalls().some(c => c.includes(`<dsh-cli@${ownVersion}>`)))
-check('bootstrap: launches after reinstall', stubCalls().at(-1) === '<--profile><dsh-tui>')
+check('bootstrap: pinned to the launcher version', stubCalls().some(c => c.includes(`<@askdkc/dsh-cli@${ownVersion}>`)))
+check('bootstrap: launches after reinstall', stubCalls().at(-1) === '<--profile><dsh-cli>')
 check('bootstrap: exits 0', r.status === 0)
 
 // --- 1.5 ERR_PNPM_ADDING_TO_ROOT 签名在 stdout（issue #239 / PR #241 回归）：
@@ -141,7 +141,7 @@ const launchCalls = () => stubCalls().filter(c => c.startsWith('<--profile>'))
 check('root-refusal: retries exactly once with -w', addCalls().length === 2 && addCalls()[1].includes('<-w>'))
 check('root-refusal: retry notice printed', r.stdout.includes('retrying with -w'))
 check('root-refusal: captured refusal replayed to the user', r.stderr.includes('ERR_PNPM_ADDING_TO_ROOT'))
-check('root-refusal: launches after the retry', stubCalls().at(-1) === '<--profile><dsh-tui>' && r.status === 0)
+check('root-refusal: launches after the retry', stubCalls().at(-1) === '<--profile><dsh-cli>' && r.status === 0)
 
 // --- 1.6 无签名的失败：不盲目 -w 重试，按普通安装失败处理 -------------
 setProfileVersion(undefined)
@@ -168,7 +168,7 @@ check('no-op install: Chinese message', r.stderr.includes('仍不可读'))
 setProfileVersion(ownVersion)
 resetStubLog()
 r = runBin(['foo', 'a b'])
-check('passthrough: args forwarded after --profile', stubCalls().at(-1) === '<--profile><dsh-tui><foo><a b>')
+check('passthrough: args forwarded after --profile', stubCalls().at(-1) === '<--profile><dsh-cli><foo><a b>')
 check('passthrough: silent when aligned', r.stderr.trim() === '')
 
 // --- 2.5 profile 非零退出：保留退出码与可直接复现的命令（须在版本对齐时测，
@@ -177,7 +177,7 @@ resetStubLog()
 r = runBin([], { DSH_STUB_EXIT: '42', DSH_TUI_LANG: 'en' })
 check('nonzero exit: launcher preserves the child status', r.status === 42)
 check('nonzero exit: stderr names the status', r.stderr.includes('profile exited with code 42'))
-check('nonzero exit: stderr gives the direct command', r.stderr.includes('dsh --profile dsh-tui'))
+check('nonzero exit: stderr gives the direct command', r.stderr.includes('dsh --profile dsh-cli'))
 r = runBin([], { DSH_STUB_EXIT: '42', DSH_TUI_LANG: 'zh' })
 check('nonzero exit: Chinese message names the status', r.stderr.includes('退出码 42'))
 
@@ -198,7 +198,7 @@ check(
   'forward skew: never tells user to update the profile again',
   !r.stderr.includes('/update') && !r.stderr.includes(`plugin --profile ${PROFILE}`),
 )
-check('forward skew: still launches', stubCalls().at(-1) === '<--profile><dsh-tui>' && r.status === 0)
+check('forward skew: still launches', stubCalls().at(-1) === '<--profile><dsh-cli>' && r.status === 0)
 
 // --- 3.5 反向错位（profile 更旧，issue #183）：拒绝启动并给出对齐命令 --------
 // dsh CLI 的 bundle patch 取自启动器拷贝、插件模块取自 profile 拷贝；启动器
@@ -209,7 +209,7 @@ resetStubLog()
 r = runBin([])
 check('reverse skew: refuses to launch', r.status === 1 && !stubCalls().some(c => c.includes('<--profile>')))
 check('reverse skew: names both versions', r.stderr.includes('v0.0.0') && r.stderr.includes(`v${ownVersion}`))
-check('reverse skew: prints the align command', r.stderr.includes(`add dsh-cli@${ownVersion}`))
+check('reverse skew: prints the align command', r.stderr.includes(`add @askdkc/dsh-cli@${ownVersion}`))
 r = runBin([], { DSH_TUI_LANG: 'en' })
 check('reverse skew: English message', r.stderr.includes('cannot start'))
 
@@ -228,7 +228,7 @@ resetStubLog()
 r = runBin([])
 check(
   'patch skew: older profile still launches',
-  stubCalls().at(-1) === '<--profile><dsh-tui>' && r.status === 0,
+  stubCalls().at(-1) === '<--profile><dsh-cli>' && r.status === 0,
 )
 check(
   'patch skew: tells user to align the profile to the launcher',
@@ -264,7 +264,7 @@ setProfileVersion(ownVersion)
 placeProfileBin()
 resetStubLog()
 r = runBin(['foo', 'a b'], {}, { delegating: true })
-check('shim: delegates argv through to the profile copy', stubCalls().at(-1) === '<--profile><dsh-tui><foo><a b>')
+check('shim: delegates argv through to the profile copy', stubCalls().at(-1) === '<--profile><dsh-cli><foo><a b>')
 check('shim: silent + exit 0 when aligned', r.status === 0 && r.stderr.trim() === '')
 
 // 反向错位（profile 更旧，issue #183）必须在「瘦壳委托」路径上拦住：上面 3.5
@@ -281,7 +281,7 @@ check(
   r.status === 1 && !stubCalls().some(c => c.includes('<--profile>')),
 )
 check('shim reverse skew: names both versions', r.stderr.includes('v0.0.0') && r.stderr.includes(`v${ownVersion}`))
-check('shim reverse skew: prints the align command', r.stderr.includes(`add dsh-cli@${ownVersion}`))
+check('shim reverse skew: prints the align command', r.stderr.includes(`add @askdkc/dsh-cli@${ownVersion}`))
 
 setProfileVersion(undefined)
 placeProfileBin() // add stub 只创建 package.json——bin 是预放好的“已安装”产物
@@ -290,7 +290,7 @@ r = runBin([], {}, { delegating: true })
 check(
   'shim: bootstraps a broken profile before delegating',
   stubCalls().some(c => c.includes('<plugin>') && c.includes('<add>'))
-    && stubCalls().at(-1) === '<--profile><dsh-tui>'
+    && stubCalls().at(-1) === '<--profile><dsh-cli>'
     && r.status === 0,
 )
 
@@ -313,7 +313,7 @@ r = runBin([], envNoDsh)
 check('i18n: default (unset) prints Chinese', r.stderr.includes('未检测到 dsh CLI'))
 
 // --- 6. shellQuote 单元（win32 shell:true 路径的转义规则）---------------------
-check('shellQuote: plain tokens pass through', shellQuote(['plugin', '--profile', 'dsh-tui']).join(' ') === 'plugin --profile dsh-tui')
+check('shellQuote: plain tokens pass through', shellQuote(['plugin', '--profile', 'dsh-cli']).join(' ') === 'plugin --profile dsh-cli')
 check('shellQuote: spaces get quoted', shellQuote(['a b']).join(' ') === '"a b"')
 check('shellQuote: embedded quotes are doubled', shellQuote(['a"b c']).join(' ') === '"a""b c"')
 

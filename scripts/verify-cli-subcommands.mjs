@@ -91,7 +91,7 @@ for (const alias of ['version', '--version', '-v']) {
 }
 {
   // 伪造已安装 profile：version 应打印 profile 版本而不是缺失标记。
-  const pkgDir = join(emptyHome, 'profiles', 'dsh-tui', 'node_modules', 'dsh-cli')
+  const pkgDir = join(emptyHome, 'profiles', 'dsh-cli', 'node_modules', '@askdkc', 'dsh-cli')
   mkdirSync(pkgDir, { recursive: true })
   writeFileSync(join(pkgDir, 'package.json'), '{"version":"1.2.3-stub"}')
   const r = run(['version'])
@@ -106,9 +106,9 @@ for (const alias of ['version', '--version', '-v']) {
   // 驱动，profile 里只放 stub lib，断言：控制权交给 cliUpdate、退出码
   // 透传、且没有发生委托（stub bin 不存在，委托会 delegateFailed）。
   const updateHome = join(tmp, 'update-home')
-  const pkgDir = join(updateHome, 'profiles', 'dsh-tui', 'node_modules', 'dsh-cli')
+  const pkgDir = join(updateHome, 'profiles', 'dsh-cli', 'node_modules', '@askdkc', 'dsh-cli')
   mkdirSync(join(pkgDir, 'lib', 'types'), { recursive: true })
-  writeFileSync(join(pkgDir, 'package.json'), '{"name":"dsh-cli","version":"9.9.9","type":"module"}')
+  writeFileSync(join(pkgDir, 'package.json'), '{"name":"@askdkc/dsh-cli","version":"9.9.9","type":"module"}')
   writeFileSync(
     join(pkgDir, 'lib', 'types', 'update.js'),
     'export async function cliUpdate(profile) { console.log(`stub-cli-update profile=${profile}`); return 42 }\n',
@@ -120,7 +120,7 @@ for (const alias of ['version', '--version', '-v']) {
   const r = run(['update'], { PATH: stubDir, DSH_HOME: updateHome })
   check(
     'update 顶层交给 profile lib 的 cliUpdate 并透传退出码（不经委托）',
-    r.status === 42 && r.stdout.includes('stub-cli-update profile=dsh-tui'),
+    r.status === 42 && r.stdout.includes('stub-cli-update profile=dsh-cli'),
     `status=${r.status}`,
   )
   // 旧版编译产物：update.js 存在但没有 cliUpdate 导出（半更新残留）——
@@ -129,7 +129,7 @@ for (const alias of ['version', '--version', '-v']) {
   const r2 = run(['update'], { PATH: stubDir, DSH_HOME: updateHome })
   check(
     '旧版 lib 无 cliUpdate 导出时给手工升级指引并退出 1',
-    r2.status === 1 && r2.stderr.includes('dsh plugin --profile dsh-tui add'),
+    r2.status === 1 && r2.stderr.includes('dsh plugin --profile dsh-cli add'),
     `status=${r2.status}`,
   )
   // lib 整体缺失（未构建源码/损坏安装）：同一条指引。
@@ -137,7 +137,7 @@ for (const alias of ['version', '--version', '-v']) {
   const r3 = run(['update'], { PATH: stubDir, DSH_HOME: updateHome })
   check(
     'lib 缺失时 update 给手工升级指引并退出 1',
-    r3.status === 1 && r3.stderr.includes('dsh plugin --profile dsh-tui add'),
+    r3.status === 1 && r3.stderr.includes('dsh plugin --profile dsh-cli add'),
     `status=${r3.status}`,
   )
   // 无 dsh：update 需要 dsh（README 如实声明），止于预检。
@@ -167,9 +167,9 @@ for (const alias of ['version', '--version', '-v']) {
       // 显式借系统路径，否则 stub 在自己的沙箱里连目录都建不出来。
       'PATH=/usr/bin:/bin\n' +
       'if [ "$1" = "plugin" ]; then\n' +
-      '  d="$DSH_HOME/profiles/dsh-tui/node_modules/dsh-cli"\n' +
+      '  d="$DSH_HOME/profiles/dsh-cli/node_modules/@askdkc/dsh-cli"\n' +
       '  mkdir -p "$d/lib/types"\n' +
-      '  printf \'{"name":"dsh-cli","version":"9.9.9","type":"module"}\' > "$d/package.json"\n' +
+      '  printf \'{"name":"@askdkc/dsh-cli","version":"9.9.9","type":"module"}\' > "$d/package.json"\n' +
       '  printf \'export async function cliUpdate(profile) { console.log(`boot-cli-update profile=${profile}`); return 0 }\' > "$d/lib/types/update.js"\n' +
       'fi\nexit 0\n',
   )
@@ -177,7 +177,7 @@ for (const alias of ['version', '--version', '-v']) {
   ;(await import('node:fs')).chmodSync(join(bootStub, 'dsh'), 0o755)
   ;(await import('node:fs')).chmodSync(join(bootStub, 'pnpm'), 0o755)
   const r = run(['update'], { PATH: bootStub, DSH_HOME: bootHome })
-  check('空 profile 时 update 先自举再 import profile lib', r.status === 0 && r.stdout.includes('boot-cli-update profile=dsh-tui'), `status=${r.status}`)
+  check('空 profile 时 update 先自举再 import profile lib', r.status === 0 && r.stdout.includes('boot-cli-update profile=dsh-cli'), `status=${r.status}`)
 }
 
 // --- doctor -------------------------------------------------------------------

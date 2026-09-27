@@ -1,10 +1,10 @@
 #!/bin/sh
-# dsh-TUI 一键安装（npm 版）。
+# dsh-cli 本地 tarball 安装。
 # 走官方 dsh CLI 的 profile 插件机制：`add` 自动初始化 profile（首层
 # dsh-base），pnpm 安装后按 dsh.bundle.patch 元数据把本包追加为 bundle
 # 层；本包的 patch 会一并 insert 工作状态行（dsh-working-activity，作为
 # npm 依赖自动带入），一条命令全部就绪。
-# 无需 DSH 源码快照，无需 workspace 链接。
+# 先按 README 构建并打包本 fork，再把 tarball 路径作为参数传入。
 set -eu
 
 if ! command -v dsh >/dev/null 2>&1; then
@@ -19,14 +19,19 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 1
 fi
 
-dsh plugin --profile dsh-tui add dsh-cli
+if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+  echo "用法：sh install.sh /path/to/askdkc-dsh-cli-<version>.tgz" >&2
+  exit 2
+fi
+
+dsh plugin --profile dsh-cli add "$1"
 echo
-echo "安装完成。启动：dsh --profile dsh-tui"
-echo "Windows 也可以用仓库根目录的 dsh-tui.cmd（--resume 恢复上次会话）。"
+echo "安装完成。启动：dsh --profile dsh-cli"
+echo "全局安装本包后也可运行 dsh-cli。"
 echo
 echo "注意：不要再对同一 profile 单独 add dsh-working-activity——它已随"
-echo "dsh-tui 的补丁层自动挂载，重复 add 会产生重复行。想调参（如"
-echo "publishIntervalMs）在 \$DSH_HOME/profiles/dsh-tui/cordis.patch.yml 按 id 覆盖："
+echo "dsh-cli 的补丁层自动挂载，重复 add 会产生重复行。想调参（如"
+echo "publishIntervalMs）在 \$DSH_HOME/profiles/dsh-cli/cordis.patch.yml 按 id 覆盖："
 echo "  - id: working-activity"
 echo "    config:"
 echo "      publishIntervalMs: 500"

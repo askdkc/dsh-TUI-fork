@@ -22,12 +22,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/askdkc/dsh-TUI-fork.git"
+    "url": "https://github.com/askdkc/dsh-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/askdkc/dsh-TUI-fork/issues"
+    "url": "https://github.com/askdkc/dsh-cli/issues"
   },
-  "homepage": "https://github.com/askdkc/dsh-TUI-fork#readme",
+  "homepage": "https://github.com/askdkc/dsh-cli#readme",
   "packageManager": "pnpm@11.21.0",
   "publishConfig": {
     "access": "public"
@@ -39,6 +39,7 @@
     "#dsh-ecosystem-spec/tui-contributions": "./dsh-ecosystem-spec/protocols/tui-contributions.js"
   },
   "bin": {
+    "dsh-cli": "./bin/dsh-tui.js",
     "dsh-tui": "./bin/dsh-tui.js",
     "dst": "./bin/dsh-tui.js"
   },
