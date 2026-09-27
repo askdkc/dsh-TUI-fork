@@ -5,7 +5,7 @@
  * normalized here. Tool results surface as user lines with machine content
  * and are skipped (their `content` is an array of tool_result blocks).
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/claude-code
+ * @module dsh-cli/migrate/adapters/claude-code
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'

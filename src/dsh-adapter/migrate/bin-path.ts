@@ -10,7 +10,7 @@
  * Probing upward for `bin/dsh-tui.js` matches both layouts without knowing
  * which one we are in — the same spirit as src/update.ts's manifest walk.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/bin-path
+ * @module dsh-cli/migrate/bin-path
  */
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'

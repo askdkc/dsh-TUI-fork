@@ -1,4 +1,4 @@
-// Types-only entry (`@deepseek-harness-tui/dsh-tui/api`): every plugin-facing
+// Types-only entry (`dsh-cli/api`): every plugin-facing
 // seam type from one import, without pulling any runtime module — plugin
 // authors can type-check against the TUI surface with `tsc` alone.
 //

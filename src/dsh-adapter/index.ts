@@ -4,7 +4,7 @@
  * `Config`/`apply`) at the package entry module and delegates
  * `apply` through a dynamic import so entry-scanning tooling and the Loader
  * resolve a plain `.ts` module.
- * @module @deepseek-harness-tui/dsh-tui
+ * @module dsh-cli
  */
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'

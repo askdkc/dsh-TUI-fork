@@ -77,8 +77,8 @@ const { updateTuiAndRestart } = await import('../lib/types/update.js')
 
 const EEXIST_STDERR =
   "ERR_PNPM_EEXIST  EEXIST: file already exists, rename " +
-  "'/root/.dsh/profiles/dsh-tui/node_modules/@deepseek-harness-tui/dsh-tui/node_modules' " +
-  "-> '/root/.dsh/profiles/dsh-tui/node_modules/@deepseek-harness-tui/dsh-tui_tmp_2424672_1/node_modules'"
+  "'/root/.dsh/profiles/dsh-tui/node_modules/dsh-cli/node_modules' " +
+  "-> '/root/.dsh/profiles/dsh-tui/node_modules/dsh-cli_tmp_2424672_1/node_modules'"
 const TRANSIENT_STDERR =
   "[ERR_PNPM_ENOENT] [importPackage D:\\p\\node_modules\\@deepseek-harness-tui\\dsh-tui] " +
   "ENOENT: no such file or directory, scandir 'D:\\p\\dsh-tui_tmp_40044_1\\node_modules'"
@@ -126,17 +126,17 @@ function makeScenario(name, plan) {
   }
 
   // Profile layout with the stale install + leftover staging (#479 shape).
-  const scope = join(dshHome, 'profiles', 'dsh-tui', 'node_modules', '@deepseek-harness-tui')
-  const stalePkg = join(scope, 'dsh-tui')
+  const scope = join(dshHome, 'profiles', 'dsh-tui', 'node_modules')
+  const stalePkg = join(scope, 'dsh-cli')
   mkdirSync(join(stalePkg, 'lib'), { recursive: true })
-  writeFileSync(join(stalePkg, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: '0.8.7' }))
-  mkdirSync(join(scope, 'dsh-tui_tmp_2424672_1'))
-  writeFileSync(join(scope, 'dsh-tui_tmp_2424672_1', 'leftover'), 'x')
+  writeFileSync(join(stalePkg, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: '0.8.7' }))
+  mkdirSync(join(scope, 'dsh-cli_tmp_2424672_1'))
+  writeFileSync(join(scope, 'dsh-cli_tmp_2424672_1', 'leftover'), 'x')
   // Neighbors that must survive every recovery.
   mkdirSync(join(scope, 'unrelated-pkg'))
   mkdirSync(join(scope, 'other_tmp_999_1'))
 
-  return { name, dir, fakeDir, dshHome, scope, stalePkg, staging: join(scope, 'dsh-tui_tmp_2424672_1') }
+  return { name, dir, fakeDir, dshHome, scope, stalePkg, staging: join(scope, 'dsh-cli_tmp_2424672_1') }
 }
 
 async function runScenario(scenario, sessionId) {

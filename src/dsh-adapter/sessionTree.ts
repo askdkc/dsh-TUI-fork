@@ -14,7 +14,7 @@ export type { SessionTreeData, TreeNode, TreeEntry, TreeEntryKind, SessionTreeMe
  * Pure module: no Ink, no channel state — channel.ts gathers the logs, this
  * file shapes them. Rendering lives in screens/SessionTree.tsx.
  *
- * @module @deepseek-harness-tui/dsh-tui/sessionTree
+ * @module dsh-cli/sessionTree
  */
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { isCompactionCheckpointSource, toolResultPayload } from './compat/messages.js'

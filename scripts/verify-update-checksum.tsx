@@ -101,12 +101,12 @@ const MANIFEST_STREAM_CHUNKS = 128 // 总量 2MB，注入上限 64KB → 中断�
 const realAssetBytes = makeAssetArchive('legit-new-binary\n')
 const evilAssetBytes = makeAssetArchive('evil-tampered-binary\n')
 const realDigest = createHash('sha256').update(realAssetBytes).digest('hex')
-const ASSET_NAME = 'dsh-tui-standalone-linux-x64.tar.gz'
+const ASSET_NAME = (updateModule.getStandaloneAssetName as () => string)()
 
 const server = http.createServer(async (req, res) => {
   const url = req.url ?? ''
   // 注意：fetchGithubLatestRelease 请求的是 `<apiBaseUrl>/repos/<repo>/releases/latest`。
-  if (url === '/repos/ccch1mneyyy/dsh-TUI/releases/latest') {
+  if (url === '/repos/askdkc/dsh-TUI-fork/releases/latest') {
     const assets: Array<Record<string, string>> = [
       { name: ASSET_NAME, browser_download_url: `http://127.0.0.1:${serverPort()}/asset` },
     ]
@@ -375,8 +375,8 @@ if (typeof downloadFn === 'function') {
   if (typeof resolveTarget === 'function' && typeof downloadFn === 'function') {
     process.env.DSH_TUI_STANDALONE = '1'
     process.env.NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org'
-    const FALLBACK_DOWNLOAD = `https://github.com/ccch1mneyyy/dsh-TUI/releases/download/v9.9.9/${ASSET_NAME}`
-    const FALLBACK_SUMS = 'https://github.com/ccch1mneyyy/dsh-TUI/releases/download/v9.9.9/SHA256SUMS'
+    const FALLBACK_DOWNLOAD = `https://github.com/askdkc/dsh-TUI-fork/releases/download/v9.9.9/${ASSET_NAME}`
+    const FALLBACK_SUMS = 'https://github.com/askdkc/dsh-TUI-fork/releases/download/v9.9.9/SHA256SUMS'
 
     let manifestStatus = 200
     let fallbackAssetTampered = false

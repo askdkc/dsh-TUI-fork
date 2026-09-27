@@ -108,7 +108,7 @@ Afterwards:
   [Getting started](getting-started.en.md)):
 
   ```sh
-  npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+  npm install -g @deepseek-ai/dsh dsh-cli
   ```
 
 - `DEEPSEEK_API_KEY` for running models (in the terminal environment or the

@@ -2,7 +2,7 @@
  * Small helpers shared by the plugin runtime verification batteries.
  *
  * These are repository-internal only. The public
- * `@deepseek-harness-tui/dsh-tui/test-utils` subpath has been removed because
+ * `dsh-cli/test-utils` subpath has been removed because
  * these helpers mount REAL cordis fibers and inject deterministic activation
  * IDs through the test admission token; they are not a production public API.
  * Ecosystem plugin authors should copy the approach into their own test

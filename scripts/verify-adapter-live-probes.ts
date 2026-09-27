@@ -202,7 +202,7 @@ async function main(): Promise<void> {
     )
     let deepResolutionError: unknown
     try {
-      import.meta.resolve('@deepseek-harness-tui/dsh-tui/lib/adapter/kernel/host-probe-access.js')
+      import.meta.resolve('dsh-cli/lib/adapter/kernel/host-probe-access.js')
     } catch (error) {
       deepResolutionError = error
     }

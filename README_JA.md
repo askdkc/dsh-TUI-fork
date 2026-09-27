@@ -7,12 +7,12 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@deepseek-harness-tui/dsh-tui"><img alt="npm" src="https://img.shields.io/npm/v/@deepseek-harness-tui/dsh-tui?style=flat-square&color=4b6fff"></a>
-  <a href="https://github.com/ccch1mneyyy/dsh-TUI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ccch1mneyyy/dsh-TUI/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm" src="https://img.shields.io/npm/v/dsh-cli?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
   <img alt="公開ベータ版" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
-  <a href="https://github.com/ccch1mneyyy/dsh-TUI/stargazers"><img alt="GitHub スター数" src="https://img.shields.io/github/stars/ccch1mneyyy/dsh-TUI?style=flat-square&color=4b6fff"></a>
-  <a href="https://www.npmjs.com/package/@deepseek-harness-tui/dsh-tui"><img alt="npm ダウンロード数" src="https://img.shields.io/npm/dm/@deepseek-harness-tui/dsh-tui?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-TUI-fork/stargazers"><img alt="GitHub スター数" src="https://img.shields.io/github/stars/askdkc/dsh-TUI-fork?style=flat-square&color=4b6fff"></a>
+  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm ダウンロード数" src="https://img.shields.io/npm/dm/dsh-cli?style=flat-square&color=4b6fff"></a>
 </p>
 
 # dsh-TUI
@@ -92,16 +92,16 @@ schema に互換性がない場合、編集できない設定画面を表示す�
 以前の DSH では従来の設定 scope を使います。
 
 ```sh
-# Install the CLI and this plugin globally (ships the dsh-tui command)
-npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+# CLI とプラグインをグローバルにインストール（dsh-tui コマンドが使えるようになります）
+npm install -g @deepseek-ai/dsh dsh-cli
 
-# Start (first run auto-initializes the profile; needs pnpm)
+# 起動（初回は profile を自動作成します。pnpm が必要です）
 dsh-tui
-# Both `dsh-tui` and the short `dst` alias start the same TUI.
+# dsh-tui と短縮名 dst は、どちらも同じ TUI を起動します。
 dst
 ```
 
-手動でインストールする場合は `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui` を実行します。
+手動でインストールする場合は `dsh plugin --profile dsh-tui add dsh-cli` を実行します。
 リポジトリの `sh install.sh` でも同じ操作を行い、必要なコマンドを確認できます。
 インストール後は `dsh-tui` と `dsh --profile dsh-tui` が同じ TUI を起動します。
 
@@ -134,9 +134,9 @@ Claude Code、Codex、OMP、zcode、Grok Build の会話履歴を DSH のセッ�
 取り込み後は、元の作業ディレクトリから `/resume` で会話を探して再開できます。
 
 ```sh
-dsh-tui migrate                # list importable counts per agent (writes nothing)
-dsh-tui migrate claude-code    # import every Claude Code conversation (likewise codex / omp / zcode / grok-build)
-dsh-tui migrate codex --dry-run  # preview what would land, write nothing
+dsh-tui migrate                  # エージェント別の取り込み可能件数を表示（書き込みなし）
+dsh-tui migrate claude-code      # Claude Code の会話をすべて取り込む（codex / omp / zcode / grok-build も指定可）
+dsh-tui migrate codex --dry-run  # 取り込み内容を確認（書き込みなし）
 ```
 
 - **元データは読み取り専用**：他のエージェントのローカル保存領域は読み取るだけです。取り込んだデータは公式の `JsonlSessionPersistence` 経由で保存するため、通常のセッションとして開き、会話を続けられます。
@@ -214,7 +214,7 @@ node scripts/with-publish-manifest.mjs \
   npm pack \
   --ignore-scripts
 
-TARBALL="$PWD/deepseek-harness-tui-dsh-tui-$(node -p "require('./package.json').version").tgz"
+TARBALL="$PWD/dsh-cli-$(node -p "require('./package.json').version").tgz"
 cd ~/DIR/TO/deepseek-harness
 pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
@@ -226,7 +226,7 @@ pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 
 `lib/types/` は Git 管理外の生成物です。`pnpm build` は古い出力を消して再コンパイルし、ビルド時のチェックも実行します。
 **Git URL からのインストールには対応していません。** ソースの manifest は `@dsh-std/*` を workspace の依存関係として扱い、`vendor/dsh-std` は submodule です。pnpm ≥11 は Git 上の `prepare` スクリプトも既定で拒否します。
-公開済みの版は `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui` でインストールし、ローカルビルドは上記の tarball を使ってください。
+公開済みの版は `dsh plugin --profile dsh-tui add dsh-cli` でインストールし、ローカルビルドは上記の tarball を使ってください。
 描画、質問フォーム、ツールカードを変更した場合は、対応する回帰スクリプトも実行する必要があります。
 
 ### バージョンを上げる
@@ -289,7 +289,7 @@ dsh-TUI 独自の sandbox はありません。実行中の DSH profile のフ�
 
 友人が作ったコミュニティや関連プロジェクト、連携ツールは[リンク集](docs/links.md)を参照してください。
 
-## Stars
+## スター履歴
 
 [![Star History](https://raw.githubusercontent.com/ccch1mneyyy/dsh-TUI/bot-star-history/assets/star-history/star-history.png)](https://star-history.com/#ccch1mneyyy/dsh-TUI&Date)
 

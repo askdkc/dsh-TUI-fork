@@ -20,7 +20,7 @@
 
 ```sh
 # 全局安装 CLI + 本插件（插件自带 dsh-tui 直达命令）
-npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+npm install -g @deepseek-ai/dsh dsh-cli
 
 # 启动（首次运行自动初始化 dsh-tui profile，需 pnpm）
 dsh-tui
@@ -496,7 +496,7 @@ dsh 意外退出时，安全模式给出**只读**的环境诊断、profile 插�
 - **非交互**：`dsh-tui safe --rescue` 只报告结论（就绪退出 0，被拒绝退出 1）。
 - **修复命令要自己执行**（安全模式只列出）：
   - `dsh plugin --profile dsh-tui remove <第三方插件>` 移除可疑插件。
-  - `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@<版本>` 重装对齐。
+  - `dsh plugin --profile dsh-tui add dsh-cli@<版本>` 重装对齐。
   - `dsh-tui doctor` 环境诊断。
 
 ## 6. 模型 / 预设 / 主题 / 语言

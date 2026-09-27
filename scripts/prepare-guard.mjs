@@ -13,8 +13,8 @@ if (!existsSync(probe)) {
   console.error('  this is a git tarball or a non-recursive clone, where `npm run compile`')
   console.error('  cannot succeed (every vendored import fails to resolve).')
   console.error('  - Installing as a plugin? Use the registry package instead:')
-  console.error('      dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui')
+  console.error('      dsh plugin --profile dsh-tui add dsh-cli')
   console.error('  - Building from source? Clone recursively, then re-run:')
-  console.error('      git clone --recurse-submodules https://github.com/ccch1mneyyy/dsh-TUI')
+  console.error('      git clone --recurse-submodules https://github.com/askdkc/dsh-TUI-fork')
   process.exit(1)
 }

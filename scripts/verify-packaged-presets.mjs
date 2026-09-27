@@ -20,6 +20,14 @@ try {
     { id: 'liangshen', status: 'current' },
   ])
 
+  const installedMarkerPath = join(dshHome, '.agent-presets', 'liangshen', '.dsh-tui-managed.json')
+  const legacyMarker = JSON.parse(await readFile(installedMarkerPath, 'utf8'))
+  legacyMarker.owner = '@deepseek-harness-tui/dsh-tui'
+  await writeFile(installedMarkerPath, `${JSON.stringify(legacyMarker, null, 2)}\n`)
+  assert.deepEqual(ensurePackagedPresets({ dshHome, sourceRoot: packagedRoot }), [
+    { id: 'liangshen', status: 'current' },
+  ])
+
   const installed = await readFile(join(dshHome, '.agent-presets', 'liangshen', 'agent.cordis.yml'), 'utf8')
   assert.deepEqual(parse(installed, { logLevel: 'silent' }),
     parse(await readFile(join(packagedRoot, 'liangshen', 'agent.cordis.yml'), 'utf8'), { logLevel: 'silent' }))
@@ -43,6 +51,7 @@ try {
     { id: 'liangshen', status: 'updated' },
   ])
   assert.equal(JSON.parse(await readFile(join(dshHome, '.agent-presets', 'liangshen', '.dsh-tui-managed.json'), 'utf8')).revision, marker.revision)
+  assert.equal(JSON.parse(await readFile(installedMarkerPath, 'utf8')).owner, 'dsh-cli')
 } finally {
   await rm(temporary, { recursive: true, force: true })
 }

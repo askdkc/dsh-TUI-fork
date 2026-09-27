@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-harness-tui/dsh-tui",
+  "name": "dsh-cli",
   "version": "0.11.2",
   "description": "Interactive terminal interface for DeepSeek Harness agents, sessions and tools.",
   "keywords": [
@@ -17,17 +17,17 @@
   ],
   "license": "MIT",
   "author": {
-    "name": "chimney",
-    "url": "https://github.com/ccch1mneyyy"
+    "name": "askdkc",
+    "url": "https://github.com/askdkc"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ccch1mneyyy/dsh-TUI.git"
+    "url": "https://github.com/askdkc/dsh-TUI-fork.git"
   },
   "bugs": {
-    "url": "https://github.com/ccch1mneyyy/dsh-TUI/issues"
+    "url": "https://github.com/askdkc/dsh-TUI-fork/issues"
   },
-  "homepage": "https://github.com/ccch1mneyyy/dsh-TUI#readme",
+  "homepage": "https://github.com/askdkc/dsh-TUI-fork#readme",
   "packageManager": "pnpm@11.21.0",
   "publishConfig": {
     "access": "public"
@@ -353,7 +353,7 @@
   },
   "dependencies": {
     "@alcalzone/ansi-tokenize": "^0.3.0",
-    "@deepseek-harness-tui/dsh-auth": "link:./dsh-auth",
+    "@askdkc/dsh-auth": "link:./dsh-auth",
     "@dsh-std/command": "workspace:*",
     "@dsh-std/connection": "workspace:*",
     "@dsh-std/core": "workspace:*",
@@ -401,7 +401,7 @@
     "@dsh-std/messages",
     "@dsh-std/presentation",
     "@dsh-std/storage",
-    "@deepseek-harness-tui/dsh-auth"
+    "@askdkc/dsh-auth"
   ],
   "devDependencies": {
     "@deepseek-ai/dsh-agent-loop": "0.1.7-rc.2",

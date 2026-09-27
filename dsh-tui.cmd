@@ -5,7 +5,7 @@ rem   --resume: read ~/.dsh-tui/resume.txt and feed it to the TUI as
 rem             DSH_TUI_RESUME_SESSION (the TUI writes the chosen session id
 rem             there on /resume; see src/sessionHistory.ts).
 rem Prereq: dsh CLI on PATH (npm install -g @deepseek-ai/dsh). The profile
-rem         is created by `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`
+rem         is created by `dsh plugin --profile dsh-tui add dsh-cli`
 rem         under $DSH_HOME/profiles/dsh-tui (default ~/.dsh), so this
 rem         launcher must NOT pin DSH_HOME.
 rem NODE_ENV defaults to production: the React renderer's development build

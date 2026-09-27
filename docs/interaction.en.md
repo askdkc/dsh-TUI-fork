@@ -642,7 +642,7 @@ Additional forms:
 - After startup, the TUI checks npm for a newer version in the background and shows a notification when one is available.
 - The check follows the npm registry configuration (`NPM_CONFIG_REGISTRY` or `~/.npmrc`),
   so mirror users see the versions their package manager actually installs.
-- `/update` updates the installed `@deepseek-harness-tui/dsh-tui`, then restarts and
+- `/update` updates the installed `dsh-cli`, then restarts and
   resumes the current session automatically; wait for an active turn to finish first.
 - It is only available under a `dsh --profile <name>` launch (source checkouts get an
   unavailable notice), and an already-latest install is reported as such without

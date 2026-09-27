@@ -55,12 +55,12 @@ assert.match(
 const patch = read('cordis.patch.yml')
 assert.match(
   patch,
-  /- id: dsh-tui-workspaces\n\s+name: '@deepseek-harness-tui\/dsh-tui\/workspaces'/,
+  /- id: dsh-tui-workspaces\n\s+name: 'dsh-cli\/workspaces'/,
   'bundle patch still mounts the workspaces row',
 )
 assert.match(
   patch,
-  /- id: dsh-tui\n\s+name: '@deepseek-harness-tui\/dsh-tui'\n[\s\S]{0,240}inject: \[[^\]]*\btuiWorkspaces\b[^\]]*\]/,
+  /- id: dsh-tui\n\s+name: 'dsh-cli'\n[\s\S]{0,240}inject: \[[^\]]*\btuiWorkspaces\b[^\]]*\]/,
   'row-level inject keeps tuiWorkspaces as the mount-ordering guarantee',
 )
 assert.ok(

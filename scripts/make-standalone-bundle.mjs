@@ -55,7 +55,7 @@ const runtimeTar = join(standaloneDir, 'runtime.tar.gz')
 //   ② 从重生成的 lockfile 解析自家包（dsh-tui / dsh-working-activity）的
 //      实际版本，写入精确版本的 minimumReleaseAgeExclude 条目（替换旧条目）；
 //   ③ 恢复配置后 --frozen-lockfile 严格按 lock 安装（#585 的供应链锁）。
-const FIRST_PARTY_PACKAGES = ['@deepseek-harness-tui/dsh-tui', 'dsh-working-activity']
+const FIRST_PARTY_PACKAGES = ['dsh-cli', 'dsh-working-activity']
 const workspaceYamlPath = join(standaloneDir, 'pnpm-workspace.yaml')
 const lockfilePath = join(standaloneDir, 'pnpm-lock.yaml')
 
@@ -160,8 +160,8 @@ console.log('==> 同步版本号到 standalone 配置…')
 const standalonePkgPath = join(standaloneDir, 'package.json')
 if (existsSync(standalonePkgPath)) {
   const sPkg = JSON.parse(readFileSync(standalonePkgPath, 'utf8'))
-  if (sPkg.dependencies && sPkg.dependencies['@deepseek-harness-tui/dsh-tui']) {
-    sPkg.dependencies['@deepseek-harness-tui/dsh-tui'] = version
+  if (sPkg.dependencies && sPkg.dependencies['dsh-cli']) {
+    sPkg.dependencies['dsh-cli'] = version
   }
   writeFileSync(standalonePkgPath, `${JSON.stringify(sPkg, null, 2)}\n`, 'utf8')
 }

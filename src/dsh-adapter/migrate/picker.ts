@@ -6,7 +6,7 @@
  * recent-activity detector into the row shape the picker renders. Pure data:
  * no React, no Cordis — Chat imports these helpers and owns all UI.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/picker
+ * @module dsh-cli/migrate/picker
  */
 import { MIGRATION_ADAPTERS } from './index.js'
 import { collectActivitySamples, recentAgentsFrom, type AdapterScanSpec } from './recent-agents.js'

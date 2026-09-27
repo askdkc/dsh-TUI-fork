@@ -7,7 +7,7 @@
  * deep-review M3). countSessions() walks the same trees matching only
  * directory-entry NAMES: no file is opened, no line is parsed.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/scan
+ * @module dsh-cli/migrate/adapters/scan
  */
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'

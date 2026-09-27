@@ -32,13 +32,13 @@ $env:DEEPSEEK_API_KEY = 'your-key'
 
 ```sh
 # 官方 CLI + 本插件
-npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+npm install -g @deepseek-ai/dsh dsh-cli
 
 # pnpm 未安装时任选一种方式（首次启动自动初始化 profile 时需要）
 npm install -g pnpm
 # 或：corepack enable pnpm
 
-# 启动：首次运行自动执行 dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@<版本>
+# 启动：首次运行自动执行 dsh plugin --profile dsh-tui add dsh-cli@<版本>
 dsh-tui
 ```
 
@@ -51,7 +51,7 @@ npm install -g @deepseek-ai/dsh
 npm install -g pnpm
 # 或：corepack enable pnpm
 
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+dsh plugin --profile dsh-tui add dsh-cli
 dsh --profile dsh-tui   # 或 dsh-tui
 ```
 
@@ -71,11 +71,19 @@ sh install.sh
 - 环境变量前缀为 `CC_TUI_*`/`DSH_CC_*`。
 - 数据目录为 `~/.dsh-cc`。
 
-新版本统一为组织包 `@deepseek-harness-tui/dsh-tui` 与 `dsh-tui` profile。
-执行以下命令创建新 profile：
+此分支使用 `dsh-cli` 包与 `dsh-tui` profile。
+
+如果这个 profile 已安装 `@deepseek-harness-tui/dsh-tui`，先移除旧包。
+`plugin update` 不会把旧包重命名为 `dsh-cli`：
 
 ```sh
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+dsh plugin --profile dsh-tui remove @deepseek-harness-tui/dsh-tui
+```
+
+然后安装 `dsh-cli`：
+
+```sh
+dsh plugin --profile dsh-tui add dsh-cli
 dsh --profile dsh-tui
 ```
 
@@ -90,19 +98,19 @@ dsh --profile dsh-tui
 
 ## 安装命令做了什么
 
-首次执行 `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui` 时，
+首次执行 `dsh plugin --profile dsh-tui add dsh-cli` 时，
 官方 CLI 会：
 
 1. 在 `$DSH_HOME/profiles/dsh-tui/` 初始化 profile。未设置 `DSH_HOME` 时，
    默认根目录通常是 `~/.dsh`。
 2. 让 profile 的第一层 bundle 使用 `@deepseek-ai/dsh-base`。
-3. 在 profile 内通过 pnpm 安装 `@deepseek-harness-tui/dsh-tui`。
+3. 在 profile 内通过 pnpm 安装 `dsh-cli`。
 4. 读取包内 `dsh.bundle.patch` 元数据，将 `cordis.patch.yml` 追加为组合层。
 
 启动时的主要顺序是：
 
 ```text
-dsh-base -> 其他 bundle -> @deepseek-harness-tui/dsh-tui patch -> 用户 profile patch
+dsh-base -> 其他 bundle -> dsh-cli patch -> 用户 profile patch
 ```
 
 - base 提供 Agent、模型、会话、文件、Shell、策略和注册表等服务。
@@ -170,10 +178,10 @@ dsh 意外结束时，安全模式提供只读的环境诊断、profile 插件�
 - **非交互**：`dsh-tui safe --rescue` 跑同一套门禁与创建/复用，只报结论
   （就绪退出 0，拒绝退出 1）。
 - **旧全局启动器**：profile 副本不可读或过旧时，先升级：
-  `npm install -g --legacy-peer-deps @deepseek-harness-tui/dsh-tui@<版本>`。
+  `npm install -g --legacy-peer-deps dsh-cli@<版本>`。
 - **修复命令需自行执行**（安全模式只列出）：
   - `dsh plugin --profile dsh-tui remove <第三方插件>` 逐个移除可疑插件；
-  - `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@<版本>`
+  - `dsh plugin --profile dsh-tui add dsh-cli@<版本>`
     重装对齐；
   - `dsh-tui doctor` 环境诊断。
 
@@ -192,23 +200,23 @@ dsh 意外结束时，安全模式提供只读的环境诊断、profile 插件�
 
 ```sh
 # 更新 Profile runtime（TUI 内 /update 做的就是这件事）
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@latest
+dsh plugin --profile dsh-tui add dsh-cli@latest
 ```
 
 通过全局 `dsh-tui` 命令启动时，还需要让 Launcher 对齐（TUI 内的
 `/update` 只更新 profile，不会动全局安装）：
 
 ```sh
-npm install -g @deepseek-harness-tui/dsh-tui@latest
+npm install -g dsh-cli@latest
 # 或（原本用 pnpm 全局安装时）
-pnpm add -g @deepseek-harness-tui/dsh-tui@latest
+pnpm add -g dsh-cli@latest
 ```
 
 - 不带 `@latest` 时 pnpm 会按 profile `package.json` 里已记录的版本范围
   （如 `^0.1.4`）就地解析，可能停留在旧的主线上——这是"重复执行安装命令
   但版本没变"的常见原因。
 - 修复"版本不一致"时，优先使用启动器打印的"精确版本"命令（例如
-  `npm install -g @deepseek-harness-tui/dsh-tui@0.8.3`）；日常主动升级才
+  `npm install -g dsh-cli@0.8.3`）；日常主动升级才
   使用 `@latest`。
 - 确认生效：启动横幅右上角显示当前版本（`✦ dsh-TUI vX.Y.Z`）。
 - 用户覆盖层 `cordis.patch.yml` 在更新中原样保留。
@@ -348,7 +356,7 @@ Git URL（如 `https://github.com/ccch1mneyyy/dsh-TUI`）安装不受支持，�
 请安装 registry 包：
 
 ```sh
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+dsh plugin --profile dsh-tui add dsh-cli
 ```
 
 ### `dsh-tui requires an interactive terminal`
@@ -375,7 +383,7 @@ loader 可解析的位置，模块解析失败导致整棵插件树被回收，T
 
 ```sh
 npm install -g pnpm@latest
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@latest
+dsh plugin --profile dsh-tui add dsh-cli@latest
 ```
 
 ### 模型启动失败或提示没有凭证

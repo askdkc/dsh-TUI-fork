@@ -4,7 +4,7 @@
  * whose `message.content` block shape is identical to ours, so this adapter
  * is a near-direct mapping.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/omp
+ * @module dsh-cli/migrate/adapters/omp
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'

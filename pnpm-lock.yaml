@@ -82,7 +82,7 @@ importers:
       '@alcalzone/ansi-tokenize':
         specifier: ^0.3.0
         version: 0.3.1
-      '@deepseek-harness-tui/dsh-auth':
+      '@askdkc/dsh-auth':
         specifier: link:./dsh-auth
         version: link:dsh-auth
       '@dsh-std/command':

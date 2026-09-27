@@ -45,7 +45,7 @@
  * panel, and an inherited-prefix skip so a fork's event budget pays only for
  * its OWN events. It never writes; both stock encodings are read.
  *
- * @module @deepseek-harness-tui/dsh-tui/compat/sessionLog
+ * @module dsh-cli/compat/sessionLog
  */
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createRequire } from 'node:module'

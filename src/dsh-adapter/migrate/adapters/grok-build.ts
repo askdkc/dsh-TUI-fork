@@ -7,7 +7,7 @@
  * turns inherit the summary's clock. The legacy v0 shape (`{role, content}`)
  * is accepted alongside v1.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/grok-build
+ * @module dsh-cli/migrate/adapters/grok-build
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'

@@ -4,7 +4,7 @@
  *   node --import tsx/esm scripts/probe.ts
  */
 const plugins = [
-  '@deepseek-harness-tui/dsh-tui',
+  'dsh-cli',
   '@deepseek-ai/dsh-llm-deepseek',
   '@deepseek-ai/dsh-subprocess-local',
   '@deepseek-ai/dsh-bash-local',

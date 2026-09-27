@@ -110,8 +110,7 @@ try {
     'profiles',
     'dsh-tui',
     'node_modules',
-    '@deepseek-harness-tui',
-    'dsh-tui',
+    'dsh-cli',
   )
   for (const file of [
     'bin/dsh-tui.js',

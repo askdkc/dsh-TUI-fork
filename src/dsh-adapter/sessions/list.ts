@@ -15,7 +15,7 @@
  * this replaces decompressed every frame of the twenty most recent logs on
  * every open — 3.9 s over a 31 MB history.
  *
- * @module @deepseek-harness-tui/dsh-tui/sessions/list
+ * @module dsh-cli/sessions/list
  */
 import { basename } from 'node:path'
 import {

@@ -19,7 +19,7 @@
  * migrated: source formats cannot replay it faithfully, and the migration
  * contract is "re-read the conversation", not "resume the task".
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/sessionize
+ * @module dsh-cli/migrate/sessionize
  */
 import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { ReasoningBlock, TextBlock } from '@deepseek-ai/dsh-llm'

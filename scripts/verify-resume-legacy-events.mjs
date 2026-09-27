@@ -297,7 +297,7 @@ writeFileSync(join(validatorPkg, 'lib', 'index.js'), 'export {}\n')
 
 // The unit under test: the COMPILED compat module, placed in the profile
 // tree with its relative-import layout intact.
-const tuiPkg = join(profileTree, 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
+const tuiPkg = join(profileTree, 'node_modules', 'dsh-cli')
 const profileCompat = join(tuiPkg, 'lib', 'types', 'dsh-adapter', 'compat')
 mkdirSync(profileCompat, { recursive: true })
 mkdirSync(join(tuiPkg, 'lib', 'types', 'utils'), { recursive: true })
@@ -309,7 +309,7 @@ cpSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'types', 'utils', 'paths.js'),
   join(tuiPkg, 'lib', 'types', 'utils', 'paths.js'),
 )
-writeFileSync(join(tuiPkg, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: '0.0.0-fixture', type: 'module' }))
+writeFileSync(join(tuiPkg, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: '0.0.0-fixture', type: 'module' }))
 
 const launcherPath = join(cliTree, 'launcher.js')
 const profileEntry = join(profileCompat, 'sessionLog.js')

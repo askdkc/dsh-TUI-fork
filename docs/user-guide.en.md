@@ -20,7 +20,7 @@
 
 ```sh
 # Install the CLI + this plugin (the plugin ships its own dsh-tui command)
-npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+npm install -g @deepseek-ai/dsh dsh-cli
 
 # Start (first run auto-initializes the dsh-tui profile, needs pnpm)
 dsh-tui
@@ -514,7 +514,7 @@ When dsh exits unexpectedly, safe mode gives a **read-only** environment diagnos
 - **Non-interactive**: `dsh-tui safe --rescue` only reports the verdict (ready exits 0, refused exits 1).
 - **Run the fix commands yourself** (safe mode only lists them):
   - `dsh plugin --profile dsh-tui remove <第三方插件>` remove suspicious plugins.
-  - `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui@<版本>`
+  - `dsh plugin --profile dsh-tui add dsh-cli@<版本>`
     reinstall to align.
   - `dsh-tui doctor` environment diagnosis.
 

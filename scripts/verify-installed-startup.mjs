@@ -40,7 +40,7 @@ const launcherShim = executable('dsh-tui')
 // Spawn the JS entry rather than the `.cmd` shim: node-pty would have to route
 // it through cmd.exe and re-quote the payload. The shim itself is covered by
 // scripts/verify-launcher.mjs; this probe is about the installed profile.
-const launcher = packageEntry(launcherShim, '@deepseek-harness-tui', 'dsh-tui', 'bin', 'dsh-tui.js')
+const launcher = packageEntry(launcherShim, 'dsh-cli', 'bin', 'dsh-tui.js')
 const dshEntry = packageEntry(dsh, '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 /**
  * node-pty is a native dependency of the installed dsh, not of this repo.

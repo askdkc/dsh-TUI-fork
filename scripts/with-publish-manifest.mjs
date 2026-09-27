@@ -15,9 +15,9 @@ const bundledPackages = [
   'presentation',
   'storage',
 ]
-// The bundled dsh-auth copy: npm publishes under the TUI's scope, while the
-// repo develops against the `dsh-auth/` submodule via a `link:` dependency.
-const dshAuthName = '@deepseek-harness-tui/dsh-auth'
+// The bundled auth package uses the fork's scoped name. Development links to
+// the `dsh-auth/` submodule.
+const dshAuthName = '@askdkc/dsh-auth'
 
 const [command, ...args] = process.argv.slice(2)
 if (command === undefined) throw new Error('usage: node with-publish-manifest.mjs <command> [args...]')

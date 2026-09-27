@@ -24,7 +24,7 @@ import { adapterRuntimeFor } from '../adapter/kernel/runtime-context.js'
  *   and throws on first render. Create elements with the injected `React`
  *   (`React.createElement`/`React.Fragment`), or compile JSX against the
  *   host runtime via tsconfig
- *   `"jsxImportSource": "@deepseek-harness-tui/dsh-tui"` (its `./jsx-runtime`
+ *   `"jsxImportSource": "dsh-cli"` (its `./jsx-runtime`
  *   subpath re-exports this app's own react/jsx-runtime). A plugin-owned
  *   React copy works ONLY if it is the same React 19 line — and its hooks
  *   remain off-limits regardless.

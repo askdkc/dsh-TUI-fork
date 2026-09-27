@@ -7,12 +7,12 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@deepseek-harness-tui/dsh-tui"><img alt="npm" src="https://img.shields.io/npm/v/@deepseek-harness-tui/dsh-tui?style=flat-square&color=4b6fff"></a>
-  <a href="https://github.com/ccch1mneyyy/dsh-TUI/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ccch1mneyyy/dsh-TUI/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm" src="https://img.shields.io/npm/v/dsh-cli?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-TUI-fork/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
   <img alt="Public beta" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
-  <a href="https://github.com/ccch1mneyyy/dsh-TUI/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/ccch1mneyyy/dsh-TUI?style=flat-square&color=4b6fff"></a>
-  <a href="https://www.npmjs.com/package/@deepseek-harness-tui/dsh-tui"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@deepseek-harness-tui/dsh-tui?style=flat-square&color=4b6fff"></a>
+  <a href="https://github.com/askdkc/dsh-TUI-fork/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-TUI-fork?style=flat-square&color=4b6fff"></a>
+  <a href="https://www.npmjs.com/package/dsh-cli"><img alt="npm downloads" src="https://img.shields.io/npm/dm/dsh-cli?style=flat-square&color=4b6fff"></a>
   <img alt="官方收录" src="https://img.shields.io/badge/DeepSeek%20Harness%20官方公众号-收录-brightgreen">
 </p>
 
@@ -87,7 +87,7 @@ Schema 不兼容时，TUI 在启动阶段报错并提示修复安装，不再显
 
 ```sh
 # 安装（全局，自带 dsh-tui 命令）
-npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+npm install -g @deepseek-ai/dsh dsh-cli
 
 # 启动（首次运行自动初始化 profile，需要 pnpm）
 dsh-tui
@@ -95,7 +95,7 @@ dsh-tui
 dst
 ```
 
-手动安装：跑仓库根目录的 `install.sh`，或 `dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`。之后 `dsh-tui` 与 `dsh --profile dsh-tui` 等价。
+手动安装：跑仓库根目录的 `install.sh`，或 `dsh plugin --profile dsh-tui add dsh-cli`。之后 `dsh-tui` 与 `dsh --profile dsh-tui` 等价。
 
 > **新用户提示**：pnpm ≥11 默认拦截带安装脚本的依赖，报 `ERR_PNPM_IGNORED_BUILDS`。更新时还会忽略异平台的 `@img/sharp-*` 原生包，省约 200MB 下载。`/update` 与 `dsh-tui update` 都会自动写好这两份配置，无需手工处理。细节见[安装与快速开始](docs/getting-started.md#pnpm-安装脚本拦截与异平台原生包)。
 
@@ -195,7 +195,7 @@ node scripts/with-publish-manifest.mjs \
   npm pack \
   --ignore-scripts
 
-TARBALL="$PWD/deepseek-harness-tui-dsh-tui-$(node -p "require('./package.json').version").tgz"
+TARBALL="$PWD/dsh-cli-$(node -p "require('./package.json').version").tgz"
 cd ~/DIR/TO/deepseek-harness
 pnpm dsh plugin --profile dsh-tui add "$TARBALL"
 ```
@@ -205,7 +205,7 @@ tarball 文件名；`TARBALL` 指向 dsh-TUI 检出中的对应版本文件。�
 把本地 bundled 依赖转换为可打包的 manifest，并在结束后恢复源码 manifest。
 此流程只把本地包安装到 `dsh-tui` profile，不会发布到 npm。
 
-`lib/types/` 是被忽略的生成物。`pnpm build` 从干净输出目录重编译，并跑构建门禁。**不支持 Git URL 安装**。源码 manifest 把 `@dsh-std/*` 保留为 workspace 依赖，`vendor/dsh-std` 是子模块，pnpm ≥11 还默认拒绝 git 托管的 `prepare` 脚本。已发布版本可安装 registry 包：`dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui`；本地构建请使用上文的 tarball 步骤。渲染、问卷或工具卡改动还需对应的回归脚本。
+`lib/types/` 是被忽略的生成物。`pnpm build` 从干净输出目录重编译，并跑构建门禁。**不支持 Git URL 安装**。源码 manifest 把 `@dsh-std/*` 保留为 workspace 依赖，`vendor/dsh-std` 是子模块，pnpm ≥11 还默认拒绝 git 托管的 `prepare` 脚本。已发布版本可安装 registry 包：`dsh plugin --profile dsh-tui add dsh-cli`；本地构建请使用上文的 tarball 步骤。渲染、问卷或工具卡改动还需对应的回归脚本。
 
 ### 更新版本号
 

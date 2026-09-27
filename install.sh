@@ -19,7 +19,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 1
 fi
 
-dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui
+dsh plugin --profile dsh-tui add dsh-cli
 echo
 echo "安装完成。启动：dsh --profile dsh-tui"
 echo "Windows 也可以用仓库根目录的 dsh-tui.cmd（--resume 恢复上次会话）。"

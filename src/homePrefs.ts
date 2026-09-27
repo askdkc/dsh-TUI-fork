@@ -16,7 +16,7 @@
  * outcome is one extra home screen, or a chat screen where the home was
  * expected. Both are recoverable with a single keypress.
  *
- * @module @deepseek-harness-tui/dsh-tui/homePrefs
+ * @module dsh-cli/homePrefs
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

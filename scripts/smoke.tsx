@@ -2,7 +2,7 @@
  * Headless smoke test for the renderer and terminal UI: renders the Chat
  * screen (with markdown, tool card, reasoning row) into in-memory terminal
  * streams. Run with:
- *   pnpm --filter @deepseek-harness-tui/dsh-tui run smoke
+ *   pnpm --filter dsh-cli run smoke
  *
  * FORCE_COLOR must be set BEFORE any chalk import evaluates — ESM imports are
  * hoisted, so chalk-dependent modules are loaded via dynamic import() below.
@@ -284,7 +284,7 @@ await sceneCtx.fiber.dispose()
 // Host JSX runtime (./jsx-runtime subpath): elements it creates must carry
 // the React 19 transitional-element symbol — the only flavor this app's
 // reconciler accepts — so plugin JSX compiled with
-// `"jsxImportSource": "@deepseek-harness-tui/dsh-tui"` renders on first try.
+// `"jsxImportSource": "dsh-cli"` renders on first try.
 const jsxRuntimeModule = await import('../src/jsx-runtime.js')
 if (typeof jsxRuntimeModule.jsx !== 'function' || typeof jsxRuntimeModule.jsxs !== 'function') {
   throw new Error('jsx-runtime smoke: jsx/jsxs factories missing')

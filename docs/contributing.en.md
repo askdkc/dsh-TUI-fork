@@ -3,7 +3,7 @@
 [Documentation index](README.md) · [简体中文](contributing.md)
 
 Thanks for considering contributing to dsh-TUI! This guide is the shared
-development contract for humans and coding agents working on `@deepseek-harness-tui/dsh-tui`.
+development contract for humans and coding agents working on `dsh-cli`.
 
 ## How To Contribute
 
@@ -65,9 +65,9 @@ The feature proposal flow applies only to pull requests opened on or after
 ## Scope
 
 This file applies to the entire repository. It is the shared development
-contract for humans and coding agents working on `@deepseek-harness-tui/dsh-tui`.
+contract for humans and coding agents working on `dsh-cli`.
 
-`@deepseek-harness-tui/dsh-tui` is a single-package, ESM-only TypeScript project.
+`dsh-cli` is a single-package, ESM-only TypeScript project.
 It provides a React terminal UI front door for DeepSeek Harness through Cordis.
 
 - The package owns the TUI, its local command surface, and an Ink/Yoga renderer.

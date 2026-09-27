@@ -15,7 +15,7 @@
  * (directly testable with fixture mtimes); `collectNewestMtime` is the IO
  * collector; `detectRecentAgents` binds them for the TUI.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/recent-agents
+ * @module dsh-cli/migrate/recent-agents
  */
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'

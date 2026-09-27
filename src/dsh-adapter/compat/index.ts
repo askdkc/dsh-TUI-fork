@@ -22,7 +22,7 @@
  *    issue #153), and the bounded read-only log reader behind the session
  *    tree (chunked I/O, lazy zstd frame walk, event + scan budgets,
  *    inherited-prefix skip).
- * @module @deepseek-harness-tui/dsh-tui/compat
+ * @module dsh-cli/compat
  */
 export {
   appendInterruptedTurnEnd,

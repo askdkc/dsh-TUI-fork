@@ -58,7 +58,7 @@ const {
 // scripts/verify-standalone-cache-guard.mjs).
 const { ensureRuntime } = require('./cacheGuard.cjs')
 
-const TUI_VERSION = '0.9.2'
+const TUI_VERSION = '0.11.2'
 const DSH_VERSION = '0.1.1-rc.2'
 const BUNDLE_ID = `tui-${TUI_VERSION}-dsh-${DSH_VERSION}`
 const PROFILE = 'dsh-tui'
@@ -70,7 +70,7 @@ const cacheBase = resolve(
 )
 const runtimeRoot = join(cacheBase, BUNDLE_ID)
 const dshBin = join(runtimeRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
-const tuiRoot = join(runtimeRoot, 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
+const tuiRoot = join(runtimeRoot, 'node_modules', 'dsh-cli')
 
 /**
  * Ensure the bundled runtime archive is unpacked into the cache directory.
@@ -85,7 +85,7 @@ async function ensureRuntimeReady() {
     extract: extractTar,
     requiredPaths: [
       'node_modules/@deepseek-ai/dsh/lib/bin.js',
-      'node_modules/@deepseek-harness-tui/dsh-tui/cordis.patch.yml',
+      'node_modules/dsh-cli/cordis.patch.yml',
     ],
     log: text => process.stderr.write(text),
   })
@@ -127,7 +127,7 @@ function ensureProfile() {
       name: 'dsh-profile-dsh-tui-standalone',
       private: true,
       dependencies: {
-        '@deepseek-harness-tui/dsh-tui': TUI_VERSION,
+        'dsh-cli': TUI_VERSION,
       },
       dsh: {
         profile: {

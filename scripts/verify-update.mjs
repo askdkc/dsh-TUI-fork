@@ -91,7 +91,7 @@ try {
   // ../../package.json lands above the root (missing) → ../package.json hits.
   const sourceRoot = join(scratch, 'source')
   copyUpdateModule(join(sourceRoot, 'src'))
-  writeFileSync(join(sourceRoot, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: '1.2.3', type: 'module' }))
+  writeFileSync(join(sourceRoot, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: '1.2.3', type: 'module' }))
   const sourceMod = await import(`${pathToFileURL(join(sourceRoot, 'src', 'update.js'))}?probe=1`)
   check(
     'installedTuiVersion reads the source-checkout layout',
@@ -103,7 +103,7 @@ try {
   // manifest must win over a nearer foreign one.
   const pkgRoot = join(scratch, 'pkg')
   copyUpdateModule(join(pkgRoot, 'lib', 'types'))
-  writeFileSync(join(pkgRoot, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: '0.9.9', type: 'module' }))
+  writeFileSync(join(pkgRoot, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: '0.9.9', type: 'module' }))
   writeFileSync(join(pkgRoot, 'lib', 'package.json'), JSON.stringify({ name: 'other-pkg', version: '9.9.9' }))
   const pkgMod = await import(`${pathToFileURL(join(pkgRoot, 'lib', 'types', 'update.js'))}?probe=2`)
   check(
@@ -229,7 +229,7 @@ const exactUpdateArgs = tuiUpdatePluginArgs('dsh-tui', '0.7.2')
 check(
   'update command pins the preflight target version',
   JSON.stringify(exactUpdateArgs) === JSON.stringify([
-    'plugin', '--profile', 'dsh-tui', 'update', '@deepseek-harness-tui/dsh-tui@0.7.2',
+    'plugin', '--profile', 'dsh-tui', 'update', 'dsh-cli@0.7.2',
   ]),
   `got ${JSON.stringify(exactUpdateArgs)}`,
 )
@@ -237,7 +237,7 @@ const fallbackUpdateArgs = tuiUpdatePluginArgs('custom-profile')
 check(
   'update command falls back to --latest when preflight failed',
   JSON.stringify(fallbackUpdateArgs) === JSON.stringify([
-    'plugin', '--profile', 'custom-profile', 'update', '--latest', '@deepseek-harness-tui/dsh-tui',
+    'plugin', '--profile', 'custom-profile', 'update', '--latest', 'dsh-cli',
   ]),
   `got ${JSON.stringify(fallbackUpdateArgs)}`,
 )
@@ -349,14 +349,14 @@ check(
       'releaseAge: missing file is created with the exact entry',
       outcome !== undefined && outcome.changed === true &&
         outcome.entries.length === 1 &&
-        outcome.entries[0] === '@deepseek-harness-tui/dsh-tui@0.10.0-beta.1' &&
+        outcome.entries[0] === 'dsh-cli@0.10.0-beta.1' &&
         existsSync(yamlPath),
       JSON.stringify(outcome),
     )
     let text = readFileSync(yamlPath, 'utf8')
     check(
       'releaseAge: file carries the quoted list entry',
-      /minimumReleaseAgeExclude:\n  - '@deepseek-harness-tui\/dsh-tui@0\.10\.0-beta\.1'\n/u.test(text),
+      /minimumReleaseAgeExclude:\n  - 'dsh-cli@0\.10\.0-beta\.1'\n/u.test(text),
       text,
     )
 
@@ -371,14 +371,14 @@ check(
 
     // Case 3: a stale entry for this package is replaced (no accumulation)
     // while foreign entries survive.
-    writeFileSync(yamlPath, "minimumReleaseAgeExclude:\n  - 'x@1.0.0'\n  - '@deepseek-harness-tui/dsh-tui@0.9.3'\n")
+    writeFileSync(yamlPath, "minimumReleaseAgeExclude:\n  - 'x@1.0.0'\n  - 'dsh-cli@0.9.3'\n")
     outcome = ensureProfileReleaseAgeExclude('tui', '0.10.0-beta.1')
     text = readFileSync(yamlPath, 'utf8')
     check(
       'releaseAge: stale own entry replaced, foreign entry kept',
       outcome !== undefined && outcome.changed === true &&
         text.includes("- 'x@1.0.0'") &&
-        text.includes("- '@deepseek-harness-tui/dsh-tui@0.10.0-beta.1'") &&
+        text.includes("- 'dsh-cli@0.10.0-beta.1'") &&
         !text.includes('0.9.3'),
       `${JSON.stringify(outcome)} :: ${text}`,
     )
@@ -391,7 +391,7 @@ check(
       'releaseAge: block appended, existing keys preserved',
       outcome !== undefined && outcome.changed === true &&
         text.startsWith('packages:\n  - .\n\nnodeLinker: hoisted\n') &&
-        text.includes("minimumReleaseAgeExclude:\n  - '@deepseek-harness-tui/dsh-tui@1.2.3'\n"),
+        text.includes("minimumReleaseAgeExclude:\n  - 'dsh-cli@1.2.3'\n"),
       text,
     )
 
@@ -505,8 +505,8 @@ check(
 // ---- isEexistTmpRenameFailure: the deterministic Linux flavor (issue #479)
 const eexistSample =
   "ERR_PNPM_EEXIST  EEXIST: file already exists, rename " +
-  "'/root/.dsh/profiles/dsh-tui/node_modules/@deepseek-harness-tui/dsh-tui/node_modules' " +
-  "-> '/root/.dsh/profiles/dsh-tui/node_modules/@deepseek-harness-tui/dsh-tui_tmp_2424672_1/node_modules'"
+  "'/root/.dsh/profiles/dsh-tui/node_modules/dsh-cli/node_modules' " +
+  "-> '/root/.dsh/profiles/dsh-tui/node_modules/dsh-cli_tmp_2424672_1/node_modules'"
 check(
   'eexist: pnpm tmp-rename EEXIST qualifies (#479 verbatim stderr)',
   isEexistTmpRenameFailure(eexistSample),
@@ -532,24 +532,24 @@ try {
   process.env.DSH_HOME = sandboxRoot
   check(
     'profilePackageDir: DSH_HOME root wins',
-    profilePackageDir('dsh-tui') === join(sandboxRoot, 'profiles', 'dsh-tui', 'node_modules', '@deepseek-harness-tui', 'dsh-tui'),
+    profilePackageDir('dsh-tui') === join(sandboxRoot, 'profiles', 'dsh-tui', 'node_modules', 'dsh-cli'),
     `got ${profilePackageDir('dsh-tui')}`,
   )
   delete process.env.DSH_HOME
   check(
     'profilePackageDir: defaults to ~/.dsh',
-    profilePackageDir('custom') === join(homedir(), '.dsh', 'profiles', 'custom', 'node_modules', '@deepseek-harness-tui', 'dsh-tui'),
+    profilePackageDir('custom') === join(homedir(), '.dsh', 'profiles', 'custom', 'node_modules', 'dsh-cli'),
     `got ${profilePackageDir('custom')}`,
   )
   process.env.DSH_HOME = sandboxRoot
 
   // ---- removeStalePackageInstall: clears the package dir + tmp staging dirs
-  const scope = join(sandboxRoot, 'profiles', 'dsh-tui', 'node_modules', '@deepseek-harness-tui')
-  const pkgDir = join(scope, 'dsh-tui')
+  const scope = join(sandboxRoot, 'profiles', 'dsh-tui', 'node_modules')
+  const pkgDir = join(scope, 'dsh-cli')
   mkdirSync(join(pkgDir, 'lib'), { recursive: true })
   writeFileSync(join(pkgDir, 'lib', 'marker.txt'), 'stale install')
-  mkdirSync(join(scope, 'dsh-tui_tmp_2424672_1'))
-  writeFileSync(join(scope, 'dsh-tui_tmp_2424672_1', 'leftover'), 'x')
+  mkdirSync(join(scope, 'dsh-cli_tmp_2424672_1'))
+  writeFileSync(join(scope, 'dsh-cli_tmp_2424672_1', 'leftover'), 'x')
   // Look-alike dirs must survive: other packages and foreign tmp names.
   mkdirSync(join(scope, 'unrelated-pkg'))
   mkdirSync(join(scope, 'other_tmp_999_1'))
@@ -560,11 +560,11 @@ try {
   )
   check(
     'stale: leftover tmp staging dir removed',
-    !existsSync(join(scope, 'dsh-tui_tmp_2424672_1')),
+    !existsSync(join(scope, 'dsh-cli_tmp_2424672_1')),
   )
   check(
     'stale: removal reports both halves',
-    removal.packageDir === 'removed' && removal.tmpDirs.length === 1 && removal.tmpDirs[0] === 'dsh-tui_tmp_2424672_1',
+    removal.packageDir === 'removed' && removal.tmpDirs.length === 1 && removal.tmpDirs[0] === 'dsh-cli_tmp_2424672_1',
     `got ${JSON.stringify(removal)}`,
   )
   check(
@@ -653,7 +653,7 @@ check(
     symlinkSync(join(repoRoot, 'node_modules'), join(scratch3, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
     const pkgRoot = join(scratch3, 'pkg')
     copyUpdateModule(join(pkgRoot, 'lib', 'types'))
-    writeFileSync(join(pkgRoot, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: '2.0.0', type: 'module' }))
+    writeFileSync(join(pkgRoot, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: '2.0.0', type: 'module' }))
     const stubDir = join(scratch3, 'stub-bin')
     mkdirSync(stubDir, { recursive: true })
     writeFileSync(join(stubDir, 'dsh'), '#!/bin/sh\nexit 0\n')

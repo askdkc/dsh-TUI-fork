@@ -38,8 +38,8 @@ the authoritative status and compatibility agreement live in the
 
 Also an experimental public surface:
 
-- `@deepseek-harness-tui/dsh-tui/api` (types-only entry).
-- The `@deepseek-harness-tui/dsh-tui/test-utils` subpath and
+- `dsh-cli/api` (types-only entry).
+- The `dsh-cli/test-utils` subpath and
   `ctx.tuiPluginHost.grants.corrupt` were removed in the adapter layering
   refactor (#705).
 - `grants` is now the narrower `HostGrantFacade`; see that PR for migration

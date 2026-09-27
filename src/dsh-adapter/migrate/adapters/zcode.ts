@@ -3,7 +3,7 @@
  * object per conversation (`{ meta, messages }`), the simplest of the
  * foreign stores: plain-string contents and epoch-millisecond timestamps.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/zcode
+ * @module dsh-cli/migrate/adapters/zcode
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'

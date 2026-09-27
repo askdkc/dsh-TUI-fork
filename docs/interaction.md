@@ -697,7 +697,7 @@ dsh-TUI 不预装通用技能；技能内容与发现规则由 DSH 及当前组�
 - 启动后后台检查 npm 新版本，发现更新时提示。
   - 检测遵循 npm registry 配置（`NPM_CONFIG_REGISTRY` 或 `~/.npmrc`）。
   - 镜像源用户看到的就是安装源的最新版。
-  - `/update` 更新已安装的 `@deepseek-harness-tui/dsh-tui`。
+  - `/update` 更新已安装的 `dsh-cli`。
   - 更新后自动重启并恢复当前会话；当前回合运行时需等待完成。
   - 仅在 `dsh --profile <name>` 启动时可用（源码运行等场景提示不可用）。
   - 已是最新版时直接提示，不会重启。

@@ -94,7 +94,7 @@ loopback WebSocket 服务，并写入 lock 文件（目录 0700、文件 0600）
   （**建议 dsh-tui 0.7.0+**，见[快速开始](getting-started.md)）：
 
   ```sh
-  npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui
+  npm install -g @deepseek-ai/dsh dsh-cli
   ```
 
 - 运行模型需要 `DEEPSEEK_API_KEY`（放在终端环境或 dsh 配置里）。

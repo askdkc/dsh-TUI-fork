@@ -12,9 +12,9 @@ import { DATA_DIR } from './utils/paths.js'
 // the compiled copy at lib/types/utils/shellQuote.js.
 export { shellQuote }
 
-const PACKAGE_NAME = '@deepseek-harness-tui/dsh-tui'
+const PACKAGE_NAME = 'dsh-cli'
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org'
-const GITHUB_REPO = 'ccch1mneyyy/dsh-TUI'
+const GITHUB_REPO = 'askdkc/dsh-TUI-fork'
 const UPDATE_CHECK_TIMEOUT_MS = 4000
 const STANDALONE_DOWNLOAD_TIMEOUT_MS = 300000
 /**
@@ -1382,7 +1382,7 @@ export interface StaleInstallRemoval {
    * miss); `failed` — an error other than ENOENT blocked the removal.
    */
   packageDir: 'removed' | 'absent' | 'failed'
-  /** Leftover pnpm staging dirs (`dsh-tui_tmp_<pid>_<threadId>`) removed. */
+  /** Leftover pnpm staging dirs (`dsh-cli_tmp_<pid>_<threadId>`) removed. */
   tmpDirs: string[]
 }
 
@@ -1417,7 +1417,7 @@ export function removeStalePackageInstall(profile: string): StaleInstallRemoval 
   }
   try {
     for (const name of readdirSync(scopeDir)) {
-      if (!/^dsh-tui_tmp_\d+_\d+$/.test(name)) continue
+      if (!name.startsWith(`${PACKAGE_NAME}_tmp_`) || !/^\d+_\d+$/.test(name.slice(PACKAGE_NAME.length + 5))) continue
       const staging = join(scopeDir, name)
       try {
         rmSync(staging, { recursive: true, force: true })

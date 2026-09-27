@@ -4,7 +4,7 @@
  * their own module so the focused regression (`scripts/verify-agent-view.mjs`)
  * can import them without spinning up a composition.
  *
- * @module @deepseek-harness-tui/dsh-tui/agent-view
+ * @module dsh-cli/agent-view
  */
 
 import type { SessionEvent } from '@deepseek-ai/dsh-session'

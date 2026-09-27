@@ -5,7 +5,7 @@
  * The LLM waterfall is the last provider-neutral boundary before adapter
  * dispatch. Capturing there records the fully assembled system prompt,
  * messages, and tool schemas after prompt/tool plugins have contributed.
- * @module @deepseek-harness-tui/dsh-tui/prompt-debug
+ * @module dsh-cli/prompt-debug
  */
 import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'

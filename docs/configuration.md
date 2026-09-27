@@ -17,7 +17,7 @@ Profile 启动按顺序叠加：
 
 - `dsh-base`
 - 已安装的 bundle
-- `@deepseek-harness-tui/dsh-tui` 包内的 `cordis.patch.yml`
+- `dsh-cli` 包内的 `cordis.patch.yml`
 - 用户补丁（最后应用）
 
 用户配置通常通过相同 `id` 覆盖已有行；只有确实新增服务时才用 `insert`。

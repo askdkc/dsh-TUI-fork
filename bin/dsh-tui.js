@@ -59,8 +59,8 @@ const readJson = p => {
   }
 }
 const ownPackage = readJson(join(ownDir, 'package.json'))
-const ownVersion = ownPackage?.name === '@deepseek-harness-tui/dsh-tui' ? ownPackage.version : undefined
-const PACKAGE = '@deepseek-harness-tui/dsh-tui'
+const ownVersion = ownPackage?.name === 'dsh-cli' ? ownPackage.version : undefined
+const PACKAGE = 'dsh-cli'
 const PROFILE = 'dsh-tui'
 // 救援 profile（最小可用）：同 home 下的空白 profile（仅 base+TUI，无第三方
 // 插件），是主 profile 装炸时的干净启动通道——创建走官方 dsh plugin add
@@ -489,12 +489,12 @@ const sameDir = (a, b) => {
 
 const dshHome = process.env.DSH_HOME || join(homedir(), '.dsh')
 const profileDir = join(dshHome, 'profiles', PROFILE)
-const profilePkgDir = join(profileDir, 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
+const profilePkgDir = join(profileDir, 'node_modules', 'dsh-cli')
 const profileBin = join(profilePkgDir, 'bin', 'dsh-tui.js')
 const installedPkgPath = join(profilePkgDir, 'package.json')
 const runningInsideProfile = sameDir(ownDir, profilePkgDir)
 const rescueProfileDir = join(dshHome, 'profiles', RESCUE_PROFILE)
-const rescueInstalledPkg = join(rescueProfileDir, 'node_modules', '@deepseek-harness-tui', 'dsh-tui', 'package.json')
+const rescueInstalledPkg = join(rescueProfileDir, 'node_modules', 'dsh-cli', 'package.json')
 // profile 层补丁文件：dsh 给**每个**新建 profile 都写它（默认只有注释与 `[]`），
 // 并在 bundle 层之后把它组合进 profile（dsh-app-boot `loadProfile` →
 // `composed.profile.patches`）。它与下面的 home 层是同一类隐藏面——见

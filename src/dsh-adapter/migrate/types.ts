@@ -6,7 +6,7 @@
  * emits DSH session events. Adapters are read-only against their source and
  * defensive by default: a malformed line costs that line, never the scan.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/types
+ * @module dsh-cli/migrate/types
  */
 
 /** One conversational turn in a foreign conversation, normalized. */

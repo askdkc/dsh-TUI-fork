@@ -4,7 +4,7 @@
  * `message` with `input_text`/`output_text` blocks; `reasoning` is encrypted
  * and stays unreadable) and `event_msg` housekeeping, which we skip.
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/adapters/codex
+ * @module dsh-cli/migrate/adapters/codex
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-dsh-TUI 是 DeepSeek Harness 的终端界面插件：零核心改动、纯插件挂载的交互式 TUI（`@deepseek-harness-tui/dsh-tui`）。Agent、会话、模型、工具、持久化与策略域由 DeepSeek Harness 拥有，本包只消费它们。改动前先读 [docs/contributing.md](docs/contributing.md)（本仓库共享开发契约的权威文本）与 [ADAPTER.md](ADAPTER.md)（上游边界与契约）；整体结构见 [docs/architecture.md](docs/architecture.md)。
+dsh-TUI 是 DeepSeek Harness 的终端界面插件：零核心改动、纯插件挂载的交互式 TUI（`dsh-cli`）。Agent、会话、模型、工具、持久化与策略域由 DeepSeek Harness 拥有，本包只消费它们。改动前先读 [docs/contributing.md](docs/contributing.md)（本仓库共享开发契约的权威文本）与 [ADAPTER.md](ADAPTER.md)（上游边界与契约）；整体结构见 [docs/architecture.md](docs/architecture.md)。
 
 ## 仓库布局
 

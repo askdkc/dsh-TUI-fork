@@ -78,7 +78,7 @@ jobs:
       - name: Skip when already published
         id: published
         run: |
-          if output="$(npm view "@deepseek-harness-tui/dsh-tui@${GITHUB_REF_NAME}" version 2>&1)"; then
+          if output="$(npm view "dsh-cli@${GITHUB_REF_NAME}" version 2>&1)"; then
             echo "$output"
             echo "version ${GITHUB_REF_NAME} already published — skipping"
             echo "exists=true" >> "$GITHUB_OUTPUT"

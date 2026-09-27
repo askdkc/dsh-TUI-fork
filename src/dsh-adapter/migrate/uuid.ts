@@ -6,7 +6,7 @@
  * duplicates — the id IS the dedupe. Inline SHA-1 RFC 4122 variant (no
  * runtime dependency; node:crypto does the hashing).
  *
- * @module @deepseek-harness-tui/dsh-tui/migrate/uuid
+ * @module dsh-cli/migrate/uuid
  */
 import { createHash } from 'node:crypto'
 

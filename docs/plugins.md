@@ -35,8 +35,8 @@
 
 另：
 
-- `@deepseek-harness-tui/dsh-tui/api`（纯类型入口）为实验性公开面。
-- `@deepseek-harness-tui/dsh-tui/test-utils` 子路径与
+- `dsh-cli/api`（纯类型入口）为实验性公开面。
+- `dsh-cli/test-utils` 子路径与
   `ctx.tuiPluginHost.grants.corrupt` 已随 adapter 分层重构（#705）移除。
 - `grants` 收窄为 `HostGrantFacade`，迁移细节见该 PR。
 

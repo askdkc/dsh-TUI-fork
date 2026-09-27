@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const bin = join(root, 'bin', 'dsh-tui.js')
 const ownVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-const PACKAGE = '@deepseek-harness-tui/dsh-tui'
+const PACKAGE = 'dsh-cli'
 const isWin = process.platform === 'win32'
 
 let failures = 0
@@ -148,9 +148,9 @@ if (command === 'plugin') {
   place(join(state, 'cordis.patch.yml'), join(root, 'cordis.patch.yml'))
   place(join(state, 'pnpm-workspace.yaml'), join(root, 'pnpm-workspace.yaml'))
   if (process.env.DSH_STUB_NOOP) process.exit(0)
-  const pkgDir = join(root, 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
+  const pkgDir = join(root, 'node_modules', 'dsh-cli')
   mkdirSync(pkgDir, { recursive: true })
-  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: '@deepseek-harness-tui/dsh-tui', version: 'stub' }))
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'dsh-cli', version: 'stub' }))
   process.exit(0)
 }
 process.exit(0)
@@ -253,7 +253,7 @@ const lastLine = text => text.split('\n').map(l => l.trim()).filter(l => l !== '
 
 // 在指定 home 下预置救援 profile 的脚手架。
 const rescueDirOf = home => join(home, 'profiles', 'dsh-tui-safe')
-const rescuePkgOf = home => join(rescueDirOf(home), 'node_modules', '@deepseek-harness-tui', 'dsh-tui', 'package.json')
+const rescuePkgOf = home => join(rescueDirOf(home), 'node_modules', 'dsh-cli', 'package.json')
 const writeRescueManifest = (home, manifest) => {
   mkdirSync(rescueDirOf(home), { recursive: true })
   writeFileSync(join(rescueDirOf(home), 'package.json'), JSON.stringify(manifest))
@@ -269,7 +269,7 @@ const cleanManifest = {
 {
   const r = run(['doctor'])
   const expected = [
-    `dsh-tui doctor · @deepseek-harness-tui/dsh-tui ${ownVersion}`,
+    `dsh-tui doctor · dsh-cli ${ownVersion}`,
     `✓ node: ${process.version} · ${process.platform} ${process.arch}`,
     `✗ dsh: 未找到——请先安装：  npm install -g @deepseek-ai/dsh`,
     `✗ pnpm: 未找到——安装/升级需要它：  npm install -g pnpm`,
@@ -291,7 +291,7 @@ const cleanManifest = {
   const stub = makeStub()
   // profile 已装且与启动器同版：版本核对不产生额外输出，stderr 断言干净。
   const profHome = join(tmp, 'fb-home')
-  const pkgDir = join(profHome, 'profiles', 'dsh-tui', 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
+  const pkgDir = join(profHome, 'profiles', 'dsh-tui', 'node_modules', 'dsh-cli')
   mkdirSync(pkgDir, { recursive: true })
   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const runFb = (env = {}) => run([], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: profHome, DSH_TUI_NO_DELEGATE: '1', ...env })
@@ -568,7 +568,7 @@ const cleanManifest = {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), [...REAL_PATCH_LAYER.split('\n').slice(0, 3), '- id: cool-plugin', '  disabled: true', ''].join('\n'))
-  mkdirSync(join(dir, 'node_modules', '@deepseek-harness-tui', 'dsh-tui'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const before = snapshot(home)
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
@@ -587,7 +587,7 @@ const cleanManifest = {
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), REAL_PATCH_LAYER)
   writeFileSync(join(dir, 'pnpm-workspace.yaml'), REAL_WORKSPACE)
-  mkdirSync(join(dir, 'node_modules', '@deepseek-harness-tui', 'dsh-tui'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const before = snapshot(home)
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
@@ -604,7 +604,7 @@ const cleanManifest = {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'package.json'), JSON.stringify(cleanManifest))
   writeFileSync(join(dir, 'cordis.patch.yml'), '[\n]\n')
-  mkdirSync(join(dir, 'node_modules', '@deepseek-harness-tui', 'dsh-tui'), { recursive: true })
+  mkdirSync(join(dir, 'node_modules', 'dsh-cli'), { recursive: true })
   writeFileSync(rescuePkgOf(home), JSON.stringify({ name: PACKAGE, version: ownVersion }))
   const r = run(['safe', '--rescue'], { PATH: stub.dir, DSH_STUB_STATE: stub.state, DSH_HOME: home })
   check('救援: 多行空数组（[] 折行）仍算无补丁层', r.status === 0 && r.stdout.includes('救援 profile 已存在'), `status=${r.status}`)
@@ -654,7 +654,7 @@ const cleanManifest = {
     const r = run(['safe'], { DSH_HOME: invHome })
     check('清单: bundles 与 dependencies 两维度分列', r.stdout.includes('组合层') && r.stdout.includes('直接依赖'))
     // 分类断言只看「直接依赖」区段：bundles 区段里同样有 @deepseek-ai/dsh-base
-    // 与 @deepseek-harness-tui/dsh-tui，跨区段取串会假通过。
+    // 与 dsh-cli，跨区段取串会假通过。
     const deps = section(r.stdout, '直接依赖（第三方为可卸载候选）：', '修复命令')
     check('清单: 直接依赖区段非空（断言限定在自己的区段里）', deps.includes(`${PACKAGE}`) && deps.includes('cool-plugin'), JSON.stringify(deps.slice(0, 80)))
     check(

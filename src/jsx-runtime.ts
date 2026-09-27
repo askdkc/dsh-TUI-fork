@@ -6,7 +6,7 @@
 //
 // Plugin tsconfig:
 //   "jsx": "react-jsx",
-//   "jsxImportSource": "@deepseek-harness-tui/dsh-tui"
+//   "jsxImportSource": "dsh-cli"
 //
 // Hooks still come from the scene props' injected `React` — this module
 // covers element creation only.

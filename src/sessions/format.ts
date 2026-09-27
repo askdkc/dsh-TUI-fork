@@ -5,7 +5,7 @@
  * about a terminal's width and a reader's eye, not about what a session log
  * means.
  *
- * @module @deepseek-harness-tui/dsh-tui/sessions/format
+ * @module dsh-cli/sessions/format
  */
 import { t } from '../i18n.js'
 import { stringWidth } from '../ink/stringWidth.js'

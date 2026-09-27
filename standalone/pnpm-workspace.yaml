@@ -25,4 +25,4 @@ allowBuilds:
   '@deepseek-ai/dsh-subprocess-local': true
 
 minimumReleaseAgeExclude:
-  - '@deepseek-harness-tui/dsh-tui@0.9.3'
+  - 'dsh-cli@0.11.2'

@@ -2,7 +2,7 @@
 
 [文档索引](README.md) · [English](contributing.en.md)
 
-感谢你考虑为 dsh-TUI 做贡献！本文档是 `@deepseek-harness-tui/dsh-tui` 的共享开发
+感谢你考虑为 dsh-TUI 做贡献！本文档是 `dsh-cli` 的共享开发
 契约，适用于在本仓库工作的所有人与编码 Agent。
 
 ## 如何贡献
@@ -46,10 +46,10 @@ Discussions。人不能用「私下批准」、关联 issue 或粘贴维护者�
 
 ## 范围（Scope）
 
-本文件适用于整个仓库。它是 `@deepseek-harness-tui/dsh-tui` 的共享开发契约，
+本文件适用于整个仓库。它是 `dsh-cli` 的共享开发契约，
 适用于在本仓库工作的所有人与编码 Agent。
 
-`@deepseek-harness-tui/dsh-tui` 是单包、纯 ESM 的 TypeScript 项目：
+`dsh-cli` 是单包、纯 ESM 的 TypeScript 项目：
 为 DeepSeek Harness 提供 React 终端 UI 前门（通过 Cordis 挂载）。
 
 - 包内拥有 TUI、本地命令面以及 Ink/Yoga 渲染器。

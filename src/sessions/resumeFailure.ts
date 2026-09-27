@@ -13,7 +13,7 @@
  * no words. The `cancelled` case is deliberately silent — the user (or a rival
  * switch) asked for it, so there is nothing to explain.
  *
- * @module @deepseek-harness-tui/dsh-tui/sessions/resumeFailure
+ * @module dsh-cli/sessions/resumeFailure
  */
 
 import type { ResumeResult } from '../adapter/ports/channel-view.js'

@@ -76,7 +76,7 @@ execFileSync('tar', ['-czf', archivePath, '-C', srcRoot, 'node_modules'])
 // 与 entry.mjs 同款的解压注入（系统 tar，语义等价 node-tar 的 cwd/file）
 const extract = options => execFileSync('tar', ['-xzf', options.file, '-C', options.cwd], { stdio: 'ignore' })
 const dshBinRel = 'node_modules/@deepseek-ai/dsh/lib/bin.js'
-const patchRel = 'node_modules/@deepseek-harness-tui/dsh-tui/cordis.patch.yml'
+const patchRel = 'node_modules/dsh-cli/cordis.patch.yml'
 
 function makeEnv(name) {
   const cacheBase = join(scratch, `cache-${name}`)
@@ -115,11 +115,11 @@ await scenario('happy', async env => {
 
 await scenario('tamper', async env => {
   // 篡改清单内非入口 JS（红队 P-3 场景：改 update.js）
-  const victim = join(env.runtimeRoot, 'node_modules/@deepseek-harness-tui/dsh-tui/lib/types/update.js')
+  const victim = join(env.runtimeRoot, 'node_modules/dsh-cli/lib/types/update.js')
   writeFileSync(victim, 'evil payload\n')
   check('篡改清单内非入口 JS 后 runtimeReady 为 false', !readyOf(env))
   await ensureRuntime(env)
-  check('再次 ensureRuntime 自愈重建（update.js 恢复）', readFileSync(victim, 'utf8') === 'content of node_modules/@deepseek-harness-tui/dsh-tui/lib/types/update.js\n')
+  check('再次 ensureRuntime 自愈重建（update.js 恢复）', readFileSync(victim, 'utf8') === 'content of node_modules/dsh-cli/lib/types/update.js\n')
   check('重建后 ready', readyOf(env))
 })
 
@@ -207,7 +207,7 @@ await scenario('perm-ready-path', async env => {
     MANIFEST_ENTRIES.some(e => e.endsWith('lib/types/update.js'))
       && MANIFEST_ENTRIES.some(e => e.endsWith('cordis/lib/index.js'))
       && MANIFEST_ENTRIES.some(e => e.endsWith('dsh-app-boot/lib/index.js'))
-      && MANIFEST_ENTRIES.some(e => e.endsWith('dsh-tui/lib/types/index.js')),
+      && MANIFEST_ENTRIES.some(e => e.endsWith('dsh-cli/lib/types/index.js')),
     JSON.stringify(MANIFEST_ENTRIES),
   )
 }

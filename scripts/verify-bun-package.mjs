@@ -88,9 +88,9 @@ try {
   run(bunCommand, [
     '-e',
     [
-      "await import('@deepseek-harness-tui/dsh-tui')",
-      "await import('@deepseek-harness-tui/dsh-tui/extensions')",
-      "await import('./node_modules/@deepseek-harness-tui/dsh-tui/node_modules/@dsh-std/manifest')",
+      "await import('dsh-cli')",
+      "await import('dsh-cli/extensions')",
+      "await import('./node_modules/dsh-cli/node_modules/@dsh-std/manifest')",
     ].join(';'),
   ], temporaryRoot)
 

@@ -1,7 +1,7 @@
 // Re-export shim: the Cordis-backed implementation lives behind the adapter
 // boundary so UI consumers never import official @deepseek-ai/* packages.
 // Plugin authors import the seam types from here
-// (`@deepseek-harness-tui/dsh-tui/extensions`); importing the module also
+// (`dsh-cli/extensions`); importing the module also
 // applies the `declare module '@deepseek-ai/cordis'` augmentation for the
 // decision events and the five service properties on Context. In particular,
 // `tuiStatus.registerView()` returns `undefined` when the host refuses a rich
