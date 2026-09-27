@@ -1,4 +1,4 @@
-import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url))
+const packageName = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8')).name
 const nodeCommand = process.execPath
 const npmCommand = 'npm'
 
@@ -88,9 +89,9 @@ try {
   run(bunCommand, [
     '-e',
     [
-      "await import('dsh-cli')",
-      "await import('dsh-cli/extensions')",
-      "await import('./node_modules/dsh-cli/node_modules/@dsh-std/manifest')",
+      `await import(${JSON.stringify(packageName)})`,
+      `await import(${JSON.stringify(`${packageName}/extensions`)})`,
+      `await import(${JSON.stringify(`./node_modules/${packageName}/node_modules/@dsh-std/manifest`)})`,
     ].join(';'),
   ], temporaryRoot)
 

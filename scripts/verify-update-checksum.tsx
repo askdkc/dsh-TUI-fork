@@ -106,7 +106,7 @@ const ASSET_NAME = (updateModule.getStandaloneAssetName as () => string)()
 const server = http.createServer(async (req, res) => {
   const url = req.url ?? ''
   // 注意：fetchGithubLatestRelease 请求的是 `<apiBaseUrl>/repos/<repo>/releases/latest`。
-  if (url === '/repos/askdkc/dsh-TUI-fork/releases/latest') {
+  if (url === '/repos/askdkc/dsh-cli/releases/latest') {
     const assets: Array<Record<string, string>> = [
       { name: ASSET_NAME, browser_download_url: `http://127.0.0.1:${serverPort()}/asset` },
     ]
@@ -375,8 +375,8 @@ if (typeof downloadFn === 'function') {
   if (typeof resolveTarget === 'function' && typeof downloadFn === 'function') {
     process.env.DSH_TUI_STANDALONE = '1'
     process.env.NPM_CONFIG_REGISTRY = 'https://registry.npmjs.org'
-    const FALLBACK_DOWNLOAD = `https://github.com/askdkc/dsh-TUI-fork/releases/download/v9.9.9/${ASSET_NAME}`
-    const FALLBACK_SUMS = 'https://github.com/askdkc/dsh-TUI-fork/releases/download/v9.9.9/SHA256SUMS'
+    const FALLBACK_DOWNLOAD = `https://github.com/askdkc/dsh-cli/releases/download/v9.9.9/${ASSET_NAME}`
+    const FALLBACK_SUMS = 'https://github.com/askdkc/dsh-cli/releases/download/v9.9.9/SHA256SUMS'
 
     let manifestStatus = 200
     let fallbackAssetTampered = false
