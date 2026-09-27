@@ -251,6 +251,7 @@ const GROUPS = {
 // 直达启动器回归（issue #108）：参数透传、残骸 profile 重装、
 // 版本不一致提示、双语消息、shellQuote 转义规则。
     ["verify-launcher", ['node', 'scripts/verify-launcher.mjs']],
+    ["verify-cli-registration", ['node', '--import', 'tsx/esm', 'scripts/verify-cli-registration.ts']],
 // CLI 子命令回归（issue #509）：help/version 零环境应答（不触发自举
 // 与委托）、双语输出、profile 版本读取、只认第一个参数。
     ["verify-cli-subcommands", ['node', 'scripts/verify-cli-subcommands.mjs']],
@@ -609,6 +610,7 @@ const GROUPS = {
 // 缺席当前 provider 落首行）。键盘与 overlay 归约由 verify-chat-overlay
 // 覆盖，这里钉住两层共用的纯派生。
     ["verify-model-picker-groups", ['node', 'scripts/verify-model-picker-groups.mjs']],
+    ["verify-model-search", ['node', '--import', 'tsx/esm', 'scripts/verify-model-search.ts']],
 // 全屏出厂默认迁移回归（0.9.x schema + cordis.patch.yml false→true 翻转）：
 // 翻转前钉在 settings 用户层的显式 false 首启被 unset 一次（marker 仅在
 // 写入成功后落盘，失败下次自愈重试），此后再写的 false 是用户主动选择

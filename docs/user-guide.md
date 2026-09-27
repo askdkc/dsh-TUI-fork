@@ -351,6 +351,9 @@ dsh-TUI 不预装通用技能；`/skills` 浏览 DSH 发现的技能，可直调
 
 - `/model`：选择器。**切换 = fork 会话续聊**（历史保留、仅换路由，旧会话留在 `/resume`）；
   持久化 `~/.dsh-tui/model.json`。
+  输入空格分隔的关键词可按模型/提供方名称或 ID 筛选，忽略大小写和词序。
+  提供方顶层搜索全部模型，进入提供方或最近使用后仅搜索当前列表。
+  Backspace 编辑搜索词，Esc 返回提供方列表或关闭选择器。
 - 回合运行中切换会被拒绝。
 - `/preset` 可选：`standard`（默认全功能）、`ptc`、`minimal`（仅 bash+编辑器，无 compaction）、
   `cordis`、`liangshen`（梁神模式）。

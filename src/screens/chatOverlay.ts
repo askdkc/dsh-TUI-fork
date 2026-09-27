@@ -56,7 +56,7 @@ export type ChatOverlay =
       busy: boolean
       input: WorkspaceFlowInput | null
     }
-  | { kind: 'model'; index: number }
+  | { kind: 'model'; index: number; query?: string; cursor?: number }
   | { kind: 'skills'; index: number }
   | { kind: 'migrate'; index: number }
   | { kind: 'migrate-confirm' }
@@ -135,6 +135,7 @@ export type ChatOverlayAction =
   | { type: 'set-index'; kind: 'model' | 'preset' | 'effort' | 'permission' | 'workspace-flow' | 'rewind' | 'file-actions'; index: number }
   /** Edit the history-search draft (query text, caret, focused match). */
   | { type: 'history-edit'; query?: string; cursor?: number; focus?: number }
+  | { type: 'model-edit'; query: string; cursor: number }
   /** Workspace flow: an action is running (keys except Esc are swallowed). */
   | { type: 'flow-busy'; busy: boolean }
   /** Workspace flow: enter (object) or leave (null) the text-input state. */
@@ -220,6 +221,10 @@ export function chatOverlayReducer(state: ChatOverlay, action: ChatOverlayAction
     }
     case 'set-index':
       return state.kind === action.kind ? { ...state, index: action.index } : state
+    case 'model-edit':
+      return state.kind === 'model'
+        ? { ...state, query: action.query, cursor: action.cursor, index: action.query === (state.query ?? '') ? state.index : 0 }
+        : state
     case 'history-edit':
       return state.kind === 'history'
         ? {

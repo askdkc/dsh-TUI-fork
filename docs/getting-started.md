@@ -372,6 +372,13 @@ stdout 不是 TTY。请直接在终端中启动，不要把主进程输出管道
 
 ### 找不到 `dsh` 或 `pnpm`
 
+首次交互运行 `dsh --profile dsh-cli` 时，还会把 `dsh-cli` 注册到
+`~/.local/bin`（Windows：`%LOCALAPPDATA%\dsh-cli\bin`），必要时自动将该目录
+加入 zsh、bash、fish 或 Windows 的用户 PATH。打开新终端后再运行 `dsh-cli`。
+注册失败不会阻止 TUI 启动；按启动警告修复。设置
+`DSH_TUI_AUTO_REGISTER_CLI=0` 可关闭注册。撤销时删除生成的命令与
+`dsh-cli managed PATH` 区块（Windows 删除用户 PATH 条目）。
+
 确认全局 npm bin 目录在 `PATH` 中，并重新打开终端。`install.sh` 会在安装前
 检查这两个命令。
 

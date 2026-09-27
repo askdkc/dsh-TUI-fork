@@ -215,7 +215,7 @@ function intact(shape: Shape): boolean {
     await settled(() => { shape = readShape(m.term, ROWS); return intact(shape) }),
     JSON.stringify(shape))
   dump(m.term, ROWS, 'B')
-  // 浮层 40 行（rows - 8）减 ModelPicker 框架 6 行 = 34 行列表，一行不少。
+  // 即使加入搜索栏，长会话的列表仍应使用整屏可用空间。
   check('48 rows / long session: full-screen budget still used (no over-clamp)',
     shape.listRows === 34, `listRows=${shape.listRows}`)
   m.unmount()

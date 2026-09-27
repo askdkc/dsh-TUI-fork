@@ -37,6 +37,21 @@ export interface ModelGroupRow {
   readonly count: number
 }
 
+/** Literal, case-insensitive AND matching across a model's identifying fields. */
+export function filterModels(
+  models: readonly LlmModelInfo[],
+  query: string,
+  providers: readonly LlmProviderInfo[],
+): readonly LlmModelInfo[] {
+  const terms = query.trim().toLowerCase().split(/\s+/u).filter(Boolean)
+  if (terms.length === 0) return models
+  return models.filter(model => {
+    const providerName = providers.find(provider => provider.id === model.provider)?.name ?? ''
+    const fields = [model.name, model.id, model.provider, providerName].map(value => value.toLowerCase())
+    return terms.every(term => fields.some(field => field.includes(term)))
+  })
+}
+
 /**
  * The recent refs that the current catalog still lists, most-recent-first —
  * the second level of the recents group. Refs whose model vanished from the

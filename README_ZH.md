@@ -101,8 +101,15 @@ pnpm dsh --profile dsh-cli
 ```
 
 将 `~/DIR/TO/deepseek-harness` 换成实际检出路径。tarball 文件名由当前包名
-`@askdkc/dsh-cli` 和版本号组成。若还需要 `dsh-cli` 全局命令，打包后执行
-`npm install -g --legacy-peer-deps "$TARBALL"`。旧命令 `dsh-tui` 和 `dst` 保留为兼容别名。
+`@askdkc/dsh-cli` 和版本号组成。首次交互运行 `dsh --profile dsh-cli` 时，
+自动把 `dsh-cli` 注册到 `~/.local/bin`（Windows：`%LOCALAPPDATA%\dsh-cli\bin`），
+必要时将目录加入用户 PATH。打开新终端后即可使用。支持 zsh、bash、fish 和 Windows；
+不会覆盖其他同名命令。设置 `DSH_TUI_AUTO_REGISTER_CLI=0` 可关闭自动注册。
+PATH 区块写入 zsh 的 `${ZDOTDIR:-$HOME}/.zshrc`、bash 的 `.bashrc` 与
+当前登录配置文件，或 fish 的
+`${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/dsh-cli.fish`。撤销时删除
+生成的命令与对应的 `dsh-cli managed PATH` 区块；fish 文件仅在没有其他内容时
+整体删除（Windows 删除生成的命令和用户 PATH 条目）。旧命令 `dsh-tui` 和 `dst` 保留为兼容别名。
 本地 tarball 的后续更新应重新构建并安装，不要用指向 registry 的 `/update`。
 
 pnpm ≥11 可能对带安装脚本的依赖报告 `ERR_PNPM_IGNORED_BUILDS`；原生构建设置见
@@ -179,7 +186,9 @@ TUI 只负责交互与呈现：会话日志是唯一事实源，模型、工具�
 ## 已知限制
 
 - 注入的插件上下文没有独立展示，计入上下文分段。
-- `/model` 靠 fork 切换会话；旧会话留在 `/resume`。
+- `/model` 可用空格分隔的关键词筛选，忽略大小写和词序。提供方顶层搜索全部模型，
+  进入提供方或最近使用后仅搜索当前列表；匹配模型和提供方的名称与 ID。
+  切换仍靠 fork 续聊，旧会话留在 `/resume`。
 - `Ctrl+V` 需要平台剪贴板工具；不支持的位图格式直接拒绝。
 - 后台会话活在本进程内，TUI 退出即停止。
 - `/thinking` 不持久化；`/compact` 在 `minimal` 预设下不可用；`/update` 需 `dsh --profile` 启动，回合运行中会被拒绝。

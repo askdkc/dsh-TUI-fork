@@ -235,6 +235,17 @@ check('T10j rapid next/previous actions use reducer state', reduce(galleryFirst,
   { type: 'image-step', delta: 1 }, { type: 'image-step', delta: -1 }), galleryFirst)
 check('T10k stale gallery actions leave another overlay intact', reduce({ kind: 'tips' }, { type: 'image-step', delta: 1 }), { kind: 'tips' })
 
+const modelSearch: ChatOverlay = { kind: 'model', index: 3, query: 'gpt', cursor: 3 }
+check('T11a model query edit resets focused filtered row',
+  reduce(modelSearch, { type: 'model-edit', query: 'gpt 5', cursor: 5 }),
+  { kind: 'model', index: 0, query: 'gpt 5', cursor: 5 })
+check('T11b caret movement retains focused row',
+  reduce(modelSearch, { type: 'model-edit', query: 'gpt', cursor: 0 }),
+  { ...modelSearch, cursor: 0 })
+check('T11c stale model edit leaves another overlay untouched',
+  reduce({ kind: 'none' }, { type: 'model-edit', query: 'gpt', cursor: 3 }),
+  { kind: 'none' })
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s)`)
   process.exit(1)

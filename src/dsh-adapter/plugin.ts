@@ -57,6 +57,7 @@ import { reserveMount } from '../sessionMounts.js'
 import { getHostDialogStore, type TuiDialogRuntime } from './dialogs.js'
 import { getHostStatusStore, type TuiStatusRuntime } from './status.js'
 import { createActivityStore } from './activity-store.js'
+import { ensureCliRegistered } from './cli-registration.js'
 import { getHostToastStore, type TuiToastRuntime } from './toast.js'
 import { getHostShortcuts, type TuiShortcutRuntime } from './shortcuts.js'
 import { getHostThemes, type TuiThemeRuntime } from './themes.js'
@@ -247,6 +248,18 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   // render so every module resolves strings in the same language.
   const envLang = process.env.DSH_TUI_LANG
   setLang(isLang(envLang) ? envLang : isLang(config.lang) ? config.lang : resolveStartupLang())
+  if (resolveDshProfileName() === 'dsh-cli'
+    && !isStandaloneRuntime()
+    && !process.env.CI
+    && process.env.DSH_TUI_AUTO_REGISTER_CLI !== '0') {
+    try {
+      const result = ensureCliRegistered()
+      if (result.startsWith('Registered ') || result.startsWith('Kept ')) ctx.logger.info(`dsh-tui: ${result}`)
+      else if (result.startsWith('Existing ')) ctx.logger.warn(`dsh-tui: ${result} Remove the conflicting command or adjust PATH, then restart the TUI.`)
+    } catch (error) {
+      ctx.logger.warn(`dsh-tui: dsh-cli command registration failed: ${error instanceof Error ? error.message : String(error)}. Resolve the reported path or permission issue, then restart the TUI; set DSH_TUI_AUTO_REGISTER_CLI=0 to disable registration.`)
+    }
+  }
 
   // /update restart verification: the pre-update process stamps the version
   // it was leaving behind; if the freshly loaded one is not newer, the

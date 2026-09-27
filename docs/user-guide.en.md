@@ -363,6 +363,10 @@ Full-screen view of the whole session timeline (doesn't pollute scrollback); key
 
 - `/model`: selector. **Switching = fork the session** (history kept, only routing changes, the old session stays in `/resume`);
   persisted to `~/.dsh-tui/model.json`.
+  Type space-separated keywords to filter by model/provider name or ID,
+  case-insensitively and in any order. At the provider level search spans all
+  models; inside a provider or Recents it searches only that list. Backspace
+  edits the query, and Esc returns to providers or closes the selector.
 - Switching is rejected mid-turn.
 - `/preset` options: `standard` (default full features), `ptc`, `minimal` (bash+editor only, no compaction),
   `cordis`, `liangshen` (Liangshen mode).

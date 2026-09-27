@@ -109,10 +109,18 @@ pnpm dsh --profile dsh-cli
 ```
 
 Replace `~/DIR/TO/deepseek-harness` with your checkout path. The tarball name
-comes from the package's current name, `@askdkc/dsh-cli`, and version. To
-install the optional `dsh-cli` shell command, run
-`npm install -g --legacy-peer-deps "$TARBALL"` after creating the tarball.
-The existing `dsh-tui` and `dst` commands remain compatibility aliases.
+comes from the package's current name, `@askdkc/dsh-cli`, and version. The
+first interactive `dsh --profile dsh-cli` launch registers `dsh-cli` in
+`~/.local/bin` (Windows: `%LOCALAPPDATA%\dsh-cli\bin`) and adds that directory
+to the user's PATH when needed. Open a new shell before using the command.
+Registration supports zsh, bash, fish and Windows; an existing unrelated
+`dsh-cli` command is left alone. Set `DSH_TUI_AUTO_REGISTER_CLI=0` to disable
+it. The managed PATH block goes in `${ZDOTDIR:-$HOME}/.zshrc` for zsh;
+`.bashrc` and the active login file for bash; or
+`${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/dsh-cli.fish` for fish. To undo
+it, remove the managed command and that block; delete the fish file only if
+it contains nothing else (Windows: remove the command and user PATH entry). The
+existing `dsh-tui` and `dst` commands remain compatibility aliases.
 A locally packed fork should be updated by rebuilding and reinstalling the
 archive, rather than by using the registry-backed `/update` command.
 
@@ -191,7 +199,10 @@ Runtime path, module boundaries, performance notes and persistence locations: [A
 ## Known Limitations
 
 - Injected plugin context has no standalone display; it counts into the context segments.
-- `/model` switches by forking the session; the old session stays in `/resume`.
+- `/model` filters by space-separated, case-insensitive keywords in any order.
+  At the provider level it searches every model; inside a provider or Recents
+  it searches that list. Names and IDs of models and providers are matched.
+  Switching forks the session; the old session stays in `/resume`.
 - `Ctrl+V` needs platform clipboard tools; unsupported bitmap formats are rejected.
 - A background session lives inside this process and stops when the TUI exits.
 - `/thinking` is not persisted; `/compact` is unavailable under the `minimal` preset; `/update` needs a `dsh --profile` launch and is refused while a turn is running.

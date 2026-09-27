@@ -184,7 +184,7 @@ check('boot 后历史行恰好一份', await settled(() => countMarker(HIST0) ==
   `问题=${countMarker(HIST0)} 回答=${countMarker(HIST1)}`)
 console.log(`boot: buffer=${term.buffer.active.length} 行 (视口 ${ROWS})`)
 
-// ---- 走真实 UI 路径：输入 /model → 回车开 picker → ↓ → 回车切换 ----------------
+// ---- 走真实 UI 路径：输入 /model → 筛选 → 回车切换 ----------------
 // 与真机操作逐键一致：补全面板、picker、notify、fork+replay 全部经过。
 const bufLen = (tag: string) =>
   console.log(`  [${tag}] buffer=${term.buffer.active.length} scrollback=${term.buffer.active.baseY}`)
@@ -203,7 +203,7 @@ bufLen('typed /model')
 stdin.write('\r')            // 打开 picker（slash 命令派发）
 await sleep(600) // 固定窗:pacing 等 picker 收键就绪
 bufLen('picker open')
-stdin.write('\x1b[B')        // ↓ 选中下一个模型
+stdin.write('\x1b[200~v4-pro\tdeep\n\x1b[201~') // bracketed paste: tab/newline normalize to spaces
 await sleep(200) // 固定窗:pacing 按键步间
 stdin.write('\r')            // 确认 → fork + replay
 // 固定窗:探针 「恰好一份」断言防的是切换后追加帧的多余沉积，对已成立条件
@@ -225,7 +225,7 @@ await typeKeys('/model')
 await sleep(200) // 固定窗:pacing 等补全浮层收键就绪
 stdin.write('\r')
 await sleep(600) // 固定窗:pacing 等 picker 收键就绪
-stdin.write('\x1b[B')
+await typeKeys('flash v4')
 await sleep(200) // 固定窗:pacing 按键步间
 stdin.write('\r')
 // 固定窗:探针 同上，沉积「恰好一份」是不得改变的断言。

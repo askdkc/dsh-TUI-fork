@@ -370,6 +370,15 @@ was explicitly launched without a TTY.
 Make sure the global npm bin directory is on `PATH`, then open a new terminal.
 `install.sh` checks both commands before installation.
 
+On the first interactive `dsh --profile dsh-cli` launch, this plugin also
+registers `dsh-cli` in `~/.local/bin` (Windows:
+`%LOCALAPPDATA%\dsh-cli\bin`). It adds that directory to the user PATH for
+zsh, bash, fish, or Windows when needed. Open a new terminal before using
+`dsh-cli`. Registration failures do not stop the TUI; follow the startup
+warning. `DSH_TUI_AUTO_REGISTER_CLI=0` disables registration. To undo it,
+remove the generated command and `dsh-cli managed PATH` block (Windows: the
+user PATH entry).
+
 ### The TUI exits right back to the shell with almost no error (pnpm 9)
 
 In a profile installed by pnpm 9, the transitive dependency

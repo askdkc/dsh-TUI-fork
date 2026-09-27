@@ -9,6 +9,8 @@ import { ListItem } from './design-system/ListItem.js'
 import { HintLine } from './design-system/HintLine.js'
 import { listWindow } from './listWindow.js'
 import { useOverlayListRows } from './OverlayAbove.js'
+import { SearchBox } from './SearchBox.js'
+import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 
 /**
  * Model picker: a permission-colored Pane with
@@ -34,6 +36,9 @@ export function ModelPicker(props:
     /** Current route key — its group row carries the ✓ marker. */
     currentProvider: string
     onPick?: (index: number) => void
+    query?: string
+    cursor?: number
+    emptyReason?: 'loading' | 'empty' | 'no-match' | 'error'
   }
   | {
     /** Second level (or single-group fast path): one provider's models —
@@ -49,21 +54,25 @@ export function ModelPicker(props:
     /** `provider/model` of the current model — its row carries the ✓ marker. */
     currentModel: string
     onPick?: (index: number) => void
+    query?: string
+    cursor?: number
+    emptyReason?: 'loading' | 'empty' | 'no-match' | 'error'
   }): React.ReactNode {
   const inGroups = 'groups' in props
+  const terminalFocused = useTerminalFocus()
   // Captured before the map: union narrowing does not survive into closures.
   const onPick = props.onPick
   // 焦点窗口化按行预算：ListItem 带 description 时占 2 行（正文+描述，均
   // truncate 成单行），只数项数会把焦点裁出浮层（二次审查实证）。
   // 预算来自最近一层 OverlayAbove 的有效高度（已钳到输入簇上方的真实空间——
   // 按 terminalRows 预算在短会话 + 高终端下窗口高过浮层、顶部整行被裁、
-  // 焦点行不可见，#493/#698），减去本面板框架行：Pane 2 + 标题 2 + 页脚 1
-  // + 挂载包裹 marginTop 1 = 6。
+  // 焦点行不可见，#493/#698），减去本面板框架行：Pane 2 + 标题 2 +
+  // 搜索栏 1 + 结果数 1 + 页脚 1 + 挂载包裹 marginTop 1 = 8。
   const rowHeights = inGroups
     ? props.groups.map(() => 2)
     : props.models.map(m => (m.description ? 2 : 1))
   const rows = inGroups ? props.groups : props.models
-  const listRows = useOverlayListRows(6)
+  const listRows = useOverlayListRows(8)
   const { start, end } = listWindow(rowHeights, props.focusIndex, listRows)
   const hint = inGroups
     ? t('hint-model-groups')
@@ -76,12 +85,23 @@ export function ModelPicker(props:
             {inGroups || props.groupLabel === undefined ? t('picker-title-model') : props.groupLabel}
           </Text>
         </Box>
+        <SearchBox
+          query={props.query ?? ''}
+          cursorOffset={props.cursor ?? 0}
+          isFocused
+          isTerminalFocused={terminalFocused}
+          borderless
+          placeholder={t('picker-model-search')}
+        />
+        <Text dimColor>{t('picker-model-results', { count: rows.length })}</Text>
+        {rows.length === 0 && <Text dimColor>{t(props.emptyReason === 'loading' ? 'model-loading' : props.emptyReason === 'error' ? 'picker-model-error' : props.emptyReason === 'no-match' ? 'picker-model-no-match' : 'picker-model-empty')}</Text>}
         {rows.slice(start, end).map((row, index) => {
           const absoluteIndex = start + index
           return inGroups ? (
             <ListItem
               key={row.provider}
               isFocused={absoluteIndex === props.focusIndex}
+              declareCursor={false}
               isSelected={row.provider === props.currentProvider}
               description={t('picker-group-count', { count: row.count })}
               showScrollUp={absoluteIndex === start && start > 0}
@@ -96,6 +116,7 @@ export function ModelPicker(props:
             <ListItem
               key={`${row.provider}/${row.id}`}
               isFocused={absoluteIndex === props.focusIndex}
+              declareCursor={false}
               isSelected={`${row.provider}/${row.id}` === props.currentModel}
               description={row.description}
               showScrollUp={absoluteIndex === start && start > 0}
