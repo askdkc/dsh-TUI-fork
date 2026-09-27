@@ -26,8 +26,13 @@ assert.equal(readFileSync(join(home, '.zshrc'), 'utf8'), before)
 const shell = spawnSync('zsh', ['-ic', 'command -v dsh-cli'], {
   env: { ...process.env, ZDOTDIR: home, PATH: process.env.PATH ?? '' }, encoding: 'utf8',
 })
-assert.equal(shell.status, 0, shell.stderr)
-assert.equal(shell.stdout.trim(), command)
+if (shell.error?.code === 'ENOENT') {
+  console.log('zsh startup check skipped: zsh is not installed')
+} else {
+  assert.ifError(shell.error)
+  assert.equal(shell.status, 0, shell.stderr)
+  assert.equal(shell.stdout.trim(), command)
+}
 const launched = spawnSync(command, ['help', 'a b'], { env: { ...process.env, DSH_HOME: dshHome }, encoding: 'utf8' })
 assert.equal(launched.status, 7)
 assert.equal(launched.stdout.trim(), 'help|a b')
@@ -90,6 +95,14 @@ ensureCliRegistered({ ...options, home: bashHome, shell: '/bin/bash', path: join
 assert.match(readFileSync(join(bashHome, '.bashrc'), 'utf8'), /BEGIN dsh-cli managed PATH/)
 assert.match(readFileSync(join(bashHome, '.profile'), 'utf8'), /BEGIN dsh-cli managed PATH/)
 assert.equal(existsSync(join(bashHome, '.bash_profile')), false)
+for (const startup of ['-ic', '-lc']) {
+  const bash = spawnSync('bash', [startup, 'command -v dsh-cli'], {
+    env: { ...process.env, HOME: bashHome, PATH: process.env.PATH ?? '' }, encoding: 'utf8',
+  })
+  assert.ifError(bash.error)
+  assert.equal(bash.status, 0, bash.stderr)
+  assert.equal(bash.stdout.trim(), join(bashHome, '.local', 'bin', 'dsh-cli'))
+}
 
 const fishHome = join(home, 'fish')
 ensureCliRegistered({ ...options, home: fishHome, shell: '/usr/bin/fish' })

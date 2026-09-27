@@ -598,6 +598,12 @@ jobs:
           TMPDIR="$LONG_TMPDIR" \
             node --import tsx/esm scripts/verify-inject-channel.mjs
 
+      - name: CLI registration in a new zsh shell
+        if: runner.os == 'macOS'
+        run: |
+          command -v zsh
+          node --import tsx/esm scripts/verify-cli-registration.ts
+
       # 安全模式的启动器门禁在观察档里也跑一遍：脚本自带 POSIX/Windows 两套
       # dsh 替身，本就不依赖 lib/ 产物。放进这里的理由是 required 的
       # input-terminal 组只在 ubuntu 跑，而 bin/dsh-tui.js 有 Windows 专属
