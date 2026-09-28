@@ -17,9 +17,8 @@
 
 > 面向 DeepSeek Harness 的交互式终端 UI 插件。
 
-本仓库基于 [chimney 的 dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)，
-由 dkc 独立开发和维护。开发方向与发布由本仓库决定，仍需保持与
-DeepSeek Harness 的兼容。
+本仓库是 dkc 基于 [chimney 的 dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)
+独立开发的 fork。
 
 ## 界面预览
 
@@ -36,17 +35,17 @@ DeepSeek Harness 的兼容。
 - 像素鲸鱼、实时工作状态、上下文进度条、TPS 仪表和可点击的时间轴。
 - 会话恢复、分支、回溯、后台运行与导出。
 - DSH 预设、技能、MCP、目标、子代理、提供商认证和扩展。
+- 支持 OpenAI、Claude、OpenCode、OpenRouter、Hermes Agent、Infron 和 OrcaRouter 认证。
 - 为长会话提供虚拟化渲染和有界缓存。
 
 ## 快速开始
 
 需要 [Node.js](https://nodejs.org/zh-cn) `^22.19 || >=24`、pnpm 11、
 已安装依赖的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
-源码检出，以及 `DEEPSEEK_API_KEY`。主要适配 DSH `0.1.7-rc.2`。
+源码检出，以及 `DEEPSEEK_API_KEY`。目标是支持最新版本的 DSH。
 
-`dsh-auth/` 源码由本仓库直接跟踪。其余子模块仍需递归克隆；
-已有检出应在安装前运行 `git submodule update --init --recursive`。
-构建使用当前检出的认证源码，不再从 `dsh-auth-fork` 获取代码。
+请递归克隆以获取子模块；已有检出应在安装前运行
+`git submodule update --init --recursive`。
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git

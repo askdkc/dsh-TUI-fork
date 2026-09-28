@@ -17,9 +17,7 @@
 
 > An interactive terminal UI plugin for DeepSeek Harness.
 
-This is an independently developed fork of [dsh-TUI by chimney](https://github.com/ccch1mneyyy/dsh-TUI),
-maintained by dkc. Releases and development decisions are made in this
-repository. Compatibility with DeepSeek Harness remains a separate requirement.
+This is dkc's independently developed fork of [dsh-TUI by chimney](https://github.com/ccch1mneyyy/dsh-TUI).
 
 ## Preview
 
@@ -36,19 +34,18 @@ repository. Compatibility with DeepSeek Harness remains a separate requirement.
 - A pixel whale, live work status, context bar, TPS gauge, and clickable timeline.
 - Session management with resume, fork, rewind, background work, and export.
 - DSH presets, skills, MCP, goals, subagents, provider authentication, and extensions.
+- Authentication for OpenAI, Claude, OpenCode, OpenRouter, Hermes Agent, Infron, and OrcaRouter.
 - Virtualized rendering and bounded caches for long sessions.
 
 ## Quick Start
 
 Requires [Node.js](https://nodejs.org/en) `^22.19 || >=24`, pnpm 11, a
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) source
-checkout with dependencies installed, and `DEEPSEEK_API_KEY`. The main
-compatibility target is DSH `0.1.7-rc.2`.
+checkout with dependencies installed, and `DEEPSEEK_API_KEY`. We aim to support
+the latest DSH release.
 
-The `dsh-auth/` source is tracked in this repository. Clone recursively for the
-remaining submodules; in an existing checkout, run
-`git submodule update --init --recursive` before installation. Builds use the
-checked-out auth source and do not fetch `dsh-auth-fork`.
+Clone recursively to fetch submodules. In an existing checkout, run
+`git submodule update --init --recursive` before installation.
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git

@@ -18,8 +18,7 @@
 > DeepSeek Harness 向けの対話型ターミナル UI プラグインです。
 
 このリポジトリは [chimney 氏の dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)
-を基に dkc が独自に開発する fork です。開発方針とリリースはこのリポジトリで決めます。
-DeepSeek Harness との互換性は引き続き必要です。
+を基に dkc が独自に開発する fork 版です。
 
 ## 画面プレビュー
 
@@ -36,18 +35,17 @@ DeepSeek Harness との互換性は引き続き必要です。
 - ピクセルクジラ、作業状況、コンテキストバー、TPS メーター、クリックできるタイムライン。
 - セッションの再開、分岐、巻き戻し、バックグラウンド実行、エクスポート。
 - DSH の preset、skill、MCP、goal、subagent、プロバイダー認証、拡張機能。
+- OpenAI、Claude、Opencode、Openrouter、Hermes Agennt、Infron、OrcaRouter認証をサポート。
 - 長いセッション向けの仮想化表示と上限付きキャッシュ。
 
 ## クイックスタート
 
 [Node.js](https://nodejs.org/en) `^22.19 || >=24`、pnpm 11、依存関係をインストール済みの
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) ソース checkout、
-`DEEPSEEK_API_KEY` が必要です。主な対応対象は DSH `0.1.7-rc.2` です。
+`DEEPSEEK_API_KEY` が必要です。基本的にDSH最新版サポートを目指します。
 
-`dsh-auth/` のソースはこのリポジトリで直接管理します。残るサブモジュールのため、
-再帰的に clone してください。既存の checkout では、インストール前に
+サブモジュール解決のため再帰的に clone してください。既存の checkout では、インストール前に
 `git submodule update --init --recursive` を実行してください。
-ビルドは checkout 内の認証ソースを使い、`dsh-auth-fork` から取得しません。
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
