@@ -298,32 +298,6 @@ Seam grading and API notes: [Plugin development](docs/plugins.en.md). The organi
 
 Everything, bilingual: [docs/README.md](docs/README.md).
 
-## Community
-
-- **Ecosystem organization**: [dsh-tui-ecosystem](https://github.com/dsh-tui-ecosystem)
-  hosts community plugins, templates, and the curated list. Come ship a
-  plugin, pitch an idea, or just hang out 🐋
-- **Chat groups** (Chinese-language): usage questions, plugin ideas, and
-  feature wishes are all welcome.
-- **Code of conduct**: please read the
-  [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.en.md) before taking
-  part.
-
-| WeChat group (dsh-cli community 4) | QQ group (ID 572549239) |
-| :---: | :---: |
-| <img src="screenshots/wechat-group.jpg" alt="dsh-cli community WeChat group 4 QR code" width="200"> | <img src="screenshots/qq-group.png" alt="dsh-cli community QQ group QR code" width="200"> |
-
-> The WeChat QR code expires roughly every 7 days; if it stops working, use
-> the QQ group (572549239) or open an issue to nudge us for a refresh.
-
-## Permissions and Security Boundary
-
-> **Windows security warning:** the Windows profile defaults to `danger-full-access` with approval set to `never`, so tools have unrestricted access. Inspect and tighten the profile before starting next to sensitive credentials or in an untrusted repository.
-
-No sandbox of its own: dsh-cli uses the active DSH profile's filesystem, shell, sandbox and approval policies. Permission presets come from the DSH `permissionPresets` registry.
-
-Details: [Permissions and security boundary](docs/architecture.en.md#permissions-and-security-boundary).
-
 ## Acknowledgments
 
 - The pixel whale's 22 hand-drawn frames and its idle behaviors are ported
