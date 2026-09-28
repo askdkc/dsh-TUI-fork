@@ -73,6 +73,8 @@ export interface ChannelUi {
   readonly cancelPending: boolean
   /** Which phase the spinner should present while working. */
   readonly spinnerMode: SpinnerMode
+  /** Language inferred from admitted human messages for progress copy only. */
+  readonly progressLanguage: 'en' | 'ja' | 'zh'
   /** Chars streamed as text this turn (feeds the spinner token counter). */
   readonly responseChars: number
   /** Number of tool calls still in flight this turn. */

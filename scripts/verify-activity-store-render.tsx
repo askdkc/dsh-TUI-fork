@@ -243,4 +243,17 @@ await check('the status line renders the projection, and only it', async () => {
   assert.match(projected, /投影来的新行/, 'the projected value renders')
 })
 
+await check('Japanese progress remains readable at a narrow terminal width', async () => {
+  const store = new ActivityStore()
+  store.update('session-A', view('✓ ツール実行 natural-japanese-output · 13ms', { phase: 'done', lang: 'ja' }))
+  const probe = await mountProbe(store, 'session-A', 40)
+  try {
+    const screen = probe.screen()
+    assert.match(screen, /ツール実行/, 'Japanese tool status is visible')
+    assert.doesNotMatch(screen, /备选方案/, 'the original Chinese fallback is absent')
+  } finally {
+    await probe.unmount()
+  }
+})
+
 console.log(`verify-activity-store-render: OK (${checks} checks)`)

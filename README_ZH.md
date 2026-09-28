@@ -1,7 +1,7 @@
-
 <p align="center">
-  <img src="docs/assets/readme/logo.svg" alt="dsh-CLI 像素鲸鱼标题动画" width="560">
+  <img src="docs/assets/readme/logo.svg" alt="dsh-cli 像素鲸鱼标题动画" width="560">
 </p>
+
 <p align="center">
   <a href="README.md">English</a> | <strong>简体中文</strong> | <a href="README_JA.md">日本語</a>
 </p>
@@ -9,95 +9,46 @@
 <p align="center">
   <a href="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/askdkc/dsh-cli/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-263146?style=flat-square"></a>
-  <img alt="Public beta" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
+  <img alt="公开测试版" src="https://img.shields.io/badge/status-public%20beta-7da1de?style=flat-square">
   <a href="https://github.com/askdkc/dsh-cli/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/askdkc/dsh-cli?style=flat-square&color=4b6fff"></a>
-  <img alt="官方收录" src="https://img.shields.io/badge/DeepSeek%20Harness%20官方公众号-收录-brightgreen">
 </p>
 
 # dsh-cli
 
-> 面向 DeepSeek Harness 的交互式终端界面插件：像素鲸鱼顶栏、实时工作状态、流式思考展示、双击 Esc 时间回溯、上下文进度条与 TPS 仪表。
-> 零核心改动，纯插件挂载。安装即启用，卸载不留核心补丁。
-
-## 功能亮点
-
-- **像素鲸鱼娘** — 开屏三选一动画，点击唤醒；开始第一个任务后定格。
-- **终端原生界面** — 流式 Markdown、工具卡、`/` 与 `@` 补全、`#L12-14` 行区间、历史搜索、中英界面。
-- **图片** — Kitty/Sixel 缩略图，居中大图可缩放平移，粘贴前按限额适配，无图形时文字回退。
-- **Mermaid 图表** — ```` ```mermaid ```` 代码块画成 Unicode 字符图。
-- **时间轴** — 全部回合可点；右栏时间线 / 滚动条 / 隐藏。
-- **实时状态** — 工作动画、上下文条、TPS、缓存命中率、推理强度、token、Git 与会话信息。
-- **唯一的会话管理界面** — `/resume` `/home` `/agentview` `/bg` `⌸`。
-- **会话工作流** — `/new` `/compact` `/export` `/btw`、模型热切换、fork、回溯、vim、全屏草稿编辑器。
-- **IDE 选区通道** — VS Code 里选中的代码进 prompt。
-- **DSH 集成** — presets、技能、MCP、目标、待办、子代理、问卷。
-- **提供商认证** — `/auth` 连接 ChatGPT、Claude、Grok、OpenCode Zen/Go、OrcaRouter、OpenRouter、Nous 与 Infron；再用 `/model` 单独选择模型。
-- **扩展** — 浏览器交互、computer use 等。
-- **为长会话设计** — 事件驱动投影、虚拟化、有界缓存。
-
-键位与命令：[交互与命令](docs/interaction.md)。其余见[文档索引](docs/README.md)。
+> 面向 DeepSeek Harness 的交互式终端 UI 插件。
 
 ## 界面预览
 
 <div align="center">
   <picture>
     <source media="(max-width: 640px)" srcset="docs/assets/readme/preview-zh-mobile.svg">
-    <img src="docs/assets/readme/preview-zh.svg" alt="dsh-cli 会话录制：欢迎界面、补全、帮助与输入，以及像素鲸鱼动画。" width="78%">
+    <img src="docs/assets/readme/preview-zh.svg" alt="带有像素鲸鱼动画的 dsh-cli 操作界面。" width="78%">
   </picture>
 </div>
 
-## 官方收录
+## 功能亮点
 
-上游 dsh-TUI 项目被 **DeepSeek Harness 官方公众号**推文收录，也被 [dshfind](https://dshfind.com/ccch1mneyyy/dsh-TUI) 插件目录收录，并登上 [GitHub Trending](https://trendshift.io/repositories/146168) 日榜第七（TypeScript 口径）。
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center" valign="middle" width="50%">
-        <img src="screenshots/wechat-official.png" alt="DeepSeek Harness 官方公众号推文收录 dsh-TUI" width="480">
-        <br>
-        <strong>DeepSeek Harness 官方公众号推文收录</strong>
-      </td>
-      <td align="center" valign="middle" width="50%">
-        <a href="https://dshfind.com/ccch1mneyyy/dsh-TUI"><img src="https://dshfind.com/api/card/ccch1mneyyy/dsh-TUI?lang=zh" alt="dsh-TUI on dshfind" width="420"></a>
-        <br>
-        <strong>dshfind 插件目录收录</strong>
-        <br><br>
-        <a href="https://trendshift.io/repositories/146168" title="GitHub Trending 日榜 #7 · TypeScript 口径"><img alt="Trendshift" src="https://trendshift.io/api/badge/trendshift/repositories/146168/daily?language=TypeScript"></a>
-         <br>
-        <strong>GitHub Trending 日榜第七</strong>
-      </td>
-    </tr>
-  </table>
-</div>
+- 流式 Markdown、工具卡、图片、Mermaid 图表和键盘补全。
+- 像素鲸鱼、实时工作状态、上下文进度条、TPS 仪表和可点击的时间轴。
+- 会话恢复、分支、回溯、后台运行与导出。
+- DSH 预设、技能、MCP、目标、子代理、提供商认证和扩展。
+- 为长会话提供虚拟化渲染和有界缓存。
 
 ## 快速开始
 
-前置条件：安装 [Node.js](https://nodejs.org/zh-cn) 与 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)，并配置 `DEEPSEEK_API_KEY`。
+需要 [Node.js](https://nodejs.org/zh-cn) `^22.19 || >=24`、pnpm 11、
+已安装依赖的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+源码检出，以及 `DEEPSEEK_API_KEY`。主要适配 DSH `0.1.7-rc.2`。
 
-主适配目标为 DSH `0.1.7-rc.2`，已接入新版 Shell API、V4 会话消息、声明式预设与
-profile 设置；旧受支持版本保留兼容路径。迁移说明见[配置参考](docs/configuration.md)。
-
-DSH 0.1.7 的 `/settings` 使用 TUI 实际的 Loader 行 ID，也支持自定义 ID。
-profile 依赖须配套，包含 `@deepseek-ai/schemastery` 3.18.3 或更新版本；
-Schema 不兼容时，TUI 在启动阶段报错并提示修复安装，不再显示不可编辑的设置页。
-旧 host 继续使用原有设置 scope。
-
-构建还需要 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork)，本仓库将其作为
-`dsh-auth/` Git 子模块。下方的 `--recurse-submodules` 会自动获取；已有检出应在
-`pnpm install` 前运行 `git submodule update --init --recursive`。每次源码构建都会先
-获取该 fork 的 `master` 最新提交，再编译 `dsh-auth`；获取失败时构建会停止，
-不会沿用子模块记录的旧提交。
-
-从源码构建 fork，并安装到 `dsh-cli` profile。需要 Node `^22.19 || >=24`、
-pnpm 11，以及已安装依赖的 DeepSeek Harness 源码检出：
+递归克隆会一并获取 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork)。
+已有检出应在安装前运行 `git submodule update --init --recursive`。
+构建会获取该 fork 的 `master` 最新提交，因此需要网络连接。
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
 cd dsh-cli
 pnpm install --frozen-lockfile
-TMPDIR=/tmp pnpm build
-
+pnpm build
 node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
 TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
 
@@ -106,208 +57,43 @@ pnpm dsh plugin --profile dsh-cli add "$TARBALL"
 pnpm dsh --profile dsh-cli
 ```
 
-将 `~/DIR/TO/deepseek-harness` 换成实际检出路径。tarball 文件名由当前包名
-`@askdkc/dsh-cli` 和版本号组成。首次交互运行 `dsh --profile dsh-cli` 时，
-自动把 `dsh-cli` 注册到 `~/.local/bin`（Windows：`%LOCALAPPDATA%\dsh-cli\bin`），
-必要时将目录加入用户 PATH。打开新终端后即可使用。支持 zsh、bash、fish 和 Windows；
-不会覆盖其他同名命令。设置 `DSH_TUI_AUTO_REGISTER_CLI=0` 可关闭自动注册。
-PATH 区块写入 zsh 的 `${ZDOTDIR:-$HOME}/.zshrc`、bash 的 `.bashrc` 与
-当前登录配置文件，或 fish 的
-`${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/dsh-cli.fish`。撤销时删除
-生成的命令与对应的 `dsh-cli managed PATH` 区块；fish 文件仅在没有其他内容时
-整体删除（Windows 删除生成的命令和用户 PATH 条目）。旧命令 `dsh-tui` 和 `dst` 保留为兼容别名。
+将 `~/DIR/TO/deepseek-harness` 换成实际检出路径。首次交互启动会注册
+`dsh-cli`；打开新终端后，即可从项目目录运行。更新本 fork 时，请重新构建
+并安装 tarball。`/update` 会从 registry 更新。
 
-Harness 源码检出不会把 `dsh` 放进 PATH。首次在 Harness 检出中通过
-`pnpm dsh --profile dsh-cli` 启动 TUI 时，注册流程还会将检出路径作为
-`DSH_TUI_DSH_ROOT` 写入受管理的 shell 启动区块（zsh 为 `.zshrc`）。打开新终端后：
+PATH 设置与安装问题见[安装指南](docs/getting-started.md)。
 
-```sh
-cd /absolute/path/to/your-project
-dsh-cli
-```
+## 使用
 
-启动器会调用该检出中已构建的 `apps/cli/lib/bin.js`，并保留项目工作目录。
-修改 Harness 源码后需重新构建；显式设置 `DSH_TUI_DSH_ROOT` 可覆盖自动注册值。
-本地 tarball 的后续更新应重新构建并安装，不要用指向 registry 的 `/update`。
+`Enter` 发送、`Tab` 补全、`Ctrl+Enter` 打断并发送；连按两次 `Esc` 回溯。
+按 `?` 查看快捷键。
 
-pnpm ≥11 可能对带安装脚本的依赖报告 `ERR_PNPM_IGNORED_BUILDS`；原生构建设置见
-[安装与快速开始](docs/getting-started.md#pnpm-安装脚本拦截与异平台原生包)。
-内置的 `/update` 和 `dsh-cli update` 会从 registry 更新。更新本地 fork 请重新构建并安装 tarball。
+工作状态行会根据每次已接受的请求自动使用英语、日语或中文。无法判断语言的短句
+沿用当前会话上一次的状态语言；`/lang` 单独控制界面其他部分。
 
-### CLI 子命令
+`/resume` 打开会话管理界面，`/auth` 连接提供商，`/model` 选择模型。
+通过 `/bg` 转入后台的会话会在 TUI 退出时停止。完整说明见[交互与命令](docs/interaction.md)。
 
-| 命令 | 作用 |
-| --- | --- |
-| `dsh-cli` / `dst` | 启动 TUI；短别名是同一个程序 |
-| `dsh-cli --resume [id]` · `dsh-cli update` · `dsh-cli doctor` | 恢复会话 · 从 registry 更新 · 环境体检 |
-| `dsh-cli safe` | 只读诊断、插件清单与修复指引；`safe --rescue` 创建干净的救援 profile |
-| `dsh-cli version` · `dsh-cli help` | 启动器与 profile 版本、用法；没装 dsh 时这两条也能用 |
+要导入 Claude Code、Codex、OMP、zcode 或 Grok Build 的对话，先运行
+`dsh-cli migrate` 查看可导入的记录，再运行 `dsh-cli migrate <agent> [--dry-run]`。
+工具调用不会导入。详见[会话迁移](docs/migrate.md)。
 
-其余参数转发给 `dsh --profile dsh-cli`。安全模式：[安装与快速开始](docs/getting-started.md)。
+## 文档
 
-### 迁移其他编程代理的对话（`dsh-cli migrate`）
-
-把 Claude Code、Codex、OMP、zcode、Grok Build 的本地对话历史导入 DSH 会话库，之后用 `/resume` 按原工作目录浏览与恢复：
-
-```sh
-dsh-cli migrate                # 列出各代理可迁移的对话数量（不写入）
-dsh-cli migrate claude-code    # 导入 Claude Code 的全部对话（codex / omp / zcode / grok-build 同理）
-dsh-cli migrate codex --dry-run  # 只预览将落盘的内容，不写入
-```
-
-- **只读源**：迁移只读取源代理的本地存储，绝不修改；产物经官方 `JsonlSessionPersistence` 后端写入 `$DSH_HOME/sessions`——导入的会话是一等公民（可打开、可续聊）
-- **幂等**：同一源对话命中同一确定性 UUID——重复导入跳过已存在项，不堆叠重复
-- **保留结构**：用户/助手消息与思考过程（reasoning）按轮次还原；工具调用流量不迁移（源格式不可忠实回放——迁移契约是「重读对话」而非「续跑任务」）
-TUI 内：`/migrate`（或 `/migrate <agent> [--dry-run]`）以子进程运行同一导入，经通知流汇报，不卡界面。
-CLI 形态：任意终端运行 `dsh-cli migrate ...`，与 TUI 内执行同一套导入。
-完整指南：[会话迁移](docs/migrate.md)。
-
-- pi / opencode 等其他代理经 adapter 注册表逐步扩展；grok-build 支持读 `GROK_HOME` 环境变量
-
-**VS Code**：用集成终端，或用 `dsh-tui-vscode` 扩展。见 [VS Code 使用指南](docs/vscode.md)。**Herdr**：在 [Herdr](https://herdr.dev) 窗格运行 `dsh-cli`，经其本地集成 API 报告 `idle` / `working` / `blocked`。
-
-## 快捷键与鼠标
-
-`Enter` 发送 · `Tab` 补全 · `Ctrl+Enter` 打断并发送 · `Alt+Up` 取回上一条 · `Esc` 逐层关闭，空输入双击回溯 · `Ctrl+O` 详情 · `Ctrl+R` 搜历史 · `Ctrl+V` 粘贴 · `Ctrl+Shift+E` 全屏草稿编辑器 · `?` 快捷键 · `←` 转后台。
-
-模型工作时：`Enter` 加塞、`Tab` 排队、`Ctrl+Enter` 打断并立即发送。
-
-鼠标（全屏）：拖选即复制、双击/三击选词选行、点工具卡、时间轴刻度与 `[Image #N]` 预览。
-
-完整参考：[交互与命令](docs/interaction.md)。
-
-## 内置命令
-
-`/resume` · `/home` · `/agentview` · `/bg` · `⌸` 打开同一个会话管理界面：工作区栏、实时状态、筛选、★ 固定。另有 `/model` `/new` `/compact` `/export` `/btw` `/tree` `/fork` `/rewind` `/settings` `/status` `/cost` `/jobs` `/skills` `/mcp` `/login` `/update`。
-
-会话管理界面会立即显示上次成功读取的列表，同时核对持久化存储的变化。需要深度扫描日志的标题会先显示回退名称，恢复完成后在原行更新。
-
-**后台会话**：`/bg` 或空输入按 `←`；按 `Esc` 回到它。跑在本进程内，TUI 退出即停止，日志保留。
-
-完整命令：[交互与命令](docs/interaction.md)。
-
-## 配置与扩展
-
-Agent 预设、主题、MCP 服务器、环境变量：[配置参考](docs/configuration.md) · [主题系统](docs/themes.md)。
-
-默认 Agent persona 要求模型按用户请求的语言回复；语言不明确时使用英语。`/lang` 只切换 TUI 界面语言。`DSH_TUI_PERSONA` 会替换默认 persona。
-
-## 工作原理
-
-```text
-dsh profile → dsh-base → dsh-cli Cordis patch → agent preset + DSH services
-  → session/event → Channel projection → React components → Ink/Yoga renderer → terminal
-```
-
-TUI 只负责交互与呈现：会话日志是唯一事实源，模型、工具与持久化归 DSH 服务。长会话单帧成本 O（可见窗口）。
-
-运行链路、模块边界、性能要点与持久化位置见[架构与限制](docs/architecture.md)。
-
-## 已知限制
-
-- 注入的插件上下文没有独立展示，计入上下文分段。
-- `/model` 可用空格分隔的关键词筛选，忽略大小写和词序。提供方顶层搜索全部模型，
-  进入提供方或最近使用后仅搜索当前列表；匹配模型和提供方的名称与 ID。
-  切换仍靠 fork 续聊，旧会话留在 `/resume`。
-- `Ctrl+V` 需要平台剪贴板工具；不支持的位图格式直接拒绝。
-- 后台会话活在本进程内，TUI 退出即停止。
-- `/thinking` 不持久化；`/compact` 在 `minimal` 预设下不可用；`/update` 需 `dsh --profile` 启动，回合运行中会被拒绝。
-
-完整清单见[架构与限制](docs/architecture.md)。
-
-## 从源码构建
-
-CI 使用 Node 24 与 pnpm 11，本包支持 Node `^22.19 || >=24`。
-先确认检出包含子模块；若 `vendor/dsh-std` 或
-来自 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork) 的 `dsh-auth` 为空，运行
-`git submodule update --init --recursive`。然后从 dsh-cli 仓库根目录执行：
-
-`pnpm build` 会从 fork 的 `master` 分支更新 `dsh-auth`，因此需要网络。
-Git 仍会记录一个子模块基准提交，更新后父仓库可能显示 `dsh-auth` 已修改。
-
-[快速开始](#快速开始)列出了完整的 clone、构建、打包与安装命令。
-修改源码时，打包前按改动范围运行验证：
-
-```sh
-cd ~/DIR/TO/dsh-cli
-pnpm smoke
-pnpm verify:package
-```
-
-`with-publish-manifest.mjs` 临时转换本地 bundled 依赖的 manifest，并在打包后
-恢复源码 manifest。tarball 只安装到 `dsh-cli` profile，不会发布到 npm。
-已有检出若缺少子模块，先运行 `git submodule update --init --recursive`。
-**不支持直接从 Git URL 安装包**：源码 manifest 中有 workspace 和本地链接，
-必须先构建并打包。
-
-### 更新版本号
-
-打包前先在 dsh-cli 检出中设置新的 SemVer。以下 `0.11.3` 只是示例，须替换成
-实际要发布的版本：
-
-```sh
-cd ~/DIR/TO/dsh-cli
-npm pkg set version=0.11.3
-pnpm install --lockfile-only --ignore-scripts
-git diff -- package.json pnpm-lock.yaml
-```
-
-若改动了 `dsh-auth`，还须更新它独立的 `package.json` 版本与锁文件，并在本仓库
-记录新的子模块提交；否则干净检出仍会构建旧的子模块版本。再按上文重新构建、
-打包，确认 tarball 文件名与 `package.json` 的版本一致。发布是另一步：只有推送
-与 dsh-cli 包版本完全一致的 `vX.Y.Z` tag，才会触发发布工作流。
-
-## 插件生态
-
-插件开发：[准入与开发指南](https://github.com/T-Auto/dsh-ecosystem-spec/blob/main/docs/plugin-admission-and-development.md) · [plugin-template](https://github.com/dsh-tui-ecosystem/plugin-template) · [dsh-tui-ecosystem](https://github.com/dsh-tui-ecosystem)。参考实现：`dsh-working-activity`。
-
-接缝分级与 API 说明：[插件开发](docs/plugins.md)。生态组织只维护收录，不背书社区插件。
-
-## 文档索引
-
-- **上手** — [安装与快速开始](docs/getting-started.md) · [VS Code](docs/vscode.md)
-- **使用** — [交互与命令](docs/interaction.md) · [使用说明](docs/user-guide.md)（[English](docs/user-guide.en.md)） · [主题系统](docs/themes.md)
-- **配置** — [配置参考](docs/configuration.md)
-- **实现** — [架构与限制](docs/architecture.md) · [会话挂载运行时](docs/session-mount-runtime.md)
-- **插件** — [准入与开发指南](https://github.com/T-Auto/dsh-ecosystem-spec/blob/main/docs/plugin-admission-and-development.md) · [插件速览](docs/plugins.md)
-- **参与** — [贡献与开发约定](docs/contributing.md) · [路线图](docs/roadmap.md) · [社区管理框架](docs/community-management.md)
-
-中英对照全量索引：[docs/README.md](docs/README.md)。
-
-## 社区
-
-- **生态组织**：[dsh-tui-ecosystem](https://github.com/dsh-tui-ecosystem) 是社区插件、模板与收录列表的家。欢迎来发插件、提创意、互相取暖 🐋
-- **社区交流群**：使用问题、插件创意、功能许愿，都欢迎进来聊。
-- **行为准则**：参与前请读一遍[贡献者行为准则](CODE_OF_CONDUCT.md)。
-
-| 微信群（dsh-TUI 社区交流 4 群） | QQ 群（群号 572549239） |
-| :---: | :---: |
-| <img src="screenshots/wechat-group.jpg" alt="dsh-TUI 社区交流 4 群微信群二维码" width="200"> | <img src="screenshots/qq-group.png" alt="dsh-TUI 社区交流群 QQ 群二维码" width="200"> |
-
-> 微信群二维码约 7 天过期一次，如遇失效请走 QQ 群（572549239），或开个 issue 提醒我们更新。
-
-## 权限与安全边界
-
-> **Windows 安全警告：** Windows profile 默认 `danger-full-access`、approval 默认 `never`，工具访问不受限制。在敏感凭证或不可信仓库旁启动前，先检查并收紧 profile。
-
-不自带沙箱：用当前 DSH profile 的文件、Shell、sandbox 与 approval 策略。权限预设来自 DSH `permissionPresets` registry。
-
-详见[权限边界](docs/architecture.md#权限与安全边界)。
+- [安装](docs/getting-started.md) · [VS Code](docs/vscode.md)
+- [交互](docs/interaction.md) · [配置](docs/configuration.md) · [主题](docs/themes.md)
+- [架构与限制](docs/architecture.md) · [文档索引](docs/README.md)
+- [插件开发](docs/plugins.md) · [贡献指南](docs/contributing.md)
 
 ## 致谢
 
-- 像素鲸鱼娘的 22 帧手绘原图与闲置动画，移植自 **[dsh-ui-whale](https://github.com/lhh010/dsh-ui-whale)**。原图在 Excel 里逐格绘制。闲置动画有摆鱼鳍、拍尾巴、入睡冒 Z、点击冒爱心。dsh-ui-whale 是 DeepSeek Harness Web 端鲸鱼宠物插件，作者 [@lhh010](https://github.com/lhh010)，BSD-3-Clause。感谢作者与灵感 🐋💜
+像素鲸鱼的 22 帧手绘图和待机动画移植自
+[@lhh010](https://github.com/lhh010) 的
+[dsh-ui-whale](https://github.com/lhh010/dsh-ui-whale)（BSD-3-Clause）。
+感谢这些作品与灵感 🐋💜
 
-## 友情链接
+相关社区与工具见[友情链接](docs/links.md)。
 
-朋友们开发的[社区、相关项目与周边工具](docs/links.md)
-
-## Stars
-
-<!-- star-history:start -->
-[![Star History](https://raw.githubusercontent.com/ccch1mneyyy/dsh-TUI/bot-star-history/assets/star-history/star-history.png)](https://star-history.com/#ccch1mneyyy/dsh-TUI&Date)
-<!-- star-history:end -->
-
-## License
+## 许可证
 
 [MIT](LICENSE)

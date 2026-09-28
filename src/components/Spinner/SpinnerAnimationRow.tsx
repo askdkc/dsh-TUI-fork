@@ -15,7 +15,6 @@ import { interpolateColor, parseRGB, toRGBColor } from './spinnerUtils.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 
 const SEP_WIDTH = stringWidth(' · ')
-const THINKING_BARE_WIDTH = stringWidth('thinking')
 const SHOW_TOKENS_AFTER_MS = 30_000
 const THINKING_DELAY_MS = 2800
 const THINKING_PULSE_MS = 1800
@@ -34,6 +33,7 @@ function easeToward(current: number, target: number, elapsedMs: number, response
 }
 
 export type SpinnerAnimationRowProps = {
+  progressCopy?: { tokens: string; thinking: string; thoughtFor: string }
   mode: SpinnerMode
   reducedMotion: boolean
   hasActiveTools: boolean
@@ -63,6 +63,7 @@ export type SpinnerAnimationRowProps = {
  * stalled intensity, thinking shimmer).
  */
 export function SpinnerAnimationRow({
+  progressCopy = { tokens: 'tokens', thinking: 'thinking', thoughtFor: 'thought for {{seconds}}s' },
   mode,
   reducedMotion,
   hasActiveTools,
@@ -143,16 +144,16 @@ export function SpinnerAnimationRow({
   // Real upload tokens (last request's input + cache) ride beside the
   // animated download estimate; both labeled once to keep the row short.
   const tokensLabel = uploadTokens > 0
-    ? `↑ ${formatNumber(uploadTokens)} · ↓ ${tokenCount} tokens`
-    : `↓ ${tokenCount} tokens`
+    ? `↑ ${formatNumber(uploadTokens)} · ↓ ${tokenCount} ${progressCopy.tokens}`
+    : `↓ ${tokenCount} ${progressCopy.tokens}`
   const tokensWidth = stringWidth(tokensLabel)
 
   // === Thinking text (may shrink to fit) ===
   let thinkingText =
     thinkingStatus === 'thinking'
-      ? 'thinking'
+      ? progressCopy.thinking
       : typeof thinkingStatus === 'number'
-        ? `thought for ${Math.max(1, Math.round(thinkingStatus / 1000))}s`
+        ? progressCopy.thoughtFor.replace('{{seconds}}', String(Math.max(1, Math.round(thinkingStatus / 1000))))
         : null
   let thinkingWidthValue = thinkingText ? stringWidth(thinkingText) : 0
 
@@ -165,9 +166,9 @@ export function SpinnerAnimationRow({
   const availableSpace = columns - messageWidth - 5
   let showThinking = wantsThinking && availableSpace > thinkingWidthValue
   if (!showThinking && wantsThinking && thinkingStatus === 'thinking') {
-    if (availableSpace > THINKING_BARE_WIDTH) {
-      thinkingText = 'thinking'
-      thinkingWidthValue = THINKING_BARE_WIDTH
+    if (availableSpace > stringWidth(progressCopy.thinking)) {
+      thinkingText = progressCopy.thinking
+      thinkingWidthValue = stringWidth(progressCopy.thinking)
       showThinking = true
     }
   }

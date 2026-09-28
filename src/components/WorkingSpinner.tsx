@@ -4,7 +4,7 @@ import { Box } from '../ui.js'
 import type { SpinnerMode } from './Spinner/spinnerMode.js'
 import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { SPINNER_VERBS } from '../terminal-utils/spinnerVerbs.js'
-import { tOr } from '../i18n.js'
+import { progressSpinnerVerb, progressText, type ProgressLanguage } from '../i18n.js'
 import { sample } from 'lodash-es'
 
 /**
@@ -16,6 +16,7 @@ import { sample } from 'lodash-es'
  */
 export function WorkingSpinner({
   mode,
+  progressLanguage,
   hasActiveTools,
   responseLengthRef,
   uploadTokensRef,
@@ -25,6 +26,7 @@ export function WorkingSpinner({
   thinkingStatus,
 }: {
   mode: SpinnerMode
+  progressLanguage: ProgressLanguage
   hasActiveTools: boolean
   responseLengthRef: React.RefObject<number>
   /** Most recent request's real upload tokens; 0 until the first usage event. */
@@ -38,11 +40,17 @@ export function WorkingSpinner({
 
   // Pick a random verb once per spinner mount (per turn).
   const [randomVerb] = useState(() => sample(SPINNER_VERBS) ?? 'Working')
-  const message = `${tOr(`spinner-verb-${randomVerb.toLowerCase()}`, randomVerb)}…`
+  const message = `${progressSpinnerVerb(progressLanguage, randomVerb)}…`
+  const progressCopy = {
+    tokens: progressText(progressLanguage, 'tokens'),
+    thinking: progressText(progressLanguage, 'thinking'),
+    thoughtFor: progressText(progressLanguage, 'thoughtFor'),
+  }
 
   return (
     <Box flexDirection="column" width="100%" alignItems="flex-start">
       <SpinnerAnimationRow
+        progressCopy={progressCopy}
         mode={mode}
         reducedMotion={false}
         hasActiveTools={hasActiveTools}

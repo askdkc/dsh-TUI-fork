@@ -1492,6 +1492,31 @@ export function tOr(key: string, fallback: string, params: I18nParams = {}): str
   return substitute(pickText(entry?.[activeLang], params) ?? fallback, params)
 }
 
+/** Progress copy follows the accepted prompt instead of the global /lang setting. */
+const progressDict = {
+  working: { en: 'Working', zh: '工作中', ja: '作業中' },
+  tokens: { en: 'tokens', zh: 'token', ja: 'トークン' },
+  thinking: { en: 'thinking', zh: '思考中', ja: '思考中' },
+  thoughtFor: { en: 'thought for {{seconds}}s', zh: '思考了 {{seconds}} 秒', ja: '{{seconds}} 秒思考' },
+} as const
+
+export type ProgressLanguage = 'en' | 'zh' | 'ja'
+
+export function progressText(
+  language: ProgressLanguage,
+  key: keyof typeof progressDict,
+  params: I18nParams = {},
+): string {
+  return substitute(progressDict[key][language], params)
+}
+
+export function progressSpinnerVerb(language: ProgressLanguage, verb: string): string {
+  if (language === 'ja') return progressText(language, 'working')
+  const entry = (dict as Record<string, Partial<Record<Lang, I18nText>>>)[`spinner-verb-${verb.toLowerCase()}`]
+  const copy = entry?.[language]
+  return typeof copy === 'string' ? copy : verb
+}
+
 /** Read-only view of the dictionary for audits (scripts/verify-i18n.ts). */
 export const i18nDict: Readonly<Record<string, { readonly zh?: I18nText; readonly en?: I18nText }>> = dict
 

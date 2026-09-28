@@ -1,4 +1,5 @@
 import type { AgentHandle } from '@deepseek-ai/dsh-agent'
+import { terminalProgressLang } from 'dsh-working-activity/lang'
 import type { SessionModeSpec } from '../../sessionModes.js'
 import { normalizePageMargin, normalizeScrollGutter, normalizeStatusBar, normalizeToolBackground, type PageMarginSetting, type ScrollGutterMode, type StatusBarConfig, type ToolBackground } from '../../tuiDisplayPrefs.js'
 import { normalizeActivityPreset } from '../../components/activityFrames.js'
@@ -52,7 +53,7 @@ export function createInitialChannelView(
   'effortLevels' | 'version' | 'rows' | 'status' | 'sessionTitle' | 'sessionColor' |
   'agentId' | 'sessionId' | 'agentBindingGeneration' | 'model' | 'provider' | 'tokens' | 'cwd' |
   'displayCwd' | 'gitBranch' | 'working' | 'cancelPending' | 'spinnerMode' |
-  'responseChars' | 'activeToolCount' | 'turnStart' | 'lastUserText' |
+  'responseChars' | 'activeToolCount' | 'turnStart' | 'lastUserText' | 'progressLanguage' |
   'notifications' | 'contextWindow' | 'reasoningEffort' | 'mode' | 'modeIndex' |
   'activityFrames' | 'configuredProvider' | 'configuredModel' |
   'configuredPreset' | 'configuredActivityFrames' | 'configuredLang' | 'diffLayout' |
@@ -68,7 +69,7 @@ export function createInitialChannelView(
     tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, peak: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, idle: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } },
     cwd: options.cwd, displayCwd: input.cwdDescription, gitBranch: undefined, working: false,
     cancelPending: false, spinnerMode: 'requesting', responseChars: 0, activeToolCount: 0,
-    turnStart: 0, lastUserText: '', notifications: [], contextWindow: undefined,
+    turnStart: 0, lastUserText: '', progressLanguage: terminalProgressLang(), notifications: [], contextWindow: undefined,
     reasoningEffort: options.effort, mode: input.mode, modeIndex: 0,
     activityFrames: normalizeActivityPreset(options.activityFrames), configuredProvider: options.configuredProvider,
     configuredModel: options.configuredModel, configuredPreset: options.configuredPreset,

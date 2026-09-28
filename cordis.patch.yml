@@ -478,5 +478,6 @@
     - id: working-activity
       name: '@askdkc/dsh-cli/working-activity'
       config:
+        lang: input
         publish: false
         publishIntervalMs: 500

@@ -1,4 +1,5 @@
 import { markChannelReadDirty } from '../../adapter/channel/read-view.js'
+import { terminalProgressLang } from 'dsh-working-activity/lang'
 import type { ChannelState } from './types.js'
 
 export type SessionResetState = Pick<
@@ -13,6 +14,7 @@ export type SessionResetState = Pick<
   | 'responseChars'
   | 'activeToolCount'
   | 'lastUserText'
+  | 'progressLanguage'
   | 'working'
   | 'cancelPending'
   | 'spinnerMode'
@@ -56,6 +58,7 @@ export function resetSessionProjection(
   state.responseChars = 0
   state.activeToolCount = 0
   state.lastUserText = ''
+  state.progressLanguage = terminalProgressLang()
   state.working = false
   state.cancelPending = false
   state.spinnerMode = 'requesting'

@@ -18,8 +18,9 @@ import { logForDebugging } from '../../utils/debug.js'
 import { cleanRenderText } from '../sanitize.js'
 import { NOTICE_CELLS } from './decisions.js'
 import { markChannelReadDirty } from '../../adapter/channel/read-view.js'
+import { detectInputLanguage } from 'dsh-working-activity/lang'
 
-type ProjectionState = Pick<ChannelState, 'rows' | 'thinkingFold' | 'activeToolCount' | 'spinnerMode' | 'goal' | 'contextSegments' | 'tokens' | 'lastUsage' | 'lastUserText' | 'responseChars' | 'tps' | 'cancelPending' | 'working' | 'turnStart' | 'tpsSamples' | 'contextWindow' | 'reasoningEffort' | 'sessionTitle' | 'todos' | 'agentPreset' | 'sessionColor' | 'status' | 'emit'>
+type ProjectionState = Pick<ChannelState, 'rows' | 'thinkingFold' | 'activeToolCount' | 'spinnerMode' | 'progressLanguage' | 'goal' | 'contextSegments' | 'tokens' | 'lastUsage' | 'lastUserText' | 'responseChars' | 'tps' | 'cancelPending' | 'working' | 'turnStart' | 'tpsSamples' | 'contextWindow' | 'reasoningEffort' | 'sessionTitle' | 'todos' | 'agentPreset' | 'sessionColor' | 'status' | 'emit'>
 interface ProjectionDependencies {
  agent(): Agent
  rowIds: { value: number }
@@ -537,6 +538,8 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
         // renders direct human prompts only.
         if (event.data.source.kind !== 'user') break
         const text = firstTextOf(event.data.content)
+        const detectedLanguage = detectInputLanguage(text)
+        if (detectedLanguage !== undefined) state.progressLanguage = detectedLanguage
         const images = transcriptImages(event.data.content)
         if (text || images.length > 0) {
           // IDE selection indicator: the delivery path remembered what this

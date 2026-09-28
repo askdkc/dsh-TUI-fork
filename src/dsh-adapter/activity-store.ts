@@ -58,7 +58,7 @@ export interface ActivityView {
   /** Timestamp of the last folded event — the value's freshness signal. */
   readonly updatedAt: number
   /** Language the line was rendered in. */
-  readonly lang: 'zh' | 'en'
+  readonly lang: 'zh' | 'en' | 'ja'
 }
 
 /** The slice of the host projection registry this module uses. */

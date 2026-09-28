@@ -137,6 +137,7 @@ export const CHANNEL_UI_PROPERTIES = [
   'working',
   'cancelPending',
   'spinnerMode',
+  'progressLanguage',
   'responseChars',
   'activeToolCount',
   'turnStart',

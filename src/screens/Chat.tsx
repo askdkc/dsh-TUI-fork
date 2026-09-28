@@ -4498,6 +4498,7 @@ export function Chat({
             ) : (
               <WorkingSpinner
                 mode={channel.spinnerMode}
+                progressLanguage={channel.progressLanguage ?? getLang()}
                 hasActiveTools={channel.activeToolCount > 0}
                 responseLengthRef={responseLengthRef}
                 uploadTokensRef={uploadTokensRef}
