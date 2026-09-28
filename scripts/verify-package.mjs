@@ -69,14 +69,24 @@ if (packed.has('lib/invariant.js')) {
   throw new Error('npm package contains the obsolete hand-built invariant entry')
 }
 
-// The manifest ships verbatim (publish goes through npm, which rewrites no
-// workspace protocols), so a `workspace:` range on a NON-BUNDLED name lands
-// in the tarball and kills `dsh plugin add` in the profile workspace
+// The publish helper rewrites only known bundled workspace links; any other
+// `workspace:` range would land in the tarball and kill `dsh plugin add`
+// in the profile workspace
 // (ERR_PNPM_WORKSPACE_PKG_NOT_FOUND). Bundled names are fine — npm packs
 // their physical copies into the tarball, so the range never resolves for a
 // consumer. Workspace helpers (e.g. vendor/sqlite-island) are reached by
 // relative import instead of a manifest entry.
 const bundled = new Set(manifest.bundledDependencies ?? manifest.bundleDependencies ?? [])
+for (const path of [
+  'node_modules/dsh-working-activity/package.json',
+  'node_modules/dsh-working-activity/lib/types/frames.js',
+  'node_modules/dsh-working-activity/lib/types/lang.js',
+  'node_modules/dsh-working-activity/lib/types/projection.js',
+]) {
+  if (!bundled.has('dsh-working-activity') || !packed.has(path)) {
+    throw new Error(`bundled working-activity fork missing from tarball: ${path}`)
+  }
+}
 for (const section of ['dependencies', 'optionalDependencies', 'devDependencies', 'peerDependencies']) {
   for (const [name, range] of Object.entries(manifest[section] ?? {})) {
     if (typeof range === 'string' && range.startsWith('workspace:') && !bundled.has(name)) {

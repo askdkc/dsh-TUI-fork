@@ -146,7 +146,7 @@
     "verify:liangshen-bootstrap": "node scripts/verify-liangshen-bootstrap.mjs",
     "verify:liangshen-instruction-hint": "node scripts/verify-liangshen-instruction-hint.mjs",
     "verify:liangshen-bash": "node scripts/verify-liangshen-bash.mjs",
-    "verify:package": "npm pack --dry-run --json --ignore-scripts | node scripts/verify-package.mjs",
+    "verify:package": "node scripts/with-publish-manifest.mjs npm pack --dry-run --json --ignore-scripts | node scripts/verify-package.mjs",
     "verify:bun-package": "node scripts/verify-bun-package.mjs",
     "verify:prompt-debug": "npm run build && node scripts/verify-prompt-debug.mjs",
     "verify:clipboard-image": "node --import tsx/esm scripts/verify-clipboard-image.ts",
@@ -404,7 +404,8 @@
     "@dsh-std/messages",
     "@dsh-std/presentation",
     "@dsh-std/storage",
-    "@askdkc/dsh-auth"
+    "@askdkc/dsh-auth",
+    "dsh-working-activity"
   ],
   "devDependencies": {
     "@deepseek-ai/dsh-agent-loop": "0.1.7-rc.2",

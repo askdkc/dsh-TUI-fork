@@ -42,40 +42,59 @@ const dshAuthManifest = JSON.parse(await readFile(join(dshAuthDir, 'package.json
 delete manifest.dependencies?.[dshAuthName]
 manifest.optionalDependencies[dshAuthName] = dshAuthManifest.version
 
+// This progress fork is developed as a workspace link until its own package is
+// published. Bundle the compiled copy so a dsh-cli tarball installs today.
+const activityDir = join(projectRoot, 'vendor', 'dsh-working-activity')
+const activityInstalled = join(projectRoot, 'node_modules', 'dsh-working-activity')
+const activityManifest = JSON.parse(await readFile(join(activityDir, 'package.json')))
+delete manifest.dependencies?.['dsh-working-activity']
+manifest.optionalDependencies['dsh-working-activity'] = activityManifest.version
+
 /**
- * Stage the bundled dsh-auth copy for packing: `node_modules/<scope>/dsh-auth`
- * is a live `link:` to the submodule during development, and npm pack follows
- * it into the submodule's own node_modules (its installed dependency tree) —
- * hundreds of unrelated files and, on some platforms, a fatal traversal. A
- * bundled package ships only its own publishable files, so the link is
- * swapped for a pristine directory filtered by the submodule's `files` list
- * (plus the manifests npm always includes) and restored afterwards.
+ * Stage one linked dependency for packing. npm pack otherwise follows the
+ * workspace link into its installed dependencies; the bundle must contain
+ * only the package's publishable files. Restore the link even if copying fails.
  */
-const stageBundledDshAuth = async () => {
-  const installed = await lstat(dshAuthInstalled).catch(() => undefined)
+const stageBundledPackage = async (sourceDir, installedPath, packageManifest, bundledName = packageManifest.name) => {
+  const installed = await lstat(installedPath).catch(() => undefined)
   if (installed === undefined || !installed.isSymbolicLink()) return () => {}
-  await rm(dshAuthInstalled, { recursive: true, force: true })
-  await mkdir(dirname(dshAuthInstalled), { recursive: true })
-  await mkdir(dshAuthInstalled, { recursive: true })
+  await rm(installedPath, { recursive: true, force: true })
   const entries = new Set([
     'package.json',
-    ...(Array.isArray(dshAuthManifest.files) ? dshAuthManifest.files : []),
+    'LICENSE',
+    'README.md',
+    ...(Array.isArray(packageManifest.files) ? packageManifest.files : []),
   ])
-  for (const entry of entries) {
-    const from = join(dshAuthDir, entry)
-    if (!existsSync(from)) continue
-    await cp(from, join(dshAuthInstalled, entry), { recursive: true })
+  const restore = async () => {
+    await rm(installedPath, { recursive: true, force: true })
+    await mkdir(dirname(installedPath), { recursive: true })
+    await symlink(sourceDir, installedPath, process.platform === 'win32' ? 'junction' : 'dir')
   }
-  return async () => {
-    await rm(dshAuthInstalled, { recursive: true, force: true })
-    await mkdir(dirname(dshAuthInstalled), { recursive: true })
-    await symlink(dshAuthDir, dshAuthInstalled, process.platform === 'win32' ? 'junction' : 'dir')
+  try {
+    await mkdir(installedPath, { recursive: true })
+    for (const entry of entries) {
+      const from = join(sourceDir, entry)
+      if (!existsSync(from)) continue
+      await cp(from, join(installedPath, entry), { recursive: true })
+    }
+    // npm/Bun identify bundles by the dependency key. The workspace fork has
+    // a scoped name, while the existing runtime imports the unscoped alias.
+    await writeFile(join(installedPath, 'package.json'), `${JSON.stringify({
+      ...packageManifest,
+      name: bundledName,
+    }, null, 2)}\n`)
+  } catch (error) {
+    await restore()
+    throw error
   }
+  return restore
 }
 
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-const restoreDshAuth = await stageBundledDshAuth()
+const restorers = []
 try {
+  restorers.push(await stageBundledPackage(dshAuthDir, dshAuthInstalled, dshAuthManifest))
+  restorers.push(await stageBundledPackage(activityDir, activityInstalled, activityManifest, 'dsh-working-activity'))
   const result = spawnSync(command, args, {
     cwd: projectRoot,
     encoding: 'utf8',
@@ -87,6 +106,6 @@ try {
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
 } finally {
-  await restoreDshAuth()
+  for (const restore of restorers.reverse()) await restore()
   await writeFile(manifestPath, originalManifest)
 }

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url))
-const packageName = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8')).name
+const projectManifest = JSON.parse(await readFile(join(projectRoot, 'package.json'), 'utf8'))
+const packageName = projectManifest.name
 const nodeCommand = process.execPath
 const npmCommand = 'npm'
 
@@ -85,17 +86,32 @@ try {
 
   await writeFile(join(temporaryRoot, 'package.json'), '{"private":true,"type":"module"}\n')
   const bunCommand = await resolveBunCommand()
-  run(bunCommand, ['add', join(temporaryRoot, report.filename)], temporaryRoot)
+  // A real DSH host provides the optional framework peers. Model that host
+  // with the exact versions installed for this repository's validated line.
+  const hostPeers = (await Promise.all(Object.keys(projectManifest.peerDependenciesMeta ?? {})
+    .filter(name => name.startsWith('@deepseek-ai/'))
+    .map(async name => {
+      try {
+        const { version } = JSON.parse(await readFile(
+          join(projectRoot, 'node_modules', name, 'package.json'), 'utf8',
+        ))
+        return `${name}@${version}`
+      } catch {
+        return undefined
+      }
+    }))).filter(Boolean)
+  run(bunCommand, ['add', ...hostPeers, join(temporaryRoot, report.filename)], temporaryRoot)
   run(bunCommand, [
     '-e',
     [
       `await import(${JSON.stringify(packageName)})`,
       `await import(${JSON.stringify(`${packageName}/extensions`)})`,
       `await import(${JSON.stringify(`./node_modules/${packageName}/node_modules/@dsh-std/manifest`)})`,
+      `await import(${JSON.stringify(`./node_modules/${packageName}/node_modules/dsh-working-activity`)})`,
     ].join(';'),
   ], temporaryRoot)
 
-  console.log('bun package install OK (root, extensions, and bundled @dsh-std runtime imported)')
+  console.log('bun package install OK (root, extensions, bundled @dsh-std and activity runtime imported)')
 } finally {
   await rm(temporaryRoot, { recursive: true, force: true })
 }

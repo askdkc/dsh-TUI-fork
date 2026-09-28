@@ -153,6 +153,7 @@ jobs:
         run: |
           test -f lib/types/index.js
           test -f lib/types/dsh-adapter/invariant.js
+          test -f vendor/dsh-working-activity/lib/types/frames.js
 
       # 编译产物交给下游（gates 与各测试组经 needs: build 下载复用，不再各自
       # prepare-compile）。@dsh-std 运行时依赖只有 workspace 内部链接，
@@ -167,6 +168,7 @@ jobs:
           path: |
             lib/
             dsh-auth/lib/
+            vendor/dsh-working-activity/lib/
             vendor/dsh-std/packages/core/lib/
             vendor/dsh-std/packages/manifest/lib/
             vendor/dsh-std/packages/connection/lib/

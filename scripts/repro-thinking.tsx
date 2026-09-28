@@ -10,9 +10,9 @@
  * 助手文本持续流式增长（强制内容增长 + stickyScroll），捕获全部帧字节，
  * 用 xterm-headless 回放后断言可见区干净：
  *
- * - 恰有 1 行以 spinner 状态 "· thinking)" 收尾（不能用裸词 'thinking'：
- *   随机启动 tip 有 4/100 条文案含该词，撞上即误报）
- * - 无 'tthinking' 叠字
+ * - 恰有 1 行以当前中文进度语言的 "· 思考中)" 收尾；只匹配状态后缀，
+ *   避免随机启动 tip 中的相似文案造成误报
+ * - 无 '思思考中' 叠字
  * - 无孤立残影 't'（任意列，两侧为空白或行尾）
  *
  * 运行：node --import tsx/esm scripts/repro-thinking.tsx
@@ -75,6 +75,7 @@ const channel = {
   gitBranch: 'main',
   working: true,
   spinnerMode: 'thinking',
+  progressLanguage: 'zh', // 已接纳的用户消息是中文；进度语言与全局 /lang 独立。
   get responseChars() { return currentText.length },
   activeToolCount: 0,
   mode: { id: 'default', plan: false },
@@ -128,7 +129,7 @@ const instance = await render(
 // 这段时间线是场景的一部分，无可轮询的完成条件。
 await sleep(500)
 
-// 流式灌文本 ~6 秒（thinking 状态保持）。内容刻意全为中文、不含 'thinking'
+// 流式灌文本 ~6 秒（thinking 状态保持）。内容刻意全为中文、不含 '思考中'
 // 与孤立 ASCII 't'，让残影断言无歧义。
 const CHUNKS = [
   '好的，', '让我来分析', '这个问题。', '首先，', '渲染器', '使用相对', '光标移动',
@@ -166,18 +167,17 @@ const lines = viewportLines(term, ROWS)
 const problems: string[] = []
 let spinnerRows = 0
 lines.forEach((line, y) => {
-  // spinner 状态行以 "… · thinking)" 收尾；裸词 'thinking' 不能当指纹——
-  // 启动 tip 是 Math.random 抽的，100 条里 4 条文案含 'thinking'
-  // （如“工具卡/thinking/摘要点击展开”），抽中即误报（约 4%/次的假 flaky）。
-  if (/·\s*thinking\)/.test(line)) spinnerRows++
-  if (/tthinking/.test(line)) problems.push(`row ${y}: 叠字残影 "tthinking" → ${JSON.stringify(line)}`)
+  // spinner 状态行以 "… · 思考中)" 收尾；随机启动 tip 的相似词
+  // 不能当指纹，须匹配状态后缀。
+  if (/·\s*思考中\)/.test(line)) spinnerRows++
+  if (/思思考中|tthinking/.test(line)) problems.push(`row ${y}: 叠字残影 → ${JSON.stringify(line)}`)
   // 孤立 't'：两侧为空白/行首行尾（灌入文本与全部 tip 文案均不含孤立
   // ASCII 't'，出现即残影）
   const m = line.match(/(?:^|\s)t(?=\s|$)/)
   if (m) problems.push(`row ${y}: 孤立残影 't' → ${JSON.stringify(line)}`)
 })
 if (spinnerRows !== 1) {
-  problems.push(`spinner 状态行（"· thinking)" 结尾）数为 ${spinnerRows}（期望 1）`)
+  problems.push(`spinner 状态行（"· 思考中)" 结尾）数为 ${spinnerRows}（期望 1）`)
 }
 
 if (problems.length > 0) {
