@@ -121,6 +121,20 @@ it. The managed PATH block goes in `${ZDOTDIR:-$HOME}/.zshrc` for zsh;
 it, remove the managed command and that block; delete the fish file only if
 it contains nothing else (Windows: remove the command and user PATH entry). The
 existing `dsh-tui` and `dst` commands remain compatibility aliases.
+
+A Harness source checkout does not put `dsh` on PATH. When the TUI first starts
+through `pnpm dsh --profile dsh-cli` in a Harness checkout, registration also
+records that checkout as `DSH_TUI_DSH_ROOT` in the managed shell startup block
+(`.zshrc` for zsh). Open a new shell, then launch from any project directory:
+
+```sh
+cd /absolute/path/to/your-project
+dsh-cli
+```
+
+The launcher uses the checkout's built `apps/cli/lib/bin.js` and preserves the
+project directory. Rebuild Harness after changing its source. An explicit
+`DSH_TUI_DSH_ROOT` value overrides the registered default.
 A locally packed fork should be updated by rebuilding and reinstalling the
 archive, rather than by using the registry-backed `/update` command.
 

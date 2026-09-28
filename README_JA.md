@@ -111,6 +111,20 @@ tarball 名は現在のパッケージ名 `@askdkc/dsh-cli` とバージョン�
 `dsh-cli` グローバルコマンドも必要なら、pack 後に
 `npm install -g --legacy-peer-deps "$TARBALL"` を実行します。
 旧コマンド `dsh-tui` と `dst` は互換エイリアスとして残します。
+
+Harness の clone だけでは `dsh` は PATH に入りません。Harness の clone で
+`pnpm dsh --profile dsh-cli` から TUI を初めて起動すると、登録処理が
+clone のパスを `DSH_TUI_DSH_ROOT` として `.zshrc` の管理ブロックにも書きます。
+新しい Terminal を開いたら、プロジェクトのディレクトリから起動できます。
+
+```sh
+cd /absolute/path/to/your-project
+dsh-cli
+```
+
+起動器は clone 内でビルドされた `apps/cli/lib/bin.js` を使い、作業ディレクトリを
+保ちます。Harness のソースを変更したら再ビルドしてください。明示的に設定した
+`DSH_TUI_DSH_ROOT` は登録時の値より優先されます。
 ローカル tarball の更新には再ビルドと再インストールを使い、registry を参照する `/update` は使わないでください。
 
 pnpm ≥11 はインストールスクリプトを含む依存関係に

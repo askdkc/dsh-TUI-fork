@@ -22,7 +22,7 @@
  * 运行：pnpm build && node scripts/verify-launcher.mjs
  */
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -95,8 +95,9 @@ function stubCalls() {
   return readFileSync(stubLog, 'utf8').trim().split('\n').filter(Boolean)
 }
 
-function runBin(args, extraEnv = {}, { delegating = false } = {}) {
+function runBin(args, extraEnv = {}, { delegating = false, cwd = root } = {}) {
   return spawnSync(process.execPath, [bin, ...args], {
+    cwd,
     env: {
       PATH: stubPath,
       HOME: tmp,
@@ -311,6 +312,28 @@ r = runBin([], { ...envNoDsh, DSH_TUI_LANG: 'zh' })
 check('i18n: DSH_TUI_LANG=zh prints Chinese', r.stderr.includes('未检测到 dsh CLI'))
 r = runBin([], envNoDsh)
 check('i18n: default (unset) prints Chinese', r.stderr.includes('未检测到 dsh CLI'))
+
+// --- 5.5 Local Harness clone: keep the caller's project directory ----------
+const sourceRoot = join(tmp, 'harness source')
+const sourceCli = join(sourceRoot, 'apps', 'cli')
+const projectDir = join(tmp, 'my-project')
+mkdirSync(join(sourceCli, 'lib'), { recursive: true })
+mkdirSync(projectDir)
+writeFileSync(join(sourceCli, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh', type: 'module' }))
+writeFileSync(join(sourceCli, 'lib', 'bin.js'), `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs'
+appendFileSync(process.env.DSH_STUB_LOG, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd() }) + '\\n')
+if (process.argv[2] === '--version') console.log('0.1.7-rc.2')
+`)
+setProfileVersion(ownVersion)
+resetStubLog()
+r = runBin(['a b'], { ...envNoDsh, DSH_TUI_DSH_ROOT: sourceRoot }, { cwd: projectDir })
+const sourceCalls = readFileSync(stubLog, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+check('source clone: launches without dsh on PATH', r.status === 0 && sourceCalls.length === 2)
+check('source clone: keeps caller cwd and args', sourceCalls.at(-1)?.cwd === realpathSync(projectDir) && JSON.stringify(sourceCalls.at(-1)?.args) === JSON.stringify(['--profile', PROFILE, 'a b']))
+resetStubLog()
+r = runBin([], { ...envNoDsh, DSH_TUI_DSH_ROOT: 'relative/path' }, { cwd: projectDir })
+check('source clone: rejects relative root before launch', r.status === 1 && r.stderr.includes('DSH_TUI_DSH_ROOT') && readFileSync(stubLog, 'utf8') === '')
 
 // --- 6. shellQuote 单元（win32 shell:true 路径的转义规则）---------------------
 check('shellQuote: plain tokens pass through', shellQuote(['plugin', '--profile', 'dsh-cli']).join(' ') === 'plugin --profile dsh-cli')

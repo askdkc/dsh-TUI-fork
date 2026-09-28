@@ -110,6 +110,18 @@ PATH 区块写入 zsh 的 `${ZDOTDIR:-$HOME}/.zshrc`、bash 的 `.bashrc` 与
 `${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/dsh-cli.fish`。撤销时删除
 生成的命令与对应的 `dsh-cli managed PATH` 区块；fish 文件仅在没有其他内容时
 整体删除（Windows 删除生成的命令和用户 PATH 条目）。旧命令 `dsh-tui` 和 `dst` 保留为兼容别名。
+
+Harness 源码检出不会把 `dsh` 放进 PATH。首次在 Harness 检出中通过
+`pnpm dsh --profile dsh-cli` 启动 TUI 时，注册流程还会将检出路径作为
+`DSH_TUI_DSH_ROOT` 写入受管理的 shell 启动区块（zsh 为 `.zshrc`）。打开新终端后：
+
+```sh
+cd /absolute/path/to/your-project
+dsh-cli
+```
+
+启动器会调用该检出中已构建的 `apps/cli/lib/bin.js`，并保留项目工作目录。
+修改 Harness 源码后需重新构建；显式设置 `DSH_TUI_DSH_ROOT` 可覆盖自动注册值。
 本地 tarball 的后续更新应重新构建并安装，不要用指向 registry 的 `/update`。
 
 pnpm ≥11 可能对带安装脚本的依赖报告 `ERR_PNPM_IGNORED_BUILDS`；原生构建设置见

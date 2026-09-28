@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 
 const begin = '# BEGIN dsh-cli managed PATH'
 const end = '# END dsh-cli managed PATH'
@@ -20,6 +20,8 @@ export interface CliRegistrationOptions {
   zdotdir?: string
   xdgConfigHome?: string
   localAppData?: string
+  cliEntry?: string
+  dshRoot?: string
   windowsUserPath?: { read(): string; write(value: string): void }
 }
 
@@ -81,6 +83,31 @@ function posixShellFiles(home: string, shell: string, zdotdir: string | undefine
   }
 }
 
+/** Resolve a Harness source entry, never the caller's project directory. */
+function harnessSourceRoot(cliEntry: string | undefined): string | undefined {
+  if (cliEntry === undefined) return undefined
+  try {
+    const entry = realpathSync(cliEntry)
+    const root = resolve(dirname(entry), '../../..')
+    if (entry !== join(root, 'apps', 'cli', 'src', 'bin.ts')
+      && entry !== join(root, 'apps', 'cli', 'lib', 'bin.js')) return undefined
+    const pkg = JSON.parse(readFileSync(join(root, 'apps', 'cli', 'package.json'), 'utf8'))
+    return pkg.name === '@deepseek-ai/dsh' ? root : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function configuredHarnessRoot(root: string | undefined): string | undefined {
+  if (root === undefined || !isAbsolute(root)) return undefined
+  try {
+    const pkg = JSON.parse(readFileSync(join(root, 'apps', 'cli', 'package.json'), 'utf8'))
+    return pkg.name === '@deepseek-ai/dsh' ? realpathSync(root) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** Register a user-owned launcher for the existing dsh-cli profile. No DSH state is changed. */
 export function ensureCliRegistered(options: CliRegistrationOptions = {}): string {
   const home = options.home ?? homedir()
@@ -88,6 +115,8 @@ export function ensureCliRegistered(options: CliRegistrationOptions = {}): strin
   const platform = options.platform ?? process.platform
   const shell = options.shell ?? process.env.SHELL ?? ''
   const pathValue = options.path ?? process.env.PATH ?? ''
+  const sourceRoot = harnessSourceRoot(options.cliEntry ?? process.argv[1])
+    ?? configuredHarnessRoot(options.dshRoot ?? process.env.DSH_TUI_DSH_ROOT)
   const binDir = platform === 'win32'
     ? join(options.localAppData ?? process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'dsh-cli', 'bin')
     : join(home, '.local', 'bin')
@@ -144,9 +173,13 @@ export function ensureCliRegistered(options: CliRegistrationOptions = {}): strin
       }
     } else {
       const files = posixShellFiles(home, shell, options.zdotdir ?? process.env.ZDOTDIR, options.xdgConfigHome ?? process.env.XDG_CONFIG_HOME)
-      const line = basename(shell) === 'fish'
+      const pathLine = basename(shell) === 'fish'
         ? `contains -- ${quoted(binDir)} $PATH; or set -gx PATH ${quoted(binDir)} $PATH`
         : `case ":$PATH:" in *:${quoted(binDir)}:*) ;; *) export PATH=${quoted(binDir)}:"$PATH" ;; esac`
+      const sourceLine = sourceRoot === undefined ? '' : basename(shell) === 'fish'
+        ? `\nset -q DSH_TUI_DSH_ROOT; or set -gx DSH_TUI_DSH_ROOT ${quoted(sourceRoot)}`
+        : `\nif [ -z "\${DSH_TUI_DSH_ROOT:-}" ]; then export DSH_TUI_DSH_ROOT=${quoted(sourceRoot)}; fi`
+      const line = pathLine + sourceLine
       for (const file of files) updateShellFile(file, line)
     }
     return keepExistingDefault

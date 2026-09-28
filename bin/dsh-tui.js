@@ -97,7 +97,7 @@ const shellOpt = isWin ? { shell: true } : {}
 // DEP0190（issue #148）：shell:true + 非空参数数组触发语法级弃用告警——
 // 转义后拼进命令字符串（空参数数组不触发），非 Windows 保持数组直传。
 const cmd = (command, args) =>
-  isWin ? [`${command} ${shellQuote(args).join(' ')}`, []] : [command, args]
+  isWin ? [`${shellQuote([command])[0]} ${shellQuote(args).join(' ')}`, []] : [command, args]
 
 // 内联 semver（解析 + 严格大于）：启动器可能在依赖不完整的环境里被执行
 // （迁移、半损坏安装、测试沙箱），零外部依赖是自保底线。覆盖 semver 的
@@ -136,8 +136,12 @@ const isVersionNewer = (a, b) => {
 const lang = process.env.DSH_TUI_LANG === 'en' ? 'en' : 'zh'
 const MSG = {
   noDsh: {
-    en: '[dsh-cli] dsh CLI not found. Install the official client first:\n  npm install -g @deepseek-ai/dsh',
-    zh: '[dsh-cli] 未检测到 dsh CLI。请先安装官方客户端：\n  npm install -g @deepseek-ai/dsh',
+    en: '[dsh-cli] dsh CLI not found. Install it or set DSH_TUI_DSH_ROOT to a built Harness checkout:\n  npm install -g @deepseek-ai/dsh',
+    zh: '[dsh-cli] 未检测到 dsh CLI。可安装官方客户端，或将 DSH_TUI_DSH_ROOT 指向已构建的 Harness 源码目录：\n  npm install -g @deepseek-ai/dsh',
+  },
+  invalidDshRoot: {
+    en: root => `[dsh-cli] DSH_TUI_DSH_ROOT must be an absolute, built DeepSeek Harness checkout: ${root}`,
+    zh: root => `[dsh-cli] DSH_TUI_DSH_ROOT 必须指向已构建的 DeepSeek Harness 源码绝对路径：${root}`,
   },
   noPnpm: {
     en: '[dsh-cli] The first-time setup needs pnpm (dsh plugin delegates installs to it):\n  npm install -g pnpm   (or via corepack: corepack enable pnpm)',
@@ -541,6 +545,19 @@ if (subcommand === 'help' || subcommand === '--help' || subcommand === '-h') {
   console.log(msg('helpText'))
   process.exit(0)
 }
+// A source checkout does not put `dsh` on PATH. An explicit Harness root lets
+// the launcher run its built CLI while keeping the caller's project cwd.
+const dshRoot = process.env.DSH_TUI_DSH_ROOT
+let dshBin
+if (dshRoot !== undefined) {
+  const candidate = join(dshRoot, 'apps', 'cli', 'lib', 'bin.js')
+  if (!isAbsolute(dshRoot) || readJson(join(dshRoot, 'apps', 'cli', 'package.json'))?.name !== '@deepseek-ai/dsh' || !existsSync(candidate)) {
+    console.error(msg('invalidDshRoot')(dshRoot))
+    process.exit(1)
+  }
+  dshBin = candidate
+}
+const dshCmd = args => dshBin === undefined ? cmd('dsh', args) : cmd(process.execPath, [dshBin, ...args])
 /**
  * Whether the DSH credential store declares a reference by this name.
  *
@@ -578,7 +595,7 @@ const runDoctorChecks = () => {
   lines.push(`dsh-cli doctor · ${PACKAGE} ${ownVersion ?? 'unknown'}`)
   report(true, 'node', `${process.version} · ${process.platform} ${process.arch}`)
   const probeVersion = command => {
-    const probe = spawnSync(...cmd(command, ['--version']), { stdio: 'pipe', encoding: 'utf8', ...shellOpt })
+    const probe = spawnSync(...command(['--version']), { stdio: 'pipe', encoding: 'utf8', ...shellOpt })
     if (probe.error || probe.status !== 0) return undefined
     // 白名单校验：只回显版本号形状的首行。诊断输出的红线是绝不泄露密钥，
     // 而 PATH 上的 wrapper 理论上可以把任意环境变量 echo 进 --version——
@@ -586,14 +603,14 @@ const runDoctorChecks = () => {
     const line = String(probe.stdout ?? '').trim().split('\n')[0] ?? ''
     return /^v?\d[\w.+-]*$/.test(line) ? line : '(version unreadable)'
   }
-  const dshVersion = probeVersion('dsh')
+  const dshVersion = probeVersion(dshCmd)
   if (dshVersion === undefined) {
     hardFailure = true
     report(false, 'dsh', L.dshMissing)
   } else {
     report(true, 'dsh', dshVersion)
   }
-  const pnpmVersion = probeVersion('pnpm')
+  const pnpmVersion = probeVersion(args => cmd('pnpm', args))
   report(pnpmVersion !== undefined, 'pnpm', pnpmVersion ?? L.pnpmMissing)
   const profileVersion = readJson(installedPkgPath)?.version
   if (profileVersion === undefined) {
@@ -722,7 +739,7 @@ const forwardExit = child => {
 // 不从数值反推信号（spec §5.1）。
 const startDshSession = (dshArgs, profile = PROFILE, env = process.env) =>
   new Promise(resolve => {
-    const child = spawn(...cmd('dsh', ['--profile', profile, ...dshArgs]), {
+    const child = spawn(...dshCmd(['--profile', profile, ...dshArgs]), {
       stdio: 'inherit',
       env,
       ...shellOpt,
@@ -1029,11 +1046,11 @@ const createRescueProfile = () => {
     }
     console.log(msg('safeRescueCleanup')(rescueProfileDir))
   }
-  const probe = spawnSync(...cmd('dsh', ['--version']), { stdio: 'pipe', ...shellOpt })
+  const probe = spawnSync(...dshCmd(['--version']), { stdio: 'pipe', ...shellOpt })
   if (probe.error || probe.status !== 0) return { kind: 'failed', lines: [msg('safeRescueFailed')('dsh missing')] }
   console.log(msg('safeRescueCreating'))
   const runAdd = extraArgs => spawnSync(
-    ...cmd('dsh', ['plugin', '--profile', RESCUE_PROFILE, 'add', ...extraArgs, `${PACKAGE}@${installVersion}`]),
+    ...dshCmd(['plugin', '--profile', RESCUE_PROFILE, 'add', ...extraArgs, `${PACKAGE}@${installVersion}`]),
     { stdio: ['inherit', 'pipe', 'pipe'], env: rescueEnv(), ...shellOpt },
   )
   let add = runAdd([])
@@ -1099,7 +1116,7 @@ const profileReady = () => {
   }
 }
 const bootstrapProfile = () => {
-  const probe = spawnSync(...cmd('dsh', ['--version']), { stdio: 'pipe', ...shellOpt })
+  const probe = spawnSync(...dshCmd(['--version']), { stdio: 'pipe', ...shellOpt })
   if (probe.error || probe.status !== 0) {
     console.error(msg('noDsh'))
     process.exit(1)
@@ -1111,7 +1128,7 @@ const bootstrapProfile = () => {
   }
   console.log(msg('bootstrapStart'))
   const runAdd = (extraArgs, capture) => spawnSync(
-    ...cmd('dsh', ['plugin', '--profile', PROFILE, 'add', ...extraArgs, `${PACKAGE}@${installVersion}`]),
+    ...dshCmd(['plugin', '--profile', PROFILE, 'add', ...extraArgs, `${PACKAGE}@${installVersion}`]),
     { stdio: capture ? ['inherit', 'pipe', 'pipe'] : 'inherit', ...shellOpt },
   )
   let add = runAdd([], true)
@@ -1225,7 +1242,7 @@ if (subcommand === 'safe') {
 if (subcommand === 'update') {
   if (!profileReady()) bootstrapProfile()
   {
-    const probe = spawnSync(...cmd('dsh', ['--version']), { stdio: 'pipe', ...shellOpt })
+    const probe = spawnSync(...dshCmd(['--version']), { stdio: 'pipe', ...shellOpt })
     if (probe.error || probe.status !== 0) {
       console.error(msg('noDsh'))
       process.exit(1)
@@ -1291,7 +1308,7 @@ if (!runningInsideProfile && ownVersion !== undefined && process.env.DSH_TUI_NO_
   // ─── profile 副本（或源码运行）：完整启动逻辑 ─────────────────────────────
   // dsh CLI 预检（缺失时给安装指引，先于一切 profile 逻辑）。
   {
-    const probe = spawnSync(...cmd('dsh', ['--version']), { stdio: 'pipe', ...shellOpt })
+    const probe = spawnSync(...dshCmd(['--version']), { stdio: 'pipe', ...shellOpt })
     if (probe.error || probe.status !== 0) {
       console.error(msg('noDsh'))
       process.exit(1)
