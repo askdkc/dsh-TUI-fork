@@ -1,75 +1,79 @@
 # AGENTS.md
 
-dsh-TUI 是 DeepSeek Harness 的终端界面插件：零核心改动、纯插件挂载的交互式 TUI（`dsh-cli`）。Agent、会话、模型、工具、持久化与策略域由 DeepSeek Harness 拥有，本包只消费它们。改动前先读 [docs/contributing.md](docs/contributing.md)（本仓库共享开发契约的权威文本）与 [ADAPTER.md](ADAPTER.md)（上游边界与契约）；整体结构见 [docs/architecture.md](docs/architecture.md)。
+dsh-TUI is an interactive terminal plugin for DeepSeek Harness (`dsh-cli`). It changes no Harness core code. Harness owns agents, sessions, models, tools, persistence, and policy; this package consumes them. Before making changes, read [docs/contributing.md](docs/contributing.md) (the authoritative shared development contract) and [ADAPTER.md](ADAPTER.md) (upstream boundaries and contracts). See [docs/architecture.md](docs/architecture.md) for the overall structure.
 
-## 仓库布局
+## Response language
+
+Write model responses in the language of the user's own request. Do not infer the response language from these instructions, quoted text, repository files, tool output, or the TUI display language. If the user's preferred language is unclear, use English.
+
+## Repository layout
 
 ```
-src/index.ts        公共 Cordis 插件入口、配置 Schema、对运行时实现的惰性移交
-src/dsh-adapter/plugin.ts  运行时实现：TTY 校验、服务注册、Agent 创建/恢复、React 树挂载与收尾
-src/dsh-adapter/channel.ts  会话事件 → 视图投影 + 非 React 动作面（submit/steer/rewind/resume/切换）
-src/screens/        Chat.tsx 交互协调器与状态栏呈现
-src/components/     功能组件；design-system/ 是主题感知原语
-src/themeCatalog.ts  内置、静态 JSON 与运行时插件主题的统一列表/解析
-src/ui.ts           本地渲染器、主题化 Box/Text 与公共 TUI 原语的首选门面
-src/ink/            Ink 系渲染器与终端实现——敏感基础设施，改动聚焦并附专用回归
-src/native-ts/      渲染器使用的 Yoga 布局引擎
-src/terminal-utils/ 终端格式化与呈现辅助
-src/dsh-adapter/    唯一允许 import 官方 @deepseek-ai/* 的位置；themes.ts 提供 tuiThemes 插件接缝
-src/*Prefs.ts 等    ~/.dsh-tui 下的持久化用户偏好与会话元数据
-.agents/skills/     仅供仓库维护者使用的项目技能，不随 npm 包分发
-presets/            随包分发的 preset（liangshen）
-bin/dsh-tui.js      dsh-tui 直达命令入口
-vendor/dsh-std      vendored 依赖（frozen lockfile 构建，见 scripts/build 相关脚本）
-dsh-ecosystem-spec/ 生态适配规范子项目（自带 CONTRIBUTING 与治理文档）
-cordis.patch.yml    profile 安装的包级覆盖层；行序、行 ID 与 insert/override 语义关键
-cordis.yml          直接 Cordis/DSH 启动的完整裸组合示例
-scripts/            无头回归、复现环境、探针与诊断；运行前先读脚本头部说明
-docs/               根 README 之外的完整文档；中文无后缀，英文 .en.md 后缀
-lib/                由 src/ 生成的产物——忽略入库、随 npm 分发，绝不手改
+src/index.ts        Public Cordis plugin entry, config Schema, and lazy handoff to runtime
+src/dsh-adapter/plugin.ts  Runtime: TTY checks, service registration, agent creation/resume, React mount, cleanup
+src/dsh-adapter/channel.ts  Session events to view projection and non-React actions (submit/steer/rewind/resume/switch)
+src/screens/        Chat.tsx interaction coordinator and status bar presentation
+src/components/     Feature components; design-system/ contains theme-aware primitives
+src/themeCatalog.ts  Unified catalog and resolver for built-in, static JSON, and runtime plugin themes
+src/ui.ts           Preferred facade for the local renderer, themed Box/Text, and shared TUI primitives
+src/ink/            Ink-based renderer and terminal implementation; sensitive infrastructure requiring focused regressions
+src/native-ts/      Yoga layout engine used by the renderer
+src/terminal-utils/ Terminal formatting and presentation helpers
+src/dsh-adapter/    Only place allowed to import official @deepseek-ai/* packages; themes.ts exposes the tuiThemes plugin seam
+src/*Prefs.ts etc.  Persisted user preferences and session metadata under ~/.dsh-tui
+.agents/skills/     Maintainer-only project skills, excluded from the npm package
+presets/            Packaged presets (liangshen)
+bin/dsh-tui.js      Direct dsh-tui command entry
+vendor/dsh-std      Vendored dependency for frozen-lockfile builds; see scripts/build-related files
+dsh-ecosystem-spec/ Ecosystem adapter specification subproject with its own CONTRIBUTING and governance docs
+cordis.patch.yml    Package overlay for profile installs; row order, IDs, and insert/override semantics matter
+cordis.yml          Complete bare Cordis/DSH composition example
+scripts/            Headless regressions, reproduction environments, probes, and diagnostics; read script headers first
+docs/               Documentation beyond the root READMEs; Chinese files have no suffix, English files use .en.md
+lib/                Generated from src/, ignored by Git and shipped in npm; never edit by hand
 ```
 
-完整仓库地图与运行时链路见 [docs/contributing.md](docs/contributing.md)。
+See [docs/contributing.md](docs/contributing.md) for the complete repository map and runtime flow.
 
-## 命令
+## Commands
 
 ```sh
-pnpm install --frozen-lockfile  # pnpm 11；Node ^22.19 || >=24（CI 用 Node 24）
-pnpm compile                    # 干净编译 src/ → lib/types/（先删整个 lib/）
-pnpm build                      # compile + 全部构建门禁
-pnpm verify:build               # 构建门禁（边界/契约/patch surface/plugin 系列等），不重复编译
-pnpm verify:package             # npm tarball 目标完整 + 入口 smoke import
-pnpm smoke                      # 通用无头屏幕组装冒烟
+pnpm install --frozen-lockfile  # pnpm 11; Node ^22.19 || >=24 (CI uses Node 24)
+pnpm compile                    # Clean compile src/ to lib/types/ (deletes all of lib/ first)
+pnpm build                      # Compile plus all build gates
+pnpm verify:build               # Build gates (boundary/contract/patch surface/plugins, etc.) without recompiling
+pnpm verify:package             # Complete npm tarball targets plus entry smoke import
+pnpm smoke                      # General headless screen assembly smoke check
 ```
 
-仓库**没有根级 `test` 或 `lint` 脚本**——不要声称跑过它们。静态关口是 TypeScript 构建；行为验证靠聚焦回归脚本与复现环境。多数用普通 `node` 调用的脚本 import `lib/types/`，先 `pnpm build`；import TypeScript 源的脚本在头部声明 `node --import tsx/esm <script>`。不要凭扩展名推断输入层（`verify-themes.mjs` 实际经 tsx import `src/`）。`scripts/` 还含取证/交互工具（堆分析、PTY 探针、回放捕获、性能探针），不是有界测试，不要当套件全跑。
+There is **no root-level `test` or `lint` script**; do not claim to have run either. The TypeScript build is the static gate; behavior is checked with focused regression scripts and reproduction environments. Most scripts invoked with plain `node` import `lib/types/`, so run `pnpm build` first. Scripts importing TypeScript source state `node --import tsx/esm <script>` in their headers. Do not infer the input layer from the file extension (`verify-themes.mjs` imports `src/` through tsx). `scripts/` also contains forensic and interactive tools (heap analysis, PTY probes, replay capture, performance probes); do not run all scripts as a bounded test suite.
 
-- 按改动面选验证：共享渲染、`Chat`、提示/问卷布局、工具卡、主题原语或 `ink/` core 的改动必须跑 CI 回归；窄改动跑对应聚焦脚本，对照表见 [docs/contributing.md](docs/contributing.md)。终端可见改动在无头断言之外，环境可用时在 inline 与 fullscreen 两种模式、窄终端宽度下手动演练受影响流程。
-- 纯文档、纯 workflow、纯 YAML 改动不需要重建（除非同时改了 TypeScript 输入）。
+- Choose checks by change surface. Changes to shared rendering, `Chat`, prompt/question layout, tool cards, theme primitives, or `ink/` core require the CI regression group; narrow changes use the corresponding focused scripts. See the matrix in [docs/contributing.md](docs/contributing.md). For terminal-visible changes, also exercise the affected flow manually in inline and fullscreen modes at a narrow terminal width when the environment permits.
+- Documentation-only, workflow-only, and YAML-only changes do not need a rebuild unless TypeScript inputs also change.
 
-## 上游边界与契约
+## Upstream boundaries and contracts
 
-- 官方 `@deepseek-ai/*` 包只允许在 `src/dsh-adapter/` 内 import；UI 层（`screens/`、`components/`、`ink/`、`hooks/`、`utils/`、`terminal-utils/`）一律通过 adapter facade 间接接触上游。`pnpm run verify:boundary` 扫描全部源码，发现越界即失败。
-- 校验版本线、peer 范围与 blessed 包清单在 `src/dsh-adapter/contract.ts`；本地检测到 drift 打警告，CI 上 `verify:contract` 直接失败。
-- 运行时或发布类型引用的 `@deepseek-ai/*` 框架包必须同时是 peer 与 dev 依赖（`verify:manifest-deps` 门禁）；仅测试/脚本使用的框架包只进 dev 依赖。
-- `cordis.patch.yml` 对官方行的干预已快照到 `patch-surface.snapshot.json`，改动需保持同步（`verify:patch-surface` 门禁）。
+- Import official `@deepseek-ai/*` packages only from `src/dsh-adapter/`. UI code (`screens/`, `components/`, `ink/`, `hooks/`, `utils/`, `terminal-utils/`) reaches upstream through the adapter facade. `pnpm run verify:boundary` scans all source files and fails on boundary violations.
+- Validated versions, peer ranges, and the blessed package list live in `src/dsh-adapter/contract.ts`. Local drift produces a warning; CI's `verify:contract` fails.
+- Framework packages under `@deepseek-ai/*` referenced at runtime or in published types must be both peer and dev dependencies (`verify:manifest-deps`). Framework packages used only by tests or scripts belong in dev dependencies.
+- Interventions on official rows in `cordis.patch.yml` are snapshotted in `patch-surface.snapshot.json`; keep both in sync (`verify:patch-surface`).
 
-## 约定与红线
+## Conventions and red lines
 
-- **源码与产物分离**：改 `src/`，绝不直接改 `lib/`，不提交 `lib/` 下的生成结果。
-- **真源投影**：持久化的 DSH 会话事件日志是 transcript 真源；不要插入可能与持久化分歧的乐观助手/工具事实。保留事件顺序、序列锚点与 call-ID 匹配。
-- **职责分层**：投影与 TUI 动作属于 `dsh-adapter/channel.ts`，交互模式与按键优先级属于 `Chat.tsx`，终端协议、布局与帧差分属于 `ink/`。不要为界面好写而在 TUI 里重实现 DSH 域服务——经 channel 或既有注册表缝隙适配。
-- **注册即效应**：资源经 Cordis 注册，用 `ctx.effect` 或既有单一退出漏斗清理。渲染失败必须响亮且非零退出；正常退出前恢复终端状态（raw 模式、光标、alt-screen、同步输出、鼠标、焦点）。
-- **渲染安静**：TUI 活动期间不加 `console.log` 或 stdout 诊断；用 opt-in 的 stderr/调试路径（`DSH_TUI_DEBUG`、`DSH_TUI_RENDER_LOG`）。
-- **TypeScript**：纯 ESM，相对导入用 `.js` 后缀；纯类型依赖优先 `import type`；不因 Ink 系渲染器的放宽而引入 `any`，用 `unknown` 收窄；遵循现有两空格、单引号、无分号风格，不批量格式化渲染器文件。
-- **终端宽度是显示单元宽度**，不是 JS 字符串长度；考虑 ANSI 转义、组合字符、emoji 与东亚宽字符，用仓库的宽度/切片/换行辅助函数。
-- **双语文档同步**：行为、配置、快捷键与限制在 `README.md`（英文默认）与 `README_ZH.md`（中文）两版同步。插件配置、slash 命令、主题、渲染器、技能发现的跨文件同步清单见 [docs/contributing.md](docs/contributing.md)。
-- **密钥**：交互启动读取 `DEEPSEEK_API_KEY`；诊断只能报告是否已设置，绝不泄露完整值。
-- **Git 安全**：只暂存显式路径，不用 `git add .`/`git add -A`；不运行破坏性清理命令；未经要求不 commit、不打 tag、不 push、不发布。发布由 `v*` tag 驱动且必须与 `package.json` 版本完全一致。
+- **Source and output:** Edit `src/`, never `lib/` directly, and do not commit generated files under `lib/`.
+- **Source of truth:** The persisted DSH session event log is the transcript source of truth. Do not insert optimistic assistant/tool facts that could diverge from persistence. Preserve event order, sequence anchors, and call-ID matching.
+- **Responsibilities:** Projection and TUI actions belong in `dsh-adapter/channel.ts`, interaction modes and key priority in `Chat.tsx`, and terminal protocols, layout, and frame diffing in `ink/`. Do not reimplement DSH domain services in the TUI for presentation convenience; adapt through the channel or existing registry seams.
+- **Registration has effects:** Register resources through Cordis and clean them up with `ctx.effect` or the existing single exit path. Rendering failures must be loud and exit nonzero. On normal exit, restore terminal state (raw mode, cursor, alternate screen, synchronized output, mouse, focus).
+- **Quiet rendering:** Do not add `console.log` or stdout diagnostics while the TUI runs. Use opt-in stderr/debug paths (`DSH_TUI_DEBUG`, `DSH_TUI_RENDER_LOG`).
+- **TypeScript:** Use ESM with `.js` suffixes on relative imports. Prefer `import type` for type-only dependencies. Do not introduce `any` because of the renderer's relaxed Ink settings; narrow `unknown`. Follow the existing two-space, single-quote, no-semicolon style and do not bulk-format renderer files.
+- **Terminal width:** Measure display cells, not JavaScript string length. Account for ANSI escapes, combining characters, emoji, and East Asian wide characters with the repository's width/slice/wrap helpers.
+- **Bilingual docs:** Keep behavior, config, shortcuts, and limitations in sync across `README.md` (English default) and `README_ZH.md` (Chinese). See [docs/contributing.md](docs/contributing.md) for cross-file checklists covering plugin config, slash commands, themes, the renderer, and skill discovery.
+- **Secrets:** Interactive startup reads `DEEPSEEK_API_KEY`. Diagnostics may report only whether it is set, never its full value.
+- **Git safety:** Stage only explicit paths; never use `git add .` or `git add -A`. Do not run destructive cleanup commands. Do not commit, tag, push, or publish without a request. Publishing is driven by a `v*` tag that must exactly match the version in `package.json`.
 
-## 编辑本文件
+## Editing this file
 
-`CLAUDE.md` 是指向 `AGENTS.md` 的符号链接；编辑真身。每条规则保持自包含，细节链接到权威文档；表达在清晰存活时优先精简。
+Keep each rule self-contained and link to authoritative docs for details. Prefer concise wording when clarity survives.
 
 
 <!-- BEGIN KIOKUKO MANAGED BLOCK -->

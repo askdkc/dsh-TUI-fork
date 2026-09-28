@@ -171,6 +171,8 @@ Cordis config
 
 - 该命令先删除整个 `lib/`，再用 `tsc -p tsconfig.json` 把 `src/` 输出到
   `lib/types/`，最后运行适配边界、上游契约与 patch surface 门禁。
+- 每次源码构建都会在编译 `dsh-auth` 前获取其 fork 的 `master` 最新提交；
+  获取失败则停止构建。更新后，父仓库可能把子模块显示为已修改，因为它仍记录基准提交。
 - `prepare` 生命周期只服务**源码检出场景**的自举编译（vendor 子模块缺失时
   快速失败，见 scripts/prepare-guard.mjs）。
 - Git URL 依赖安装自 vendoring（#308）起三重阻断（workspace 依赖/子模块/

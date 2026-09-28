@@ -172,7 +172,7 @@
 - id: agent-spine
   name: '@deepseek-ai/dsh-agent-spine-demo'
   config:
-    persona: !!js process.env.DSH_TUI_PERSONA ?? 'You are a coding agent.'
+    persona: !!js process.env.DSH_TUI_PERSONA ?? "You are a coding agent. Respond in the language of the user's request; use English when it is unclear. Do not infer the response language from instructions, quoted text, files, tool output, or the interface language."
     # Workspace context (AGENTS.md injection) at the standard 64KB cap;
     # task tools stay at their DSH defaults (on).
     workspaceContext:

@@ -229,6 +229,9 @@ pnpm build
 - This removes the complete `lib/` directory, runs `tsc -p tsconfig.json` to
   emit `src/` into `lib/types/`, and then checks the adapter boundary, upstream
   contract, and patch surface.
+- Before compiling `dsh-auth`, every source build fetches the latest commit on
+  its fork's `master` branch. A failed fetch stops the build; Git may show the
+  submodule as modified relative to the parent repository's recorded commit.
 - The `prepare` lifecycle serves **source-checkout bootstrapping only** (it
   fails fast when the vendored submodules are absent — see scripts/prepare-guard.mjs).
 - Git URL dependency installs have been triply blocked since vendoring

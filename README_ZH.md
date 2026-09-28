@@ -83,6 +83,12 @@ profile 依赖须配套，包含 `@deepseek-ai/schemastery` 3.18.3 或更新版�
 Schema 不兼容时，TUI 在启动阶段报错并提示修复安装，不再显示不可编辑的设置页。
 旧 host 继续使用原有设置 scope。
 
+构建还需要 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork)，本仓库将其作为
+`dsh-auth/` Git 子模块。下方的 `--recurse-submodules` 会自动获取；已有检出应在
+`pnpm install` 前运行 `git submodule update --init --recursive`。每次源码构建都会先
+获取该 fork 的 `master` 最新提交，再编译 `dsh-auth`；获取失败时构建会停止，
+不会沿用子模块记录的旧提交。
+
 从源码构建 fork，并安装到 `dsh-cli` profile。需要 Node `^22.19 || >=24`、
 pnpm 11，以及已安装依赖的 DeepSeek Harness 源码检出：
 
@@ -184,6 +190,8 @@ CLI 形态：任意终端运行 `dsh-cli migrate ...`，与 TUI 内执行同一�
 
 Agent 预设、主题、MCP 服务器、环境变量：[配置参考](docs/configuration.md) · [主题系统](docs/themes.md)。
 
+默认 Agent persona 要求模型按用户请求的语言回复；语言不明确时使用英语。`/lang` 只切换 TUI 界面语言。`DSH_TUI_PERSONA` 会替换默认 persona。
+
 ## 工作原理
 
 ```text
@@ -210,8 +218,12 @@ TUI 只负责交互与呈现：会话日志是唯一事实源，模型、工具�
 ## 从源码构建
 
 CI 使用 Node 24 与 pnpm 11，本包支持 Node `^22.19 || >=24`。
-先确认检出包含子模块；若 `vendor/dsh-std` 或 `dsh-auth` 为空，运行
+先确认检出包含子模块；若 `vendor/dsh-std` 或
+来自 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork) 的 `dsh-auth` 为空，运行
 `git submodule update --init --recursive`。然后从 dsh-cli 仓库根目录执行：
+
+`pnpm build` 会从 fork 的 `master` 分支更新 `dsh-auth`，因此需要网络。
+Git 仍会记录一个子模块基准提交，更新后父仓库可能显示 `dsh-auth` 已修改。
 
 [快速开始](#快速开始)列出了完整的 clone、构建、打包与安装命令。
 修改源码时，打包前按改动范围运行验证：

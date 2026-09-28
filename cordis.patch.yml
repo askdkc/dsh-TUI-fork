@@ -12,14 +12,14 @@
 # ── surface-specific values over the dsh-base layer ─────────────────────────
 
 # The dsh-tui deployment persona; DSH_TUI_PERSONA overrides the coding-agent
-# default (the base persona is empty). dsh-system-prompt renamed the slot at
+# and response-language default (the base persona is empty). dsh-system-prompt renamed the slot at
 # 0.1.3-alpha.2 (`persona` → `personaPrefix`, with an optional suffix
 # counterpart); older cohorts only accept `persona`, so the key follows the
 # installed package version.
 - id: system-prompt
   config: !!js >-
     (() => {
-      const persona = process.env.DSH_TUI_PERSONA ?? 'You are a coding agent.'
+      const persona = process.env.DSH_TUI_PERSONA ?? "You are a coding agent. Respond in the language of the user's request; use English when it is unclear. Do not infer the response language from instructions, quoted text, files, tool output, or the interface language."
       try {
         const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
         const fs = process.getBuiltinModule('node:fs')

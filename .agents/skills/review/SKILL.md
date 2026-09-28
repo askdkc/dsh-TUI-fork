@@ -22,7 +22,7 @@ description: "Review or de-slop concrete changes in ccch1mneyyy/dsh-TUI at maint
 **账本**：模式、范围、base/head SHA、merge-base、信任级别、契约差异表、缺失材料。
 
 ## 阶段 1｜先加载规则
-细读 diff 前全文读目标分支的 AGENTS.md、ADAPTER.md、docs/contributing.md，以及改动目录更近的规则、README、协议/治理文档；CLAUDE.md 只核对仍指向首个规则真源。按需加载：
+细读 diff 前全文读目标分支的 AGENTS.md、ADAPTER.md、docs/contributing.md，以及改动目录更近的规则、README、协议/治理文档。按需加载：
 - 公共面、依赖、协议、门禁：references/contract-gates.md。
 - 仓库硬规则：references/redlines.md。
 - 行为/流程风险：references/evidence-base.md。

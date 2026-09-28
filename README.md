@@ -90,6 +90,13 @@ IDs. It requires matching profile dependencies with `@deepseek-ai/schemastery`
 3.18.3 or newer; an incompatible schema stops TUI startup with repair guidance
 instead of showing an uneditable settings page. Older hosts keep their legacy settings scope.
 
+Building also requires [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork),
+tracked here as the `dsh-auth/` Git submodule. `--recurse-submodules` fetches it;
+for an existing checkout, run `git submodule update --init --recursive` before
+`pnpm install`. Each source build then fetches the latest `master` commit from
+that fork before compiling `dsh-auth`. A failed fetch stops the build instead of
+using the recorded submodule commit.
+
 Install this fork from source into the `dsh-cli` profile. Use Node
 `^22.19 || >=24` and pnpm 11. The final two commands run in a DeepSeek
 Harness source checkout whose dependencies are already installed:
@@ -199,6 +206,8 @@ Full commands: [Interaction and commands](docs/interaction.en.md).
 
 Agent presets, themes, MCP servers, environment variables: [Configuration](docs/configuration.en.md) · [Themes](docs/themes.en.md).
 
+The default agent persona asks the model to reply in the language of your request, using English when that language is unclear. `/lang` changes only the TUI display language. `DSH_TUI_PERSONA` replaces the default persona.
+
 ## How It Works
 
 ```text
@@ -228,7 +237,11 @@ Full list: [Architecture and limitations → Known limitations](docs/architectur
 CI uses Node 24 and pnpm 11. The package supports Node `^22.19 || >=24`.
 Run these commands from a checkout with its submodules initialized (use
 `git submodule update --init --recursive` if either `vendor/dsh-std` or
-`dsh-auth` is empty):
+[`dsh-auth` from dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork) is empty):
+
+`pnpm build` refreshes `dsh-auth` from the fork's `master` branch. It requires
+network access and may leave `dsh-auth` marked as modified in the parent
+checkout because Git still records a baseline submodule commit.
 
 The [Quick Start](#quick-start) includes the complete clone, build, pack,
 and installation commands. Before packing, run the focused checks if you
