@@ -38,7 +38,7 @@ dsh-tui
 
 1. **Pixel whale header** (~3.4 s intro animation, then frozen): `✦ dsh-TUI` version,
    `DEEPSEEK / HARNESS` big text, current model and effort, working directory, and a
-   **startup hint** (`/model` · `/help` · `Tab`). Hidden below 64 columns.
+   **startup hint** (`/model` · `/help` · `Tab`). On narrow terminals, the header switches to a smaller complete layout.
    When the dsh engine is out of the verified range, a **⚠ version-drift warning**
    appears with the align command.
 2. **Bottom status bar**: working-status row, context bar, TPS gauge, and other live
@@ -361,12 +361,12 @@ Full-screen view of the whole session timeline (doesn't pollute scrollback); key
 
 ### 4.6 Model switching and presets
 
-- `/model`: selector. **Switching = fork the session** (history kept, only routing changes, the old session stays in `/resume`);
+- `/model`: opens the available model list with search ready. Type words in any order to narrow the list (for example, `seek deep` matches DeepSeek); `Tab` switches to provider groups. **Switching = fork the session** (history kept, only routing changes, the old session stays in `/resume`);
   persisted to `~/.dsh-tui/model.json`.
   Type space-separated keywords to filter by model/provider name or ID,
-  case-insensitively and in any order. At the provider level search spans all
+  case-insensitively and in any order. The default list searches all available
   models; inside a provider or Recents it searches only that list. Backspace
-  edits the query, and Esc returns to providers or closes the selector.
+  edits the query, and Esc returns to provider groups or closes the selector.
 - Switching is rejected mid-turn.
 - `/preset` options: `standard` (default full features), `ptc`, `minimal` (bash+editor only, no compaction),
   `cordis`, `liangshen` (Liangshen mode).
@@ -419,7 +419,9 @@ An empty session shows the whale logo area at the top (scrolls away with the con
   `DEEPSEEK / HARNESS` big text → current model + effort → working directory → startup hint line.
 - Out of the verified range, a **⚠ version-drift warning** appears (with the align command).
 - Centered tagline under the whale: `探索未至之境！`.
-- The whale is hidden **below 64 columns**.
+- The header uses the available content width: **90+ columns** show whale and big title;
+  **48–89** show the big title; **40–47** show the whale alone; below **40** shows a plain title.
+  With the whale setting off, widths below 48 use the plain title.
 - Pixel whale art and idle behavior ported from [dsh-ui-whale](https://github.com/lhh010/dsh-ui-whale) (author
   [@lhh010](https://github.com/lhh010)), with thanks.
 

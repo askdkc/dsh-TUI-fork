@@ -15,8 +15,8 @@ const bundledPackages = [
   'presentation',
   'storage',
 ]
-// The bundled auth package uses the fork's scoped name. Development links to
-// the `dsh-auth/` submodule.
+// The bundled auth package keeps its scoped name. Development links to the
+// `dsh-auth/` package tracked in this repository.
 const dshAuthName = '@askdkc/dsh-auth'
 
 const [command, ...args] = process.argv.slice(2)
@@ -33,8 +33,8 @@ for (const packageName of bundledPackages) {
   delete manifest.dependencies?.[name]
   manifest.optionalDependencies[name] = packageManifest.version
 }
-// dsh-auth rides the same bundle: the repo develops against a `link:` to the
-// submodule, but a published manifest cannot carry a link spec — the version
+// dsh-auth rides the same bundle: the repo develops against a local `link:`,
+// but a published manifest cannot carry a link spec — the version
 // plus bundledDependencies ships its compiled content in-tarball instead.
 const dshAuthDir = join(projectRoot, 'dsh-auth')
 const dshAuthInstalled = join(projectRoot, 'node_modules', dshAuthName)

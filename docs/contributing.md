@@ -2,54 +2,34 @@
 
 [文档索引](README.md) · [English](contributing.en.md)
 
-感谢你考虑为 dsh-TUI 做贡献！本文档是 `dsh-cli` 的共享开发
+复制或重命名仓库后，运行 `npm run verify:kiokuko-binding` 检查本地 Kiokuko 绑定。
+该检查比较被 Git 忽略的 `.kiokuko.json` 与 `AGENTS.md` 中的身份；只修改 Markdown
+不会更新绑定。此检查不修改注册信息；没有本地绑定时跳过。
+该检查仅验证本地身份，不证明 DSH profile 已加载 kiokuko-dsh。
+
+感谢你考虑为 dsh-cli 做贡献！本文档是 `dsh-cli` 的共享开发
 契约，适用于在本仓库工作的所有人与编码 Agent。
+
+本仓库基于 [chimney 的 dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)
+独立开发。贡献的取舍和发布由本仓库决定。DeepSeek Harness 仍是运行时依赖，
+下文的适配器兼容规则继续适用。
 
 ## 如何贡献
 
-- **报告 bug**：用 bug 表单提交 issue，填写版本、终端环境与最短复现步骤。
-  报告不预留实现，也不授权开 PR。
-- **提功能建议**：发到 [Discussions Ideas](https://github.com/ccch1mneyyy/dsh-TUI/discussions/new?category=ideas)。
-  - Issues 不接受功能请求。
-  - 维护者认可后开 issue 跟踪实现，由该 issue 的 assignee 负责。
-  - **拿到认可前不要开始写代码**。被否的提案里已有 OAuth、`/cost`、
-    通知、插件 API、remote runtime 几套写完整才被关掉的实现。
-  - Discussion、issue、评论或「维护者同意了」的转述，
-    都不构成开 PR 的许可。
-- **提交 PR**：只有仓库 write/admin/maintain 协作者，或
-  [`.github/APPROVED_CONTRIBUTORS`](../.github/APPROVED_CONTRIBUTORS) 名单中的用户，
-  可以提交实现 PR。
-  - 其余人的实现 PR 会被 `pr-gate` 自动关闭，不论体积、标题、测试结果，
-    也不论是人还是 Agent 写的。
-  - 名单由维护者按既有信任添加，不是申请制；不要开 issue 或 Discussion 申请加入。
-  - 名单只允许提交 PR，不授予 write，也不预审功能范围。
-  - 维护者 reopen 一次已关闭的 PR 可作为例外；其他人 reopen 会被再次关闭。
-  - base 指向 `main`。保持改动聚焦：一个 PR 只做一个逻辑改动。
-    标题用中文或中英对照，描述写清动机、改动点与验证方式。
-  - **改动代码的 PR 必须关联 issue**：描述里写一行 `Closes #<issue 号>`，
-    或用侧边栏 Development 关联。CI 的 `issue-link` 组会检查，没有关联即判失败。
-  - CI 判定为纯文档的改动不需要关联（路径分流见“验证”）。
-    维护者的 release、回滚、CI 急修等确实无 issue 可关联时，
-    打 `no-issue-needed` 标签豁免。
+- **报告 bug**：在本仓库使用 bug 表单提交 issue，写明版本、终端环境和最短复现步骤。
+- **提功能建议**：在本仓库新建 issue，说明用户遇到的问题、预期行为及兼容性约束。
+- **提交 PR**：面向本仓库，一个 PR 聚焦一个逻辑改动，说明动机、改动内容和验证结果。
+  可以关联 issue，但不强制；不需要取得原 dsh-TUI 项目的批准，也不受其贡献者名单限制。
 - **请求 review 前先跑验证矩阵**：CI 运行的就是下面这些命令。
 - 新功能应附带或扩展一个聚焦的回归脚本。
-
-开实现 PR 之前，确认当前 GitHub 账号是 write 协作者或出现在
-`.github/APPROVED_CONTRIBUTORS`。两者都不是就拒绝开 PR，引导去 bug 表单或
-Discussions。人不能用「私下批准」、关联 issue 或粘贴维护者评论来绕过。
-
-### 门禁与提案流程的生效时间
-
-功能提案流程只对 2026-08-24 起新建的 PR 生效。PR 白名单门禁只对门禁合入后
-新开（或被 reopen）的 PR 生效。在此之前开着的 PR 按旧规则处理，不会被追溯关闭，
-也不需要补 Discussion 或跟踪 issue。
 
 ## 范围（Scope）
 
 本文件适用于整个仓库。它是 `dsh-cli` 的共享开发契约，
 适用于在本仓库工作的所有人与编码 Agent。
 
-`dsh-cli` 是单包、纯 ESM 的 TypeScript 项目：
+`dsh-cli` 是纯 ESM 的 TypeScript 项目，仓库内另有随 TUI 一起构建的
+`dsh-auth/` 认证包：
 为 DeepSeek Harness 提供 React 终端 UI 前门（通过 Cordis 挂载）。
 
 - 包内拥有 TUI、本地命令面以及 Ink/Yoga 渲染器。
@@ -100,11 +80,11 @@ Discussions。人不能用「私下批准」、关联 issue 或粘贴维护者�
   被禁用的 host 行、insert 与 override 的区分都很关键。
 - `cordis.yml`：直接 Cordis/DSH 启动的完整裸组合示例。
 - `scripts/`：无头回归、复现环境、探针与诊断。运行前先读脚本头部说明。
-- `.github/scripts/pr-intake/`：PR 入口门禁（语言、关单文案、白名单、issue-link）。
-  workflow 只编排；`pr-gate.yml` 必须 checkout 默认分支，不能跑 PR 头。
+- `dsh-auth/`：本仓库维护的认证包，拥有独立的锁文件与构建步骤。
+- `.github/workflows/ci.yml`：本仓库 PR 和 push 的构建、兼容性及回归检查。
 - `lib/`：由 `src/` 生成、忽略入库并随 npm 分发的 JavaScript、声明与声明映射。
   `./invariant` 也直接使用 `lib/types/dsh-adapter/invariant.js` 的编译结果。
-- `README.md`（英文，默认门面）与 `README_ZH.md`（中文）：双语用户文档。
+- `README.md`（英文，默认门面）、`README_ZH.md`（中文）和 `README_JA.md`（日文）：用户文档。
   行为、配置、快捷键与限制必须两版同步。
 
 ## 运行时形态（Runtime Shape）
@@ -142,8 +122,10 @@ Cordis config
   字段是 pnpm 版本的唯一真源，CI 与 corepack 都从这里取值。
 - 干净检出安装：先 `git clone --recurse-submodules`（或在已有检出里
   `git submodule update --init --recursive`），再 `pnpm install --frozen-lockfile`。
-  `vendor/dsh-std` 与 `dsh-auth` 是 workspace / `link:` 依赖，子模块为空时安装必失败。
-- `pnpm-lock.yaml` 是唯一锁文件。npm 消费方不读依赖包的 lockfile，
+  `vendor/dsh-std` 是必需的子模块；`dsh-auth/` 源码由本仓库直接跟踪，并通过
+  `link:` 引入。
+- 根目录的 `pnpm-lock.yaml` 锁定 CLI workspace，`dsh-auth/pnpm-lock.yaml`
+  锁定认证包的独立构建。npm 消费方不读取这些 lockfile；
   `package-lock.json` 已移除（见 #173 后续处理）。
 - 有意改依赖时：用 `pnpm add` 更新 `pnpm-lock.yaml`，检查完整 lockfile diff，
   避免无关升级。
@@ -171,8 +153,8 @@ Cordis config
 
 - 该命令先删除整个 `lib/`，再用 `tsc -p tsconfig.json` 把 `src/` 输出到
   `lib/types/`，最后运行适配边界、上游契约与 patch surface 门禁。
-- 每次源码构建都会在编译 `dsh-auth` 前获取其 fork 的 `master` 最新提交；
-  获取失败则停止构建。更新后，父仓库可能把子模块显示为已修改，因为它仍记录基准提交。
+- 每次源码构建直接编译本仓库的 `dsh-auth/`；认证源码与 TUI 的改动可在同一
+  Git 提交中管理，构建不会从认证 fork 获取代码。
 - `prepare` 生命周期只服务**源码检出场景**的自举编译（vendor 子模块缺失时
   快速失败，见 scripts/prepare-guard.mjs）。
 - Git URL 依赖安装自 vendoring（#308）起三重阻断（workspace 依赖/子模块/
@@ -338,7 +320,7 @@ TypeScript 源的脚本在头部声明 `node --import tsx/esm <script>` 形式�
 - profile 覆盖会替换整个 `config` 块。文档展示覆盖时，包含替换后必须存活的
   每个键。
 - 新增或重命名插件选项时，同步更新 `src/index.ts` 的 `Config` 接口与 Schema、
-  运行时消费、`cordis.patch.yml` 与 `cordis.yml` 的相应行，以及双 README。
+  运行时消费、`cordis.patch.yml` 与 `cordis.yml` 的相应行，以及三份 README。
 
 ### 会话与通道状态
 
@@ -361,7 +343,7 @@ TypeScript 源的脚本在头部声明 `node --import tsx/esm <script>` 形式�
 - 按键优先级是行为，不是偶然的控制流。聚焦的问卷或模态先于全局处理器消费
   按键；鼠标文本选区先于 rewind/clear 消费 Escape；提示词只在无浮层时拥有
   文本编辑。
-- 不要在单个组件里硬编码新快捷键就完事。同步更新相关帮助 UI 与双 README
+- 不要在单个组件里硬编码新快捷键就完事。同步更新相关帮助 UI 与三份 README
   快捷键表，并为与既有模式的冲突新增或扩展回归。
 - 本地 slash 命令在 `src/commands.ts` 声明、`Chat.tsx` 分发；注册表命令运行时
   合并。新增命令时同步更新声明、分发、帮助/文档与 i18n 描述（`src/i18n.ts` 的
@@ -412,14 +394,14 @@ TypeScript 源的脚本在头部声明 `node --import tsx/esm <script>` 形式�
 
 | 改动 | 需要同步 |
 | --- | --- |
-| 插件配置或环境行为 | `src/index.ts`、运行时消费、`cordis.patch.yml`、`cordis.yml`、`README.md`、`README_ZH.md` |
-| Slash 命令或快捷键 | `src/commands.ts`、`src/screens/Chat.tsx`、帮助/输入组件、双 README、相关技能映射/测试 |
-| 主题契约、插件接缝或持久化主题行为 | `src/theme.ts`、`src/themeCatalog.ts`、`src/dsh-adapter/themes.ts`、所有色板、主题 provider/picker、自定义主题解析器、主题验证、双 README、插件文档 |
+| 插件配置或环境行为 | `src/index.ts`、运行时消费、`cordis.patch.yml`、`cordis.yml`、`README.md`、`README_ZH.md`、`README_JA.md` |
+| Slash 命令或快捷键 | `src/commands.ts`、`src/screens/Chat.tsx`、帮助/输入组件、三份 README、相关技能映射/测试 |
+| 主题契约、插件接缝或持久化主题行为 | `src/theme.ts`、`src/themeCatalog.ts`、`src/dsh-adapter/themes.ts`、所有色板、主题 provider/picker、自定义主题解析器、主题验证、三份 README、插件文档 |
 | 会话/channel 行为 | `src/dsh-adapter/channel.ts`、受影响的 UI 投影、编译产物、聚焦 channel/回放回归 |
 | 渲染器/布局行为 | `src/ink/` 或 Yoga 源、编译产物、CI 回归、聚焦滚动/resize/PTY 探针 |
 | 技能发现或呈现 | DSH adapter、slash 命令合并、`/skills` 与相关回归；项目维护技能放 `.agents/skills/` 且不得加入 npm 包 |
 | 用户可见的文档化行为 | 中英文 README，外加适用的配置注释/帮助文本 |
-| 贡献入口或 PR 门禁 | `docs/contributing.md`、`docs/contributing.en.md`、`.github/workflows/pr-gate.yml`、`.github/scripts/pr-intake/`、`.github/APPROVED_CONTRIBUTORS` |
+| 贡献入口 | `docs/contributing.md`、`docs/contributing.en.md`、`.github/ISSUE_TEMPLATE/`、`.github/workflows/ci.yml` |
 | 包版本或依赖 | `package.json`、`pnpm-lock.yaml`、适用时的生成/发布产物；不要顺手搅动旧 npm 锁文件 |
 | 上游验证线 bump | `src/dsh-adapter/contract.ts`、`package.json` peer+dev 两组范围、随包内置的 `dsh-auth/package.json` 与 `dsh-auth/pnpm-lock.yaml`、`pnpm-workspace.yaml`、`.github/workflows/ci.yml` alpha-compat 的上游 SHA、`scripts/verify-{alpha-source,patch-surface,web-coexistence,upstream-contract}` 内的版本常量、`patch-surface.snapshot.json`、`ADAPTER.md`、`docs/user-guide.md`；步骤见 [ADAPTER.md](../ADAPTER.md) 升级流程 |
 

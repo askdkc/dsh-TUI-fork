@@ -46,6 +46,8 @@ const { mountAdmitted, testManifest, COMMAND_COORDINATE, STORAGE_COORDINATE, DEC
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const specDir = join(root, 'dsh-ecosystem-spec')
+// Tamper fixtures must copy file contents, including when the checkout is a symlink or junction.
+const copySpec = (to: string): void => cpSync(specDir, to, { recursive: true, dereference: true })
 const data = loadSpecData(specDir)
 if (!data) {
   console.error('vendored spec data unreadable (dsh-ecosystem-spec/)')
@@ -825,7 +827,7 @@ check1('decision permission map is immutable',
   // D2. 篡改 contract 文件 → 剔除 + warn（fail closed），descriptor 仍过 schema。
   const tamperedRoot = mkdtempSync(join(tmpdir(), 'dsh-descriptor-tamper-'))
   cleanup.push(tamperedRoot)
-  cpSync(specDir, join(tamperedRoot, 'dsh-ecosystem-spec'), { recursive: true })
+  copySpec(join(tamperedRoot, 'dsh-ecosystem-spec'))
   const target = join(tamperedRoot, 'dsh-ecosystem-spec', 'registry', 'contracts', 'decision-events-v1alpha1.json')
   writeFileSync(target, `${readFileSync(target, 'utf8')}\n`)
   const tampered = liveHostDescriptor('test-gen-2', join(tamperedRoot, 'dsh-ecosystem-spec'))
@@ -860,7 +862,7 @@ check1('decision permission map is immutable',
   // 绝不把 TypeError 留到 verify*/boot 自检里炸出来（fail-soft）。
   const malformedRoot = mkdtempSync(join(tmpdir(), 'dsh-spec-malformed-'))
   cleanup.push(malformedRoot)
-  cpSync(specDir, join(malformedRoot, 'dsh-ecosystem-spec'), { recursive: true })
+  copySpec(join(malformedRoot, 'dsh-ecosystem-spec'))
   writeFileSync(join(malformedRoot, 'dsh-ecosystem-spec', 'registry', 'registry-0.15.json'),
     JSON.stringify({ profileVersion: 'tui-admission/0.15', std: {}, imports: null, definitions: [], facetApiVersions: [] }))
   check1('structurally malformed registry loads as unavailable',
@@ -890,7 +892,7 @@ check1('decision permission map is immutable',
   // 权限注册表 malformed（permissions 不是数组）同样整体不可用。
   const malformedPermsRoot = mkdtempSync(join(tmpdir(), 'dsh-spec-malformed-perms-'))
   cleanup.push(malformedPermsRoot)
-  cpSync(specDir, join(malformedPermsRoot, 'dsh-ecosystem-spec'), { recursive: true })
+  copySpec(join(malformedPermsRoot, 'dsh-ecosystem-spec'))
   writeFileSync(join(malformedPermsRoot, 'dsh-ecosystem-spec', 'registry', 'permissions-0.1.json'),
     JSON.stringify({ registryVersion: '0.1', permissions: 'nope' }))
   check1('structurally malformed permissions load as unavailable',

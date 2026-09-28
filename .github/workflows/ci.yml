@@ -9,8 +9,8 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# 默认最小权限：所有 job 只读 contents。需要更多的（changes / issue-link 读
-# PR 与 issue）在 job 内自行声明；artifact 上传/下载走 runtime token，不依赖
+# 默认最小权限：所有 job 只读 contents。changes 需要读取 PR 文件列表，
+# 因此在 job 内自行声明；artifact 上传/下载走 runtime token，不依赖
 # GITHUB_TOKEN 的 scope。
 permissions:
   contents: read
@@ -49,7 +49,7 @@ jobs:
             })
             const DOCS_ONLY = [
               /^docs\//,
-              /^README(_ZH)?\.md$/,
+              /^README(_ZH|_JA)?\.md$/,
               /^ADAPTER\.md$/,
               /^CHANGELOG\.md$/,
               /^\.github\/ISSUE_TEMPLATE\//,
@@ -63,45 +63,6 @@ jobs:
             core.setOutput('code', String(code))
             core.notice(`${paths.length} 个文件改动，code=${code}`)
 
-  # 代码 PR 必须关联 issue——docs/contributing.md「如何贡献」的 CI 落地：
-  # bug 走 bug 表单开 issue，功能建议经 Discussions 认可后由维护者开跟踪
-  # issue，两条路都产出一个 issue。没有关联 issue 的代码 PR 意味着这份实现
-  # 没有经过认可，正是被关掉的那批整套实现（OAuth、/cost、通知、插件 API、
-  # remote runtime）的共同特征。
-  #
-  # 判定用 GraphQL 的 closingIssuesReferences：正文里的 Closes/Fixes #N 与
-  # 侧边栏 Development 手工关联都算，不自己解析文案。
-  #
-  # 三条豁免，缺一不可：
-  #   - 纯文档改动（本 job 在 code=false 时整个不跑，与其余组同一分流）；
-  #   - 机器人作者（release/star-history/dependabot 这类没有人可去开 issue）；
-  #   - `no-issue-needed` 标签：维护者的 release、回滚、CI 急修等确实无 issue
-  #     可关联的场合的逃生口，留痕在标签上而不是靠 gate 网开一面。
-  # 以及不追溯：只对 CUTOFF 起新建的 PR 生效——功能提案流程本身就是
-  # 「只对 2026-08-24 起新建的 PR 生效」，30 个开着的 PR 不该因为门禁上线
-  # 集体变红。
-  issue-link:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-      issues: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/github-script@v9
-        with:
-          script: |
-            const { pathToFileURL } = await import('node:url')
-            const { join } = await import('node:path')
-            const { runIssueLink } = await import(pathToFileURL(join(
-              process.env.GITHUB_WORKSPACE,
-              '.github/scripts/pr-intake/issue-link.mjs',
-            )).href)
-            await runIssueLink({ github, context, core })
-
   # 编译 job 只做 install → compile → 上传产物，是所有测试组的关键路径前置：
   # 构建门禁（verify:build/package）搬去并行的 gates job，测试组不再等它
   # 跑完 100 s 才开始。timeout 兜住挂死的 PTY 探针：默认 6 小时会占住
@@ -111,8 +72,6 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      dsh_auth_sha: ${{ steps.auth_revision.outputs.sha }}
     env:
       # Keep UI language deterministic for the repro/verify scripts: zh is the
       # historical script-context default; scripts asserting English copy pin
@@ -143,11 +102,6 @@ jobs:
       # lib/ is not checked in. Compile it once from a clean output directory;
       # the following gates reuse this exact runtime instead of rebuilding it.
       - run: pnpm compile
-
-      - id: auth_revision
-        run: |
-          sha="$(git -C dsh-auth rev-parse HEAD)"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Verify clean compile output
         run: |
@@ -190,14 +144,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
 
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
@@ -333,14 +279,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
-
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
 
@@ -383,14 +321,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
 
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
@@ -443,14 +373,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
-
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
 
@@ -502,14 +424,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
-
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
 
@@ -558,14 +472,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-
-      - name: Match the dsh-auth revision built upstream
-        env:
-          DSH_AUTH_BUILD_SHA: ${{ needs.build.outputs.dsh_auth_sha }}
-        run: |
-          git -C dsh-auth fetch origin master
-          git -C dsh-auth checkout --detach "$DSH_AUTH_BUILD_SHA"
-          test "$(git -C dsh-auth rev-parse HEAD)" = "$DSH_AUTH_BUILD_SHA"
 
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
@@ -673,7 +579,7 @@ jobs:
   # gate 仍然运行（被跳过的 check 不会阻塞合并，失败才会）；后续 CI 内部
   # 再拆组、改名、加 matrix，branch protection 只需盯住这一个稳定名字。
   ci-gate:
-    needs: [changes, issue-link, build, gates, alpha-compat, render-scroll, input-terminal, session-workspace, channel-ui]
+    needs: [changes, build, gates, alpha-compat, render-scroll, input-terminal, session-workspace, channel-ui]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -682,7 +588,6 @@ jobs:
         env:
           CHANGES: ${{ needs.changes.result }}
           CODE: ${{ needs.changes.outputs.code }}
-          ISSUE_LINK: ${{ needs.issue-link.result }}
           BUILD: ${{ needs.build.result }}
           GATES: ${{ needs.gates.result }}
           ALPHA_COMPAT: ${{ needs.alpha-compat.result }}
@@ -704,8 +609,7 @@ jobs:
             echo "::error title=CI gate::changes 结束状态为 ${CHANGES}（要求 success，无法分类改动）"
             status=1
           fi
-          for pair in "issue-link:${ISSUE_LINK}" \
-                      "build:${BUILD}" \
+          for pair in "build:${BUILD}" \
                       "gates:${GATES}" \
                       "alpha-compat:${ALPHA_COMPAT}" \
                       "render-scroll:${RENDER_SCROLL}" \

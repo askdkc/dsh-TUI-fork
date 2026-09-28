@@ -78,6 +78,14 @@ if (packed.has('lib/invariant.js')) {
 // relative import instead of a manifest entry.
 const bundled = new Set(manifest.bundledDependencies ?? manifest.bundleDependencies ?? [])
 for (const path of [
+  'node_modules/@askdkc/dsh-auth/package.json',
+  'node_modules/@askdkc/dsh-auth/lib/index.js',
+]) {
+  if (!bundled.has('@askdkc/dsh-auth') || !packed.has(path)) {
+    throw new Error(`bundled dsh-auth missing from tarball: ${path}`)
+  }
+}
+for (const path of [
   'node_modules/dsh-working-activity/package.json',
   'node_modules/dsh-working-activity/lib/types/frames.js',
   'node_modules/dsh-working-activity/lib/types/lang.js',

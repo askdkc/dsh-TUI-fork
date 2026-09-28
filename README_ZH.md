@@ -17,6 +17,10 @@
 
 > 面向 DeepSeek Harness 的交互式终端 UI 插件。
 
+本仓库基于 [chimney 的 dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)，
+由 dkc 独立开发和维护。开发方向与发布由本仓库决定，仍需保持与
+DeepSeek Harness 的兼容。
+
 ## 界面预览
 
 <div align="center">
@@ -40,9 +44,9 @@
 已安装依赖的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 源码检出，以及 `DEEPSEEK_API_KEY`。主要适配 DSH `0.1.7-rc.2`。
 
-递归克隆会一并获取 [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork)。
+`dsh-auth/` 源码由本仓库直接跟踪。其余子模块仍需递归克隆；
 已有检出应在安装前运行 `git submodule update --init --recursive`。
-构建会获取该 fork 的 `master` 最新提交，因此需要网络连接。
+构建使用当前检出的认证源码，不再从 `dsh-auth-fork` 获取代码。
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
@@ -96,4 +100,5 @@ PATH 设置与安装问题见[安装指南](docs/getting-started.md)。
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE)。保留原作者 chimney 的版权声明，并为本 fork 的独立开发
+加入 dkc 的版权声明。

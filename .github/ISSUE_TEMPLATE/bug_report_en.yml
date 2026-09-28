@@ -1,21 +1,21 @@
 name: Bug report (English)
-description: Report a problem. Feature requests belong in Discussions.
+description: Report a dsh-cli problem. Feature requests may use a blank issue.
 title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Feature requests, usage questions and plugin announcements belong in Discussions.
+        Feature requests and usage questions may use a blank issue in this repository.
 
         Intermittent problems are welcome — just state how often they happen.
 
   - type: input
     id: version
     attributes:
-      label: dsh-tui version
+      label: dsh-cli version
       description: |
-        The startup banner shows it in the top right corner (`✦ dsh-TUI vX.Y.Z`).
+        The startup banner shows it in the top right corner (`✦ dsh-CLI vX.Y.Z`).
         Do not use `npm ls -g` — the global launcher version does not move with `/update`
         and will lag behind what is actually running. Write "unknown" if you cannot find it.
       placeholder: "0.9.0"

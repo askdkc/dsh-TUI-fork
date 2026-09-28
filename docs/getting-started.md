@@ -191,7 +191,7 @@ dsh 意外结束时，安全模式提供只读的环境诊断、profile 插件�
   `dsh-tui-vscode`（真实终端会话、会话历史、指定会话恢复、IDE 选区通道）。
   见 [VS Code 使用指南](vscode.md)。
 - **Herdr**：直接在 [Herdr](https://herdr.dev) 窗格中运行 `dsh-tui`，无需额外
-  配置；dsh-TUI 经 Herdr 本地集成 API 报告 `idle` / `working` / `blocked`
+  配置；dsh-cli 经 Herdr 本地集成 API 报告 `idle` / `working` / `blocked`
   （问卷与工具审批记为 `blocked`），在 Herdr 之外不做任何事。
 
 ## 更新到最新版本
@@ -218,7 +218,7 @@ pnpm add -g dsh-cli@latest
 - 修复"版本不一致"时，优先使用启动器打印的"精确版本"命令（例如
   `npm install -g dsh-cli@0.8.3`）；日常主动升级才
   使用 `@latest`。
-- 确认生效：启动横幅右上角显示当前版本（`✦ dsh-TUI vX.Y.Z`）。
+- 确认生效：启动横幅右上角显示当前版本（`✦ dsh-CLI vX.Y.Z`）。
 - 用户覆盖层 `cordis.patch.yml` 在更新中原样保留。
 - 会话数据的存放位置可能随版本变化（如 0.3.7 起 `/resume` 改用与 dsh web
   共享的 JSONL 会话库），跨大版本更新后旧会话不在列表属预期，原数据不会被删除。
@@ -268,20 +268,21 @@ $DSH_HOME/profiles/dsh-tui/cordis.patch.yml
 ## 从源码开发
 
 ```sh
-git clone --recurse-submodules https://github.com/ccch1mneyyy/dsh-TUI.git
-cd dsh-TUI
+git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+cd dsh-cli
 pnpm install --frozen-lockfile
 pnpm build
 pnpm smoke
 ```
 
-本仓库有三个子模块，其中两个是安装必需：
+本仓库有两个子模块，其中 `vendor/dsh-std` 是安装必需：
 
 - `vendor/dsh-std`：`pnpm-workspace.yaml` 把 `vendor/dsh-std/packages/*` 列为
   workspace 包。
-- `dsh-auth`：经 `link:` 引入。
 
-漏掉 `--recurse-submodules` 会让这两个目录为空，
+`dsh-auth/` 源码由本仓库直接跟踪，并经 `link:` 引入。
+
+漏掉 `--recurse-submodules` 会让必需的 `vendor/dsh-std` 目录为空，
 `pnpm install --frozen-lockfile` 直接失败。已经克隆过的检出补一条：
 
 ```sh
@@ -341,7 +342,7 @@ node --import tsx/esm scripts/repro-toolcards.tsx
 
 ### Git URL 安装报错
 
-Git URL（如 `https://github.com/ccch1mneyyy/dsh-TUI`）安装不受支持，报以下错误码：
+Git URL（如 `https://github.com/askdkc/dsh-cli`）安装不受支持，报以下错误码：
 
 - `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED`
 - `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`

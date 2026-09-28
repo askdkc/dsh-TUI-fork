@@ -15,6 +15,7 @@
 import {
   deriveModelGroups,
   modelPickerLanding,
+  modelPickerFlatIndex,
   recentCatalogModels,
   RECENTS_GROUP_PROVIDER,
   RECENTS_LABEL_PLACEHOLDER,
@@ -36,6 +37,14 @@ function check(name, ok, extra = '') {
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 const model = (provider, id) => ({ provider, id, name: id })
+
+// Search-first landing focuses the current model in the complete catalog.
+{
+  const models = [model('deepseek', 'a'), model('openai', 'gpt'), model('deepseek', 'b')]
+  check('flat landing: current model across providers', modelPickerFlatIndex(models, 'openai', 'gpt') === 1)
+  check('flat landing: unknown model falls back to first', modelPickerFlatIndex(models, 'openai', 'missing') === 0)
+  check('flat landing: empty catalog', modelPickerFlatIndex([], 'openai', 'gpt') === 0)
+}
 
 // 1. grouping: order, labels, counts.
 {

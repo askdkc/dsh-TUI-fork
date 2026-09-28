@@ -46,6 +46,11 @@ const SWEEP_WINDOW = 8
 const esc = (rgb: Rgb): string => `\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}m`
 const RESET = '\x1b[39m'
 
+/** Number of terminal cells painted by a line, including its trailing glyph spacing. */
+export function bigTextWidth(text: string): number {
+  return [...text].reduce((width, ch) => width + (ch === ' ' ? WORD_GAP : ADVANCE), 0)
+}
+
 /**
  * Render `text` in the 5-row block font. The gradient runs `from` → `to`
  * across the full line width; a SWEEP_WINDOW-wide highlight mixed toward
@@ -67,7 +72,7 @@ export function renderBigText(
   flash: Rgb,
   stepMs = 60,
 ): string[] {
-  const width = text.length * ADVANCE + (text.includes(' ') ? WORD_GAP - 1 : 0)
+  const width = bigTextWidth(text)
   const cycle = width + SWEEP_WINDOW * 2
   const sweepStart = (Math.floor(time / stepMs) % cycle) - SWEEP_WINDOW
   const pulse = (Math.sin(time / (stepMs * 2)) + 1) / 2

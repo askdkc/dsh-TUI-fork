@@ -1,6 +1,6 @@
 # AGENTS.md
 
-dsh-TUI is an interactive terminal plugin for DeepSeek Harness (`dsh-cli`). It changes no Harness core code. Harness owns agents, sessions, models, tools, persistence, and policy; this package consumes them. Before making changes, read [docs/contributing.md](docs/contributing.md) (the authoritative shared development contract) and [ADAPTER.md](ADAPTER.md) (upstream boundaries and contracts). See [docs/architecture.md](docs/architecture.md) for the overall structure.
+dsh-cli is an independently developed fork of dsh-TUI and an interactive terminal plugin for DeepSeek Harness. It changes no Harness core code. Harness owns agents, sessions, models, tools, persistence, and policy; this package consumes them. Before making changes, read [docs/contributing.md](docs/contributing.md) (the authoritative shared development contract) and [ADAPTER.md](ADAPTER.md) (Harness boundaries and contracts). See [docs/architecture.md](docs/architecture.md) for the overall structure.
 
 ## Response language
 
@@ -25,6 +25,7 @@ src/*Prefs.ts etc.  Persisted user preferences and session metadata under ~/.dsh
 presets/            Packaged presets (liangshen)
 bin/dsh-tui.js      Direct dsh-tui command entry
 vendor/dsh-std      Vendored dependency for frozen-lockfile builds; see scripts/build-related files
+dsh-auth/           Locally maintained authentication package with its own lockfile and build
 dsh-ecosystem-spec/ Ecosystem adapter specification subproject with its own CONTRIBUTING and governance docs
 cordis.patch.yml    Package overlay for profile installs; row order, IDs, and insert/override semantics matter
 cordis.yml          Complete bare Cordis/DSH composition example
@@ -67,7 +68,7 @@ There is **no root-level `test` or `lint` script**; do not claim to have run eit
 - **Quiet rendering:** Do not add `console.log` or stdout diagnostics while the TUI runs. Use opt-in stderr/debug paths (`DSH_TUI_DEBUG`, `DSH_TUI_RENDER_LOG`).
 - **TypeScript:** Use ESM with `.js` suffixes on relative imports. Prefer `import type` for type-only dependencies. Do not introduce `any` because of the renderer's relaxed Ink settings; narrow `unknown`. Follow the existing two-space, single-quote, no-semicolon style and do not bulk-format renderer files.
 - **Terminal width:** Measure display cells, not JavaScript string length. Account for ANSI escapes, combining characters, emoji, and East Asian wide characters with the repository's width/slice/wrap helpers.
-- **Bilingual docs:** Keep behavior, config, shortcuts, and limitations in sync across `README.md` (English default) and `README_ZH.md` (Chinese). See [docs/contributing.md](docs/contributing.md) for cross-file checklists covering plugin config, slash commands, themes, the renderer, and skill discovery.
+- **Multilingual docs:** Keep behavior, config, shortcuts, and limitations in sync across `README.md` (English default), `README_ZH.md` (Chinese), and `README_JA.md` (Japanese). See [docs/contributing.md](docs/contributing.md) for cross-file checklists covering plugin config, slash commands, themes, the renderer, and skill discovery.
 - **Secrets:** Interactive startup reads `DEEPSEEK_API_KEY`. Diagnostics may report only whether it is set, never its full value.
 - **Git safety:** Stage only explicit paths; never use `git add .` or `git add -A`. Do not run destructive cleanup commands. Do not commit, tag, push, or publish without a request. Publishing is driven by a `v*` tag that must exactly match the version in `package.json`.
 
