@@ -22,6 +22,7 @@ import { nextModelQueryBoundary, previousModelQueryBoundary } from './modelSearc
 import {
   deriveModelGroups,
   filterModels,
+  modelPickerFlatIndex,
   modelPickerLanding,
   recentCatalogModels,
   RECENTS_GROUP_PROVIDER,
@@ -515,14 +516,10 @@ export function Chat({
   const [providerInfos, setProviderInfos] = React.useState<readonly LlmProviderInfo[]>([])
   /** /model 最近使用分组：成功切换即记录（去重置顶，上限 10），重启保留。 */
   const [modelRecents, setModelRecents] = React.useState<readonly ModelRecentsRef[]>(() => readModelRecents())
-  /** Two-level /model: the drilled-in provider route; undefined = group level.
-   *  Reset on open; stale ids resolve back to the group level via `activeModelGroup`. */
+  /** Optional provider-group drill-down; undefined in the default flat list. */
   const [modelGroup, setModelGroup] = React.useState<string | undefined>(undefined)
-  /** True while the picker sits in the single-provider fast path (drilled in
-   *  at open, the group level never shown): Esc closes directly and no back
-   *  hint renders — a pinned recents pseudo-group must not fake a two-level
-   *  walk the user never saw (issue #527 regression: repro-picker-windowing). */
-  const [modelPickerDirect, setModelPickerDirect] = React.useState(false)
+  /** Open /model on the complete, immediately searchable model list. */
+  const [modelPickerFlat, setModelPickerFlat] = React.useState(true)
   /** Group rows over the current catalog, first-appearance (registry) order,
    *  with the pinned recents pseudo-group first when any entry is catalogued. */
   const modelGroups = React.useMemo(
@@ -544,8 +541,8 @@ export function Chat({
     () => filterModels(activeModelGroup === undefined ? models : groupModels, modelQuery, providerInfos),
     [activeModelGroup, groupModels, models, modelQuery, providerInfos],
   )
-  const visibleModelGroups = activeModelGroup === undefined && !modelSearchActive ? modelGroups : []
-  const modelRowsAreGroups = activeModelGroup === undefined && !modelSearchActive
+  const visibleModelGroups = activeModelGroup === undefined && !modelSearchActive && !modelPickerFlat ? modelGroups : []
+  const modelRowsAreGroups = activeModelGroup === undefined && !modelSearchActive && !modelPickerFlat
   const modelRowCount = modelRowsAreGroups ? visibleModelGroups.length : visibleModelRows.length
   const modelFocus = overlay.kind === 'model'
     ? Math.max(0, Math.min(overlay.index, modelRowCount - 1))
@@ -553,6 +550,7 @@ export function Chat({
   const modelFocusedRef = React.useRef<{
     query: string
     group: string | undefined
+    rowsAreGroups: boolean
     provider: string | undefined
     id: string | undefined
     groupKey: string | undefined
@@ -561,6 +559,7 @@ export function Chat({
     modelFocusedRef.current = overlay.kind === 'model' ? {
       query: modelQuery,
       group: activeModelGroup,
+      rowsAreGroups: modelRowsAreGroups,
       provider: modelRowsAreGroups ? undefined : visibleModelRows[modelFocus]?.provider,
       id: modelRowsAreGroups ? undefined : visibleModelRows[modelFocus]?.id,
       groupKey: modelRowsAreGroups ? visibleModelGroups[modelFocus]?.provider : undefined,
@@ -579,7 +578,6 @@ export function Chat({
           const freshGroups = deriveModelGroups(list, providerInfos, modelRecents)
           if (focused.group !== undefined && !freshGroups.some(group => group.provider === focused.group)) {
             setModelGroup(undefined)
-            setModelPickerDirect(false)
             dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
             dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
           } else {
@@ -587,7 +585,7 @@ export function Chat({
               : focused.group === RECENTS_GROUP_PROVIDER ? recentCatalogModels(modelRecents, list)
               : list.filter(model => model.provider === focused.group)
             const rows = filterModels(scope, focused.query, providerInfos)
-            const index = focused.group === undefined && focused.query.trim() === ''
+            const index = focused.rowsAreGroups
               ? freshGroups.findIndex(group => group.provider === focused.groupKey)
               : rows.findIndex(model => model.provider === focused.provider && model.id === focused.id)
             dispatchOverlay({ type: 'set-index', kind: 'model', index: Math.max(0, index) })
@@ -2091,31 +2089,24 @@ export function Chat({
           recentsNow = recordModelUse({ provider: channel.provider, id: channel.model })
           setModelRecents(recentsNow)
         }
-        // Two-level landing: recents (when catalogued) focus their pinned
-        // row; else multi-provider catalogs focus the current provider's
-        // group row; a single-provider catalog without a meaningful recents
-        // list drills straight into its model list (pre-grouping UX).
+        // Search-first landing: show every available model immediately and
+        // focus the current one. Tab still opens the provider groups.
         {
-          const landing = modelPickerLanding(models, channel.provider, channel.model, recentsNow)
-          setModelGroup(landing.group)
-          setModelPickerDirect(landing.group !== undefined)
-          dispatchOverlay({ type: 'open', overlay: { kind: 'model', index: landing.index, query: '', cursor: 0 } })
+          setModelGroup(undefined)
+          setModelPickerFlat(true)
+          dispatchOverlay({ type: 'open', overlay: { kind: 'model', index: modelPickerFlatIndex(models, channel.provider, channel.model), query: '', cursor: 0 } })
         }
         const modelRequest = ++modelRequestRef.current
         setModelCatalogStatus('loading')
         void channel.listModels().then((list) => {
           if (modelRequest !== modelRequestRef.current) return
           const focused = modelFocusedRef.current
-          if (models.length === 0 && (focused === null || (focused.group === undefined && focused.query === ''))) {
-            const landing = modelPickerLanding(list, channel.provider, channel.model, recentsNow)
-            setModelGroup(landing.group)
-            setModelPickerDirect(landing.group !== undefined)
-            dispatchOverlay({ type: 'set-index', kind: 'model', index: landing.index })
+          if (models.length === 0 && (focused === null || (!focused.rowsAreGroups && focused.group === undefined && focused.query === ''))) {
+            dispatchOverlay({ type: 'set-index', kind: 'model', index: modelPickerFlatIndex(list, channel.provider, channel.model) })
           } else if (focused !== null) {
             const freshGroups = deriveModelGroups(list, providerInfos, recentsNow)
             if (focused.group !== undefined && !freshGroups.some(group => group.provider === focused.group)) {
               setModelGroup(undefined)
-              setModelPickerDirect(false)
               dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
               dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
             } else {
@@ -2123,7 +2114,7 @@ export function Chat({
                 : focused.group === RECENTS_GROUP_PROVIDER ? recentCatalogModels(recentsNow, list)
                 : list.filter(model => model.provider === focused.group)
               const rows = filterModels(scope, focused.query, providerInfos)
-              const index = focused.group === undefined && focused.query.trim() === ''
+              const index = focused.rowsAreGroups
                 ? freshGroups.findIndex(group => group.provider === focused.groupKey)
                 : rows.findIndex(model => model.provider === focused.provider && model.id === focused.id)
               dispatchOverlay({ type: 'set-index', kind: 'model', index: Math.max(0, index) })
@@ -3448,17 +3439,26 @@ export function Chat({
     }
     if (overlay.kind === 'model') {
       event.stopImmediatePropagation()
-      // Two-level picker: group rows at the top (Enter drills in), one
-      // provider's models below (Enter switches, the same live-fork path as
-      // the flat picker always had). Esc/⌫ climbs one level and only closes
-      // at the top; a single-group catalog never shows the group level, so
-      // Esc there closes directly.
+      // Search-first model list; Tab toggles the optional provider groups.
       const rowCount = modelRowCount
       const query = overlay.query ?? ''
       const cursor = overlay.cursor ?? query.length
       const editModelQuery = (value: string, nextCursor: number) =>
         dispatchOverlay({ type: 'model-edit', query: value, cursor: nextCursor })
-      if (key.upArrow || key.downArrow) {
+      if (key.tab && !key.shift && modelGroups.length > 1) {
+        if (modelPickerFlat) {
+          const landing = modelPickerLanding(models, channel.provider, channel.model, modelRecents)
+          setModelPickerFlat(false)
+          setModelGroup(landing.group)
+          dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
+          dispatchOverlay({ type: 'set-index', kind: 'model', index: landing.index })
+        } else {
+          setModelPickerFlat(true)
+          setModelGroup(undefined)
+          dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
+          dispatchOverlay({ type: 'set-index', kind: 'model', index: modelPickerFlatIndex(models, channel.provider, channel.model) })
+        }
+      } else if (key.upArrow || key.downArrow) {
         dispatchOverlay({ type: 'move', delta: key.upArrow ? -1 : 1, count: rowCount })
       } else if (plainReturn) {
         if (modelRowsAreGroups) {
@@ -3502,7 +3502,7 @@ export function Chat({
       } else if (key.end) {
         editModelQuery(query, query.length)
       } else if (key.escape || (key.backspace && query === '')) {
-        if (activeModelGroup !== undefined && modelGroups.length > 1 && !modelPickerDirect) {
+        if (activeModelGroup !== undefined && modelGroups.length > 1) {
           setModelGroup(undefined)
           const groupIndex = Math.max(0, modelGroups.findIndex(group => group.provider === activeModelGroup))
           dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
@@ -3510,7 +3510,7 @@ export function Chat({
         } else {
           dispatchOverlay({ type: 'close' })
         }
-      } else if (input.length > 0 && !key.ctrl && !key.meta && !key.super) {
+      } else if (input.length > 0 && !key.ctrl && !key.meta && !key.super && !key.tab) {
         const inserted = input.replace(/[\r\n\t]+/gu, ' ')
         editModelQuery(query.slice(0, cursor) + inserted + query.slice(cursor), cursor + inserted.length)
       }
@@ -4783,7 +4783,8 @@ export function Chat({
                   groupLabel={activeModelGroup === RECENTS_GROUP_PROVIDER
                     ? t('picker-group-recent')
                     : modelGroups.find(group => group.provider === activeModelGroup)?.label}
-                  showBack={modelGroups.length > 1 && !modelPickerDirect}
+                  showBack={activeModelGroup !== undefined && modelGroups.length > 1}
+                  showGroups={modelPickerFlat && modelGroups.length > 1}
                   showProviderPrefix={activeModelGroup === RECENTS_GROUP_PROVIDER || activeModelGroup === undefined}
                   focusIndex={modelFocus}
                   currentModel={`${channel.provider}/${channel.model}`}

@@ -17,6 +17,10 @@
 
 > DeepSeek Harness 向けの対話型ターミナル UI プラグインです。
 
+このリポジトリは [chimney 氏の dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)
+を基に dkc が独自に開発する fork です。開発方針とリリースはこのリポジトリで決めます。
+DeepSeek Harness との互換性は引き続き必要です。
+
 ## 画面プレビュー
 
 <div align="center">
@@ -40,9 +44,10 @@
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) ソース checkout、
 `DEEPSEEK_API_KEY` が必要です。主な対応対象は DSH `0.1.7-rc.2` です。
 
-`git clone --recurse-submodules` で [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork) も取得します。
-既存の checkout では、インストール前に `git submodule update --init --recursive` を実行してください。
-ビルド時には fork の `master` の最新 commit を取得するため、ネットワーク接続が必要です。
+`dsh-auth/` のソースはこのリポジトリで直接管理します。残るサブモジュールのため、
+再帰的に clone してください。既存の checkout では、インストール前に
+`git submodule update --init --recursive` を実行してください。
+ビルドは checkout 内の認証ソースを使い、`dsh-auth-fork` から取得しません。
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
@@ -99,4 +104,5 @@ Claude Code、Codex、OMP、zcode、Grok Build の会話を取り込むには、
 
 ## ライセンス
 
-[MIT](LICENSE)
+[MIT](LICENSE)。原著作者 chimney 氏の著作権表示を残し、独自開発分について
+dkc の著作権表示を追加しています。

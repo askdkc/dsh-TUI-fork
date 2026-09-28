@@ -15,15 +15,12 @@ import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 /**
  * Model picker: a permission-colored Pane with
  * the rows as Select entries (❯ focus pointer, ✓ on the active row,
- * descriptions), plus the Enter/Esc hint line. The DSH agent's model is
- * fixed at creation time, so a selection notifies "restart to apply".
+ * descriptions), plus the Enter/Esc hint line. Selection switches through
+ * the Chat coordinator's live-fork path.
  *
- * Two levels: the top level lists **provider groups** (registry display
- * name + model count, ✓ on the current provider's row) and drills in with
- * Enter; the second level lists that group's models and switches with
- * Enter — the same live-fork path the flat picker always had. A
- * single-group catalog skips the top level entirely (showBack=false, plain
- * confirm/exit hint), so single-provider setups keep the pre-grouping UX.
+ * Opens on the complete searchable model list. Tab can show provider groups
+ * (registry display name + model count), where Enter drills into one
+ * provider. Enter on a model switches through the live-fork path.
  *
  * 长列表按焦点窗口化（Select 同款）：picker 经 OverlayAbove 浮层挂载后有
  * maxHeight 裁剪，全量渲染会让焦点行被裁掉（看不到焦点按 Enter）。
@@ -41,13 +38,14 @@ export function ModelPicker(props:
     emptyReason?: 'loading' | 'empty' | 'no-match' | 'error'
   }
   | {
-    /** Second level (or single-group fast path): one provider's models —
-     *  or the mixed-provider recents list (`showProviderPrefix`). */
+    /** Flat catalog or one group's models (`showProviderPrefix` for mixed providers). */
     models: readonly LlmModelInfo[]
     /** The group's display label as this pane's title (default: "Model"). */
     groupLabel?: string
-    /** Multi-group catalogs show the back hint; the fast path keeps the plain one. */
+    /** A drilled-in provider or recents group can return to the group list. */
     showBack: boolean
+    /** Flat catalog can switch to provider groups with Tab. */
+    showGroups?: boolean
     /** Prefix each row with its provider (the recents group mixes providers). */
     showProviderPrefix?: boolean
     focusIndex: number
@@ -76,7 +74,7 @@ export function ModelPicker(props:
   const { start, end } = listWindow(rowHeights, props.focusIndex, listRows)
   const hint = inGroups
     ? t('hint-model-groups')
-    : props.showBack ? t('hint-model-back') : t('hint-confirm-exit')
+    : props.showBack ? t('hint-model-back') : props.showGroups ? t('hint-model-all') : t('hint-confirm-exit')
   return (
     <Pane color="permission">
       <Box flexDirection="column">

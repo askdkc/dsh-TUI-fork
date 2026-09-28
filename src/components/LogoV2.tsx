@@ -10,6 +10,7 @@ import { getTheme } from '../theme.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 import { parseRGB } from './Spinner/spinnerUtils.js'
 import { renderBigText } from './bigfont.js'
+import { COLUMN_GAP, WHALE_BOX_WIDTH, resolveSplashLayout } from './splashLayout.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { BRAND, FLASH, ICE, PALE, sweep } from './shimmer.js'
 import { STANDARD_FRAME_INDEX, WhaleArt } from './Whale.js'
@@ -39,16 +40,6 @@ const VERSION = (() => {
     return '0.1.0'
   }
 })()
-
-/** Below this width the whale hides and the header goes text-only. */
-const WHALE_MIN_COLUMNS = 64
-
-/**
- * Fixed whale box width: the tail-wag frames reach 4 columns further right
- * than the standard pose, and a pinned width keeps the text column from
- * shifting sideways during the opening animation.
- */
-const FULL_WHALE_WIDTH = 40
 
 /**
  * Center of the whale art's bounding box: sprite columns 3..34 (center
@@ -82,7 +73,8 @@ function capitalize(text: string): string {
  * the 5-row block font (brand-blue → ice gradient), the model/effort and
  * cwd in plain text (no brand-color highlight), the startup tip, and below
  * the whale the welcome tagline, centered under the art, in ice
- * blue. Narrow terminals drop the whale and keep the text column.
+ * blue. Narrow terminals show complete big text, then the whale alone,
+ * then a plain title as space runs out.
  */
 export function LogoV2({
   model,
@@ -189,7 +181,7 @@ export function LogoV2({
   const wordmarkShimmerRGB = parseRGB(theme.accentShimmer) ?? ICE
   const taglineRGB = parseRGB(theme.activity) ?? ICE
 
-  const showWhale = whale && columns >= WHALE_MIN_COLUMNS
+  const { showWhale, showBigTitle, showPlainTitle } = resolveSplashLayout(columns, { whale })
 
   // Welcome-phase idle behaviors (settings `dsh-tui.whaleIdle`): fin
   // flutters, tail thumps and blinks while idle, and a sleep-Z loop after
@@ -269,12 +261,12 @@ export function LogoV2({
     ? Math.max(0, Math.round(WHALE_CENTER - stringWidth(tagline) / 2))
     : 2
 
-  const bigDeepSeek = renderBigText('DEEPSEEK', t, wordmarkRGB, taglineRGB, FLASH, 60)
-  const bigHarness = renderBigText('HARNESS', t, taglineRGB, PALE, FLASH, 60)
+  const bigDeepSeek = showBigTitle ? renderBigText('DEEPSEEK', t, wordmarkRGB, taglineRGB, FLASH, 60) : []
+  const bigHarness = showBigTitle ? renderBigText('HARNESS', t, taglineRGB, PALE, FLASH, 60) : []
 
   return (
     <Box ref={ref} flexDirection="column" marginTop={1}>
-      <Box flexDirection="row" gap={2} width="100%" alignItems="center">
+      <Box flexDirection="row" gap={COLUMN_GAP} width="100%" alignItems="center">
         {showWhale && (
           <Box
             flexShrink={0}
@@ -297,25 +289,23 @@ export function LogoV2({
             <WhaleArt
               frameIndex={frameIndex}
               pose={settled && whaleIdle && !whaleFrozen ? (idlePose ?? RESTING_POSE) : undefined}
-              width={FULL_WHALE_WIDTH}
+              width={WHALE_BOX_WIDTH}
             />
           </Box>
         )}
-        <Box flexDirection="column" flexShrink={1}>
+        {(showBigTitle || showPlainTitle) && <Box flexDirection="column" flexShrink={1}>
           <Text wrap="truncate-end">
             {sweep('✦ dsh-CLI', t, wordmarkRGB, wordmarkShimmerRGB, 60)}
             <Text dimColor>{'  v' + VERSION}</Text>
           </Text>
-          {bigDeepSeek.map((row, index) => (
-            <Text key={`ds-${index}`} wrap="truncate-end">
-              {row}
-            </Text>
-          ))}
-          {bigHarness.map((row, index) => (
-            <Text key={`h-${index}`} wrap="truncate-end">
-              {row}
-            </Text>
-          ))}
+          {showBigTitle ? <>
+            {bigDeepSeek.map((row, index) => (
+              <Text key={`ds-${index}`} wrap="truncate-end">{row}</Text>
+            ))}
+            {bigHarness.map((row, index) => (
+              <Text key={`h-${index}`} wrap="truncate-end">{row}</Text>
+            ))}
+          </> : <Text color="accent" bold wrap="truncate-end">DeepSeek Harness</Text>}
           <Text wrap="truncate-end">
             {model}
             {effort !== undefined && <Text dimColor>{' · ' + capitalize(effort) + ' effort'}</Text>}
@@ -342,7 +332,7 @@ export function LogoV2({
               )}
             </Text>
           )}
-        </Box>
+        </Box>}
       </Box>
       <Box marginTop={1} paddingLeft={welcomePad}>
         <Text>{sweep(tagline, t, taglineRGB, FLASH, 60)}</Text>

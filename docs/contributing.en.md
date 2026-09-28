@@ -2,63 +2,33 @@
 
 [Documentation index](README.md) · [简体中文](contributing.md)
 
-Thanks for considering contributing to dsh-TUI! This guide is the shared
+For local Kiokuko integration, run `npm run verify:kiokuko-binding` after copying or
+renaming a checkout. It checks the ignored `.kiokuko.json` against the identity in
+`AGENTS.md`; changing the Markdown alone does not update the binding. This optional
+check skips checkouts without a local binding and never rewrites registration.
+It verifies local identity only, not whether a DSH profile has loaded kiokuko-dsh.
+
+Thanks for considering contributing to dsh-cli! This guide is the shared
 development contract for humans and coding agents working on `dsh-cli`.
+
+This repository is an independently developed fork of
+[chimney's dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI). Its contribution
+decisions and releases are made here. DeepSeek Harness remains the runtime
+dependency; the adapter compatibility rules below still apply.
 
 ## How To Contribute
 
-- **Report bugs** through the bug issue form: version, terminal environment,
-  and a minimal reproduction. A report does not reserve the implementation or
-  authorize a pull request.
-- **Request features** in [Discussions Ideas](https://github.com/ccch1mneyyy/dsh-TUI/discussions/new?category=ideas).
-  - Issues do not accept feature requests.
-  - Accepted proposals get a tracking issue, and its assignee owns the implementation.
-  - **Do not start writing code before the proposal is accepted** — OAuth, `/cost`,
-    notifications, a plugin API and a remote runtime were each written in full
-    and then closed.
-  - A discussion, issue, comment, or a claim that a maintainer agreed does not
-    authorize a pull request.
-- **Open a pull request** only if you have write/admin/maintain on this
-  repository, or your GitHub username is listed in
-  [`.github/APPROVED_CONTRIBUTORS`](../.github/APPROVED_CONTRIBUTORS).
-  - Unsolicited implementation pull requests from everyone else are closed by
-    `pr-gate`, regardless of size, title, test results, or whether a human or
-    an agent wrote the code.
-  - Maintainers add names based on trusted prior work. It is not an application
-    program — do not open an issue or discussion asking to be added.
-  - Membership permits a pull request; it grants no write access and does not
-    pre-approve feature scope.
-  - A write collaborator may reopen a closed pull request as a one-off exception.
-    Reopening by anyone else is closed again.
-  - Open the pull request against `main`. Keep changes focused: one logical
-    change per PR, with a Chinese or bilingual title and a description that
-    covers motivation, what changed, and how it was verified.
-  - **A pull request that changes code must link an issue**: add a `Closes #<issue>`
-    line to the description, or link it through the Development sidebar. The
-    `issue-link` CI group checks this and fails without a link.
-  - Changes classified as docs-only by CI are exempt (see path routing under
-    Verification). For a maintainer release, revert, or CI hotfix that genuinely
-    has no issue to link, apply the `no-issue-needed` label.
+- **Report bugs** with the bug issue form in this repository. Include the
+  version, terminal environment, and a minimal reproduction.
+- **Propose features** by opening an issue in this repository. Describe the
+  user problem, expected behavior, and relevant compatibility constraints.
+- **Open a pull request** against this repository with one logical change,
+  the reason for it, and the checks you ran. An issue link is useful but not
+  required. Contributions do not need approval from the original dsh-TUI
+  project or membership in an inherited allowlist.
 - **Run the verification matrix** below before requesting a review; CI runs
   the same commands.
 - New features should include or extend a focused regression script.
-
-Before opening an implementation pull request, confirm the authenticated GitHub
-account has write access or appears in `.github/APPROVED_CONTRIBUTORS`.
-
-- If neither is true, refuse to open the pull request and point at the bug form
-  or Discussions.
-- A human cannot bypass this with a private approval, an issue link, or a pasted
-  maintainer comment.
-
-### When the gates take effect
-
-The feature proposal flow applies only to pull requests opened on or after
-2026-08-24. The pull-request allowlist applies only to pull requests opened
-(or reopened) after the gate lands.
-
-- Pull requests already open before that follow the previous rules.
-- They are not closed retroactively and need no Discussion or tracking issue.
 
 
 
@@ -67,7 +37,8 @@ The feature proposal flow applies only to pull requests opened on or after
 This file applies to the entire repository. It is the shared development
 contract for humans and coding agents working on `dsh-cli`.
 
-`dsh-cli` is a single-package, ESM-only TypeScript project.
+`dsh-cli` is an ESM-only TypeScript project with an in-repository `dsh-auth/`
+package built alongside the TUI.
 It provides a React terminal UI front door for DeepSeek Harness through Cordis.
 
 - The package owns the TUI, its local command surface, and an Ink/Yoga renderer.
@@ -129,14 +100,15 @@ boundaries and helpers over introducing parallel abstractions.
 - `cordis.yml`: full bare-composition example for direct Cordis/DSH startup.
 - `scripts/`: headless regressions, reproduction harnesses, probes, and
   diagnostics. Read each script's header before running it.
-- `.github/scripts/pr-intake/`: PR intake gate (locale, close copy, allowlist,
-  issue-link). Workflows only orchestrate; `pr-gate.yml` must check out the
-  default branch and must not run the PR head.
+- `dsh-auth/`: authentication package maintained in this repository, with its
+  own lockfile and build.
+- `.github/workflows/ci.yml`: build, compatibility, and regression checks for
+  pull requests and pushes to this repository.
 - `lib/`: ignored JavaScript, declarations, and declaration maps generated from
   `src/` and shipped to npm. `./invariant` uses the compiled
   `lib/types/dsh-adapter/invariant.js` entry as well.
-- `README.md` (English, the default front page) and `README_ZH.md` (Chinese):
-  the bilingual user documentation. Keep behavior, configuration, shortcuts,
+- `README.md` (English, the default front page), `README_ZH.md` (Chinese), and
+  `README_JA.md` (Japanese): the user documentation. Keep behavior, configuration, shortcuts,
   and limitations synchronized between them.
 
 ## Runtime Shape
@@ -180,18 +152,19 @@ seam.
 - Install a clean checkout with:
 
   ```sh
-  git clone --recurse-submodules https://github.com/ccch1mneyyy/dsh-TUI.git
-  cd dsh-TUI
+  git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+  cd dsh-cli
   pnpm install --frozen-lockfile
   ```
 
   In an existing checkout, run `git submodule update --init --recursive` first.
-  `vendor/dsh-std` and `dsh-auth` are workspace / `link:` dependencies, so the
-  install always fails while those submodules are empty.
+  `vendor/dsh-std` is a required submodule. The `dsh-auth/` source is tracked
+  here and consumed through a local `link:` dependency.
 
-- `pnpm-lock.yaml` is the single lockfile. npm consumers do not read a
-  dependency's lockfile, so `package-lock.json` has been removed (follow-up of
-  #173).
+- The root `pnpm-lock.yaml` locks the CLI workspace;
+  `dsh-auth/pnpm-lock.yaml` locks the auth package's separate build. npm
+  consumers do not read those lockfiles, and `package-lock.json` has been
+  removed (follow-up of #173).
 - When intentionally changing dependencies, update `pnpm-lock.yaml` with
   `pnpm add`, inspect the full lockfile diff, and avoid unrelated upgrades.
 - Every `@deepseek-ai/*` framework package this package references at runtime
@@ -229,9 +202,8 @@ pnpm build
 - This removes the complete `lib/` directory, runs `tsc -p tsconfig.json` to
   emit `src/` into `lib/types/`, and then checks the adapter boundary, upstream
   contract, and patch surface.
-- Before compiling `dsh-auth`, every source build fetches the latest commit on
-  its fork's `master` branch. A failed fetch stops the build; Git may show the
-  submodule as modified relative to the parent repository's recorded commit.
+- Every source build compiles the checked-out `dsh-auth/` source. Auth and TUI
+  changes can share one Git commit; builds do not fetch the auth fork.
 - The `prepare` lifecycle serves **source-checkout bootstrapping only** (it
   fails fast when the vendored submodules are absent — see scripts/prepare-guard.mjs).
 - Git URL dependency installs have been triply blocked since vendoring
@@ -463,7 +435,7 @@ guide owns detailed contracts such as the toolchain and verification matrix.
   shows an override, include every key that must survive the replacement.
 - When adding or renaming a plugin option, update the `Config` interface and
   Schema in `src/index.ts`, its consumption in runtime code, the applicable
-  rows in `cordis.patch.yml` and `cordis.yml`, and both READMEs.
+  rows in `cordis.patch.yml` and `cordis.yml`, and all three READMEs.
 
 ### Session And Channel State
 
@@ -490,7 +462,7 @@ guide owns detailed contracts such as the toolchain and verification matrix.
   - Mouse text selection consumes Escape before rewind/clear behavior.
   - The prompt owns text editing only when no overlay is active.
 - Do not hardcode a new shortcut in one component and stop there. Update the
-  relevant help UI and both README shortcut tables, and add or extend a
+  relevant help UI and all three README shortcut tables, and add or extend a
   regression for conflicts with existing modes.
 - Local slash commands are declared in `src/commands.ts` and dispatched in
   `Chat.tsx`; registry commands are merged at runtime.
@@ -546,14 +518,14 @@ guide owns detailed contracts such as the toolchain and verification matrix.
 
 | If you change | Keep these in sync |
 | --- | --- |
-| Plugin config or environment behavior | `src/index.ts`, runtime consumer, `cordis.patch.yml`, `cordis.yml`, `README.md`, `README_ZH.md` |
-| Slash commands or shortcuts | `src/commands.ts`, `src/screens/Chat.tsx`, help/input components, both READMEs, relevant skill mapping/tests |
-| Theme contract, plugin seam, or persisted theme behavior | `src/theme.ts`, `src/themeCatalog.ts`, `src/dsh-adapter/themes.ts`, all palettes, theme provider/picker, custom-theme parser, theme verification, both READMEs, plugin docs |
+| Plugin config or environment behavior | `src/index.ts`, runtime consumer, `cordis.patch.yml`, `cordis.yml`, `README.md`, `README_ZH.md`, `README_JA.md` |
+| Slash commands or shortcuts | `src/commands.ts`, `src/screens/Chat.tsx`, help/input components, all three READMEs, relevant skill mapping/tests |
+| Theme contract, plugin seam, or persisted theme behavior | `src/theme.ts`, `src/themeCatalog.ts`, `src/dsh-adapter/themes.ts`, all palettes, theme provider/picker, custom-theme parser, theme verification, all three READMEs, plugin docs |
 | Session/channel behavior | `src/dsh-adapter/channel.ts`, affected UI projections, compiled output, focused channel/replay regression |
 | Renderer/layout behavior | `src/ink/` or Yoga source, compiled output, CI regressions, focused scroll/resize/PTY probe |
 | Skill discovery or presentation | DSH adapter, slash-command merge, `/skills`, and focused regressions; maintainer-only skills live in `.agents/skills/` and must stay out of npm |
 | User-facing documented behavior | Chinese and English READMEs, plus config comments/help text where applicable |
-| Contribution intake or PR gate | `docs/contributing.md`, `docs/contributing.en.md`, `.github/workflows/pr-gate.yml`, `.github/scripts/pr-intake/`, `.github/APPROVED_CONTRIBUTORS` |
+| Contribution intake | `docs/contributing.md`, `docs/contributing.en.md`, `.github/ISSUE_TEMPLATE/`, `.github/workflows/ci.yml` |
 | Package version or dependency | `package.json`, `pnpm-lock.yaml`, generated/published artifacts as applicable; do not churn the legacy npm lock incidentally |
 | Upstream validated-line bump | `src/dsh-adapter/contract.ts`, both peer and dev ranges in `package.json`, bundled `dsh-auth/package.json` and `dsh-auth/pnpm-lock.yaml`, `pnpm-workspace.yaml`, the upstream SHA in the `alpha-compat` job of `.github/workflows/ci.yml`, the version constants in `scripts/verify-{alpha-source,patch-surface,web-coexistence,upstream-contract}`, `patch-surface.snapshot.json`, `ADAPTER.md`, `docs/user-guide.md`; steps in the upgrade section of [ADAPTER.md](../ADAPTER.md) |
 

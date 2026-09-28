@@ -13,6 +13,8 @@ const [
   React,
   { render, ThemeProvider },
   { LogoHeader },
+  { bigTextWidth, renderBigText },
+  { resolveSplashLayout },
   { createChannel },
   { settle },
 ] = await Promise.all([
@@ -21,6 +23,8 @@ const [
   import('react'),
   import('../src/ui.js'),
   import('../src/components/MessageList.js'),
+  import('../src/components/bigfont.js'),
+  import('../src/components/splashLayout.js'),
   import('../src/dsh-adapter/channel.js'),
   import('./lib/term-test.mjs'),
 ])
@@ -94,7 +98,7 @@ const WHALE_OUTLINE = '\x1b[38;2;20;38;96m'
 
 // `ready`（可选）：call site 断言里比默认文字条件更强的正向条件必须并入
 // 等待谓词（#561 弱条件分叉），否则 settle 等到文字就返回、断言到旧帧。
-async function renderHeader({ columns, whale, ready }) {
+async function renderHeader({ columns, whale, ready, expectText = true }) {
   const stdout = new FakeOutput(columns)
   const stderr = new FakeOutput(columns)
   const props = { model: 'whale-model-probe', cwd: '/whale/cwd' }
@@ -116,7 +120,7 @@ async function renderHeader({ columns, whale, ready }) {
   await settle(() => {
     const raw = stdout.writes.join('')
     const plain = stripAnsi(raw)
-    return plain.includes('dsh-CLI') && plain.includes('whale-model-probe')
+    return (expectText ? plain.includes('dsh-CLI') && plain.includes('whale-model-probe') : raw.includes(WHALE_OUTLINE))
       && (ready === undefined || ready(raw))
   })
   const raw = stdout.writes.join('')
@@ -158,10 +162,41 @@ check('LogoHeader forwards whale=false while preserving the text logo', () => {
 })
 
 const narrowDefault = await renderHeader({ columns: 63 })
-check('narrow terminal hides whale but preserves the text logo', () => {
-  assert.ok(!narrowDefault.raw.includes(WHALE_OUTLINE), 'whale should hide below 64 columns')
+check('text-only tier hides whale and preserves the title', () => {
+  assert.ok(!narrowDefault.raw.includes(WHALE_OUTLINE), 'whale should hide when both columns do not fit')
   assert.ok(narrowDefault.plain.includes('dsh-CLI'), 'text logo missing')
   assert.ok(narrowDefault.plain.includes('whale-model-probe'), 'header details missing')
+})
+
+const titleWidth = bigTextWidth('DEEPSEEK')
+const paintedTitleWidth = stripAnsi(renderBigText('DEEPSEEK', 0,
+  { r: 1, g: 2, b: 3 }, { r: 4, g: 5, b: 6 }, { r: 7, g: 8, b: 9 })[0]).length
+check('layout measures the exact painted title width', () => assert.equal(titleWidth, paintedTitleWidth))
+for (const [columns, whale, expected] of [
+  [90, true, 'whale+title'],
+  [89, true, 'title'],
+  [48, true, 'title'],
+  [47, true, 'whale'],
+  [40, true, 'whale'],
+  [39, true, 'plain'],
+  [47, false, 'plain'],
+]) {
+  const layout = resolveSplashLayout(columns, { whale })
+  const actual = layout.showWhale && layout.showBigTitle ? 'whale+title'
+    : layout.showBigTitle ? 'title' : layout.showWhale ? 'whale' : 'plain'
+  check(`${columns} columns with whale=${whale} render ${expected}`, () => assert.equal(actual, expected))
+}
+
+const whaleOnly = await renderHeader({ columns: 44, expectText: false })
+check('whale-only tier omits the clipped text column', () => {
+  assert.ok(whaleOnly.raw.includes(WHALE_OUTLINE), 'whale should remain visible')
+  assert.ok(!whaleOnly.plain.includes('dsh-CLI'), 'clipped wordmark should not render')
+})
+
+const plainTitle = await renderHeader({ columns: 39 })
+check('small terminal uses a plain title', () => {
+  assert.ok(!plainTitle.raw.includes(WHALE_OUTLINE), 'whale should not render')
+  assert.ok(plainTitle.plain.includes('DeepSeekHarness'), 'plain title missing')
 })
 
 console.log(`\nAll ${checks} whale-toggle checks passed.`)

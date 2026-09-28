@@ -17,6 +17,10 @@
 
 > An interactive terminal UI plugin for DeepSeek Harness.
 
+This is an independently developed fork of [dsh-TUI by chimney](https://github.com/ccch1mneyyy/dsh-TUI),
+maintained by dkc. Releases and development decisions are made in this
+repository. Compatibility with DeepSeek Harness remains a separate requirement.
+
 ## Preview
 
 <div align="center">
@@ -41,9 +45,10 @@ Requires [Node.js](https://nodejs.org/en) `^22.19 || >=24`, pnpm 11, a
 checkout with dependencies installed, and `DEEPSEEK_API_KEY`. The main
 compatibility target is DSH `0.1.7-rc.2`.
 
-The recursive clone includes [dsh-auth-fork](https://github.com/askdkc/dsh-auth-fork).
-An existing checkout needs `git submodule update --init --recursive` before
-installation. The build fetches the fork's latest `master` commit and requires network access.
+The `dsh-auth/` source is tracked in this repository. Clone recursively for the
+remaining submodules; in an existing checkout, run
+`git submodule update --init --recursive` before installation. Builds use the
+checked-out auth source and do not fetch `dsh-auth-fork`.
 
 ```sh
 git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
@@ -99,4 +104,5 @@ Community projects and companion tools: [Friends' links](docs/links.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The original copyright notice for chimney is retained; dkc's
+copyright notice covers the fork's independent development.

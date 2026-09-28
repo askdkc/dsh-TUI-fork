@@ -32,6 +32,9 @@ const specDir = join(root, 'dsh-ecosystem-spec')
 const load = (relative: string) => JSON.parse(readFileSync(join(specDir, relative), 'utf8'))
 const fixture = (name: string) => load(`conformance/fixtures/${name}`)
 
+// Tamper fixtures must copy file contents, including when the checkout is a symlink or junction.
+const copySpec = (to: string): void => cpSync(specDir, to, { recursive: true, dereference: true })
+
 const data = loadSpecData(specDir)
 if (!data) {
   console.error('vendored spec data unreadable (dsh-ecosystem-spec/)')
@@ -200,7 +203,7 @@ negotiateCase(
 // --- 4. 篡改必败（fail-closed 自检） ---------------------------------------
 const tamperedRoot = mkdtempSync(join(tmpdir(), 'dsh-plugin-spec-tamper-'))
 try {
-  cpSync(specDir, join(tamperedRoot, 'dsh-ecosystem-spec'), { recursive: true })
+  copySpec(join(tamperedRoot, 'dsh-ecosystem-spec'))
   const privateEntry = data.registry.definitions[0]
   const target = join(tamperedRoot, 'dsh-ecosystem-spec', privateEntry.profile)
   writeFileSync(target, `${readFileSync(target, 'utf8')}\n`)
@@ -215,7 +218,7 @@ try {
 const malformedRoot = mkdtempSync(join(tmpdir(), 'dsh-plugin-spec-malformed-'))
 try {
   const malformedSpecDir = join(malformedRoot, 'dsh-ecosystem-spec')
-  cpSync(specDir, malformedSpecDir, { recursive: true })
+  copySpec(malformedSpecDir)
   const registryFile = join(malformedSpecDir, 'registry', 'registry-0.15.json')
   const registry = JSON.parse(readFileSync(registryFile, 'utf8')) as Record<string, unknown>
   registry.facetApiVersions = {}
@@ -228,7 +231,7 @@ try {
 const policyTamperRoot = mkdtempSync(join(tmpdir(), 'dsh-plugin-spec-policy-tamper-'))
 try {
   const policySpecDir = join(policyTamperRoot, 'dsh-ecosystem-spec')
-  cpSync(specDir, policySpecDir, { recursive: true })
+  copySpec(policySpecDir)
   const permissionsFile = join(policySpecDir, 'registry', 'permissions-0.1.json')
   const permissions = JSON.parse(readFileSync(permissionsFile, 'utf8')) as {
     permissions: Array<{ name: string; default: string }>

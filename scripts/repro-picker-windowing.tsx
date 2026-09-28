@@ -20,6 +20,7 @@
  * 运行：node --import tsx/esm scripts/repro-picker-windowing.tsx
  * DUMP=1 可在每个断言点转储屏幕。
  */
+delete process.env.NO_COLOR
 process.env.FORCE_COLOR = '3'
 process.env.TERM_PROGRAM = 'WezTerm'
 process.env.DSH_TUI_THEME = 'dark'
@@ -80,7 +81,7 @@ const [
   import('./lib/term-test.mjs'),
 ])
 
-const COLS = 100
+const COLS = Number(process.env.DSH_REPRO_COLS ?? 100)
 const ROWS = 30
 const term = new XTerm({ cols: COLS, rows: ROWS, scrollback: 2000, allowProposedApi: true })
 class FakeStdout extends Writable {
@@ -291,12 +292,12 @@ function makeAgent(id: string, sessionEvents: readonly unknown[]) {
 }
 // 30 个**带 description** 的模型：每项 2 行——一次审查后的无描述场景
 // 已不能覆盖这条生产路径（二次审查实证：索引 0 焦点仍被裁出屏外）。
-const MODELS = Array.from({ length: 30 }, (_, i) => ({
+const MODELS = [...Array.from({ length: 30 }, (_, i) => ({
   provider: 'fake-provider',
   id: `model-${String(i).padStart(2, '0')}`,
   name: `Model ${String(i).padStart(2, '0')}`,
   description: `fake model desc ${String(i).padStart(2, '0')}`,
-}))
+})), { provider: 'deepseek', id: 'deepseek-v4', name: 'DeepSeek V4', description: 'another provider' }]
 const services: Record<string, unknown> = {
   sessions: { fork(session: { events: readonly unknown[] }) { return { events: session.events } } },
   agents: {
@@ -305,8 +306,8 @@ const services: Record<string, unknown> = {
     },
   },
   llm: {
-    listProviders: () => [{ id: 'fake-provider' }],
-    listModels: async () => MODELS,
+    listProviders: () => [{ id: 'fake-provider' }, { id: 'deepseek' }],
+    listModels: async (provider: string) => MODELS.filter(model => model.provider === provider),
   },
 }
 const ctx = {
@@ -347,6 +348,13 @@ const typeKeys = async (s: string, stepMs = 40) => {
   for (let i = 0; i < 20; i++) { stdin.write('\x1b[B'); await sleep(25) } // 固定窗:pacing 逐键步进
   check('/model ↓×20 焦点 20 在屏', await settled(() => focusLineVisible('Model 20')))
   dump('model focus 20')
+  await typeKeys('seek deep')
+  check('/model 倒序关键词直接筛选其他提供方', await settled(() => focusLineVisible('DeepSeek V4')))
+  dump('model search')
+  check('/model 搜索结果只有一项', screenLines().some(line => line.includes('1 个结果')),
+    screenLines().find(line => line.includes('结果')) ?? '')
+  stdin.write('\t')
+  check('/model Tab 仍可切换到提供方分组', await settled(() => screenLines().some(line => line.includes('最近使用'))))
   stdin.write('\x1b')
   await sleep(400) // 固定窗:pacing 浮层关闭过渡，无文本可观测
 }

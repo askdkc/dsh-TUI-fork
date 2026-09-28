@@ -1,0 +1,44 @@
+{
+  "$schema": "https://dsh.community/schemas/dsh-plugin-0.15.json",
+  "id": "com.dsh-tui.dsh-auth",
+  "name": "dsh-auth",
+  "version": "0.1.0",
+  "manifestVersion": "0.15",
+  "description": "Subscription OAuth sign-in (ChatGPT/Codex, Claude Pro/Max, SuperGrok) as LLM provider routes for DeepSeek Harness. Registers llm adapter routes through the cordis llm registry; interactive login runs over the user-questions seam and degrades to a clear refusal when no interactive surface is present.",
+  "facets": {
+    "host": {
+      "entry": "lib/index.js",
+      "apiVersion": "v1alpha1"
+    }
+  },
+  "requires": {
+    "contracts": [
+      {
+        "apiVersion": "commands.dsh/v1alpha1",
+        "kind": "Command"
+      },
+      {
+        "apiVersion": "user-questions.dsh/v1alpha1",
+        "kind": "UserQuestions",
+        "optional": true,
+        "fallback": "login refuses with guidance instead of assuming a browser or GUI is present (TUI-RUN-001)"
+      }
+    ]
+  },
+  "contributes": {
+    "commands": [
+      {
+        "id": "dsh.auth",
+        "title": "Sign in with a provider subscription (OAuth)"
+      }
+    ]
+  },
+  "permissions": [
+    {
+      "name": "commands.invoke",
+      "scope": "dsh.auth",
+      "reason": "run /auth status|login|logout from any composed command surface"
+    }
+  ],
+  "license": "MIT"
+}

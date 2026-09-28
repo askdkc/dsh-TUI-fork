@@ -198,7 +198,7 @@ diagnostics, a profile plugin inventory, and repair guidance.
   sessions, session history, specific-session resume, IDE selection channel).
   See [VS Code guide](vscode.en.md).
 - **Herdr**: run `dsh-tui` directly in a [Herdr](https://herdr.dev) pane with
-  no extra setup; dsh-TUI reports `idle` / `working` / `blocked` through
+  no extra setup; dsh-cli reports `idle` / `working` / `blocked` through
   Herdr's local integration API (questionnaires and tool approvals count as
   `blocked`), and stays completely inactive outside Herdr.
 
@@ -216,7 +216,7 @@ dsh plugin --profile dsh-tui add dsh-cli@latest
   old line. That is the usual reason "re-running the install command" appears
   to change nothing.
 - To confirm: the startup banner shows the running version
-  (`✦ dsh-TUI vX.Y.Z`).
+  (`✦ dsh-CLI vX.Y.Z`).
 - Your `cordis.patch.yml` override layer survives updates untouched.
 - Session storage may move between versions (since 0.3.7, `/resume` uses the
   JSONL session store shared with dsh web), so older sessions missing from the
@@ -274,21 +274,22 @@ the profile.
 ## Develop from source
 
 ```sh
-git clone --recurse-submodules https://github.com/ccch1mneyyy/dsh-TUI.git
-cd dsh-TUI
+git clone --recurse-submodules https://github.com/askdkc/dsh-cli.git
+cd dsh-cli
 pnpm install --frozen-lockfile
 pnpm build
 pnpm smoke
 ```
 
-The repository has three submodules, and two of them are required to install:
+The repository has two submodules; `vendor/dsh-std` is required to install:
 
 - `vendor/dsh-std`: its `packages/*` are listed as workspace packages in
   `pnpm-workspace.yaml`.
-- `dsh-auth`: pulled in through `link:`.
 
-Without `--recurse-submodules` those directories stay empty and
-`pnpm install --frozen-lockfile` fails outright. For a checkout that was
+The `dsh-auth/` source is tracked here and pulled in through `link:`.
+
+Without `--recurse-submodules`, the required `vendor/dsh-std` directory stays
+empty and `pnpm install --frozen-lockfile` fails outright. For a checkout that was
 already cloned:
 
 ```sh

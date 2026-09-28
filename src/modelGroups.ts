@@ -52,6 +52,16 @@ export function filterModels(
   })
 }
 
+/** Initial focus in the flat, search-first picker. */
+export function modelPickerFlatIndex(
+  models: readonly LlmModelInfo[],
+  currentProvider: string | undefined,
+  currentModel: string | undefined,
+): number {
+  return Math.max(0, models.findIndex(model =>
+    model.provider === currentProvider && model.id === currentModel))
+}
+
 /**
  * The recent refs that the current catalog still lists, most-recent-first —
  * the second level of the recents group. Refs whose model vanished from the
@@ -108,7 +118,7 @@ export function deriveModelGroups(
   return groups
 }
 
-/** Where `/model` should open (or re-land after the fresh catalog arrives). */
+/** Where the optional provider-group view should land. */
 export interface ModelPickerLanding {
   /**
    * The group to open *inside* — set only by the single-provider fast path,
