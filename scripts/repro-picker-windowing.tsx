@@ -354,7 +354,7 @@ const typeKeys = async (s: string, stepMs = 40) => {
   check('/model 搜索结果只有一项', screenLines().some(line => line.includes('1 个结果')),
     screenLines().find(line => line.includes('结果')) ?? '')
   stdin.write('\t')
-  check('/model Tab 仍可切换到提供方分组', await settled(() => screenLines().some(line => line.includes('最近使用'))))
+  check('/model Tab 不清除搜索条件', screenLines().some(line => line.includes('1 个结果')))
   stdin.write('\x1b')
   await sleep(400) // 固定窗:pacing 浮层关闭过渡，无文本可观测
 }

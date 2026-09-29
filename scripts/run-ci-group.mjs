@@ -611,6 +611,7 @@ const GROUPS = {
 // 覆盖，这里钉住两层共用的纯派生。
     ["verify-model-picker-groups", ['node', 'scripts/verify-model-picker-groups.mjs']],
     ["verify-model-search", ['node', '--import', 'tsx/esm', 'scripts/verify-model-search.ts']],
+    ["verify-model-command-input", ['node', '--import', 'tsx/esm', 'scripts/verify-model-command-input.ts']],
 // 全屏出厂默认迁移回归（0.9.x schema + cordis.patch.yml false→true 翻转）：
 // 翻转前钉在 settings 用户层的显式 false 首启被 unset 一次（marker 仅在
 // 写入成功后落盘，失败下次自愈重试），此后再写的 false 是用户主动选择

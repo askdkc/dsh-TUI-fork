@@ -54,6 +54,7 @@ async function mountAt(cols: number) {
     name: `${NAME}-${i}`,
     description: undefined,
   }))
+  const pickerRows = models.map(model => ({ kind: 'model' as const, key: `p/${model.id}`, section: 'search', model, providerName: 'Provider' }))
   const term = new XTerm({ cols, rows: ROWS, scrollback: 0, allowProposedApi: true })
   class FakeStdout extends (await import('node:stream')).Writable {
     columns = cols
@@ -77,7 +78,7 @@ async function mountAt(cols: number) {
   const frame = async (focusIndex: number) => {
     instance.rerender(
       React.createElement(ModelPicker, {
-        models, focusIndex, currentModel: 'p/m12', onHover: noop,
+        rows: pickerRows, focusIndex, currentModel: 'p/m12', favorites: [], query: '', cursor: 0, height: ROWS, status: 'ready', switching: false, onPick: noop, onWheelStep: noop,
       }) as never,
     )
     // 固定窗:探针 断言的是不变量（零折行、无幻影空行）；翻页前后屏幕形态
@@ -112,7 +113,7 @@ async function mountAt(cols: number) {
   }
   const instance = await render(
     React.createElement(ModelPicker, {
-      models, focusIndex: 12, currentModel: 'p/m12', onHover: noop,
+      rows: pickerRows, focusIndex: 12, currentModel: 'p/m12', favorites: [], query: '', cursor: 0, height: ROWS, status: 'ready', switching: false, onPick: noop, onWheelStep: noop,
     }) as never,
     {
       stdout: new FakeStdout() as never,

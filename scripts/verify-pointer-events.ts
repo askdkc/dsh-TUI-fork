@@ -427,7 +427,20 @@ function makeTree(): { root: DOMElement; parent: DOMElement; child: DOMElement }
       calls.push(`parent local=${e.localCol},${e.localRow}`)
     },
   }
-  const handled = dispatchClick(root, 4, 2, false)
+  const originalStderrWrite = process.stderr.write
+  const loggedErrors: string[] = []
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    loggedErrors.push(chunk.toString())
+    return true
+  }) as typeof process.stderr.write
+  let handled = false
+  try {
+    handled = dispatchClick(root, 4, 2, false)
+  } finally {
+    process.stderr.write = originalStderrWrite
+  }
+  check('dispatchClick logs the throwing handler',
+    loggedErrors.length === 1 && loggedErrors[0]!.includes('Error: handler boom\n'))
   check('dispatchClick error isolation: bubble continues past throwing child',
     calls.length === 2 && calls[1]!.startsWith('parent'),
     calls.join(' | '))

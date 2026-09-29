@@ -1,10 +1,7 @@
 /**
- * Pure derivation for the two-level `/model` picker: providers as top-level
- * groups, their models one level down, with a pinned "recently used"
- * pseudo-group first. Kept free of React/channel/i18n state so
- * `scripts/verify-model-picker-groups.mjs` can drive it headless; the
- * recents row's localized label is resolved at render time (its `label`
- * field is the {@link RECENTS_LABEL_PLACEHOLDER} sentinel).
+ * Shared literal model filtering and the retained group-derivation helpers.
+ * The centered picker builds its display rows in modelPickerRows.ts;
+ * older group consumers and their regression tests still use the helpers here.
  *
  * @module dsh-tui/modelGroups
  */
@@ -47,7 +44,7 @@ export function filterModels(
   if (terms.length === 0) return models
   return models.filter(model => {
     const providerName = providers.find(provider => provider.id === model.provider)?.name ?? ''
-    const fields = [model.name, model.id, model.provider, providerName].map(value => value.toLowerCase())
+    const fields = [model.name, model.id, model.provider, providerName, `${model.provider}/${model.id}`].map(value => value.toLowerCase())
     return terms.every(term => fields.some(field => field.includes(term)))
   })
 }

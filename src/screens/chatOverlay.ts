@@ -282,6 +282,8 @@ export function dialogOverlayVisible(
     // `<OverlayAbove>` wrapper for it would only churn the prompt area.
     case 'image-preview':
       return false
+    case 'model':
+      return false
     case 'workspace-picker':
       return gates.workspaceTargetCount > 0
     case 'effort':

@@ -640,7 +640,7 @@ Windows `dsh-tui.cmd --resume` 使用 `~/.dsh-tui/resume.txt` 中最后选择的
 **模型与显示**
 
 - `/model`、`/effort`、`/thinking`、`/tokens`、`/activity`、`/preset`、`/theme`。
-- `/model` 默认显示可用模型并直接搜索；关键词顺序不限（`seek deep` 可匹配 DeepSeek）。按 `Tab` 可切换到提供方分组，其中有记录时会置顶最近使用的模型。
+- `/model` 打开居中的模型选择框；`/model <关键词>` 预填搜索词，只有完整匹配的 `/model provider/model-id` 会直接切换。关键词顺序不限（`seek deep` 可匹配 DeepSeek）。搜索为空时依次显示收藏、最近使用和所有提供方；`Ctrl+F` 切换收藏，`Ctrl+A` 打开提供方设置，方向键和 PageUp/PageDown 移动，Enter 选择，Esc 关闭。
 - `/color`：会话强调色。
   - 无参打开调色板选择器，`<名>` 直接设置，`status`/`reset`。
   - 输入框边框 + 右上角会话名标签，按会话保存。

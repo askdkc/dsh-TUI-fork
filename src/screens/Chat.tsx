@@ -19,15 +19,11 @@ import { execFileNoThrow } from '../utils/execFileNoThrow.js'
 import type { LlmModelInfo, LlmProviderInfo } from '../adapter/ports/channel-view.js'
 import { cleanRenderText, cleanScalarText } from '../dsh-adapter/sanitize.js'
 import { nextModelQueryBoundary, previousModelQueryBoundary } from './modelSearchInput.js'
-import {
-  deriveModelGroups,
-  filterModels,
-  modelPickerFlatIndex,
-  modelPickerLanding,
-  recentCatalogModels,
-  RECENTS_GROUP_PROVIDER,
-} from '../modelGroups.js'
 import { readModelRecents, recordModelUse, type ModelRecentsRef } from '../modelRecents.js'
+import { readModelFavorites, toggleModelFavorite } from '../modelFavorites.js'
+import { modelPickerRows, focusedModelRow, moveModelFocus } from '../modelPickerRows.js'
+import type { ModelRef } from '../modelGroups.js'
+import { ModelDialogLayer } from '../components/ModelDialogLayer.js'
 import type { ChannelUi as Channel } from '../adapter/channel/ui-policy.js'
 import { sessionCwdMatches, type ChatRow, type ComposerImageRef, type EffortOption, type ExternalCommandOutcome, type PermissionPresetSnapshot, type PresetOption, type SkillInfo } from '../dsh-adapter/channel.js'
 import type { QuestionStore } from '../dsh-adapter/questions.js'
@@ -512,98 +508,54 @@ export function Chat({
   const [models, setModels] = React.useState<readonly LlmModelInfo[]>([])
   const [modelCatalogStatus, setModelCatalogStatus] = React.useState<'loading' | 'ready' | 'error'>('loading')
   const modelRequestRef = React.useRef(0)
-  /** Provider display identities for the /model group level; refreshed alongside `models`. */
   const [providerInfos, setProviderInfos] = React.useState<readonly LlmProviderInfo[]>([])
-  /** /model 最近使用分组：成功切换即记录（去重置顶，上限 10），重启保留。 */
   const [modelRecents, setModelRecents] = React.useState<readonly ModelRecentsRef[]>(() => readModelRecents())
-  /** Optional provider-group drill-down; undefined in the default flat list. */
-  const [modelGroup, setModelGroup] = React.useState<string | undefined>(undefined)
-  /** Open /model on the complete, immediately searchable model list. */
-  const [modelPickerFlat, setModelPickerFlat] = React.useState(true)
-  /** Group rows over the current catalog, first-appearance (registry) order,
-   *  with the pinned recents pseudo-group first when any entry is catalogued. */
-  const modelGroups = React.useMemo(
-    () => deriveModelGroups(models, providerInfos, modelRecents),
-    [models, providerInfos, modelRecents],
-  )
-  /** The drilled-in group, but only while it still exists in the catalog. */
-  const activeModelGroup = modelGroup !== undefined && modelGroups.some(group => group.provider === modelGroup)
-    ? modelGroup
-    : undefined
-  const groupModels = React.useMemo(() => {
-    if (activeModelGroup === undefined) return []
-    if (activeModelGroup === RECENTS_GROUP_PROVIDER) return recentCatalogModels(modelRecents, models)
-    return models.filter(model => model.provider === activeModelGroup)
-  }, [models, modelRecents, activeModelGroup])
+  const [modelFavorites, setModelFavorites] = React.useState<readonly ModelRef[]>(() => readModelFavorites())
+  const [modelSwitching, setModelSwitching] = React.useState(false)
+  const [modelFallback, setModelFallback] = React.useState(false)
+  const modelSwitchingRef = React.useRef(false)
   const modelQuery = overlay.kind === 'model' ? (overlay.query ?? '') : ''
-  const modelSearchActive = modelQuery.trim() !== ''
-  const visibleModelRows = React.useMemo(
-    () => filterModels(activeModelGroup === undefined ? models : groupModels, modelQuery, providerInfos),
-    [activeModelGroup, groupModels, models, modelQuery, providerInfos],
+  const modelRows = React.useMemo(
+    () => modelPickerRows(models, providerInfos, modelFavorites, modelRecents, modelQuery),
+    [models, providerInfos, modelFavorites, modelRecents, modelQuery],
   )
-  const visibleModelGroups = activeModelGroup === undefined && !modelSearchActive && !modelPickerFlat ? modelGroups : []
-  const modelRowsAreGroups = activeModelGroup === undefined && !modelSearchActive && !modelPickerFlat
-  const modelRowCount = modelRowsAreGroups ? visibleModelGroups.length : visibleModelRows.length
-  const modelFocus = overlay.kind === 'model'
-    ? Math.max(0, Math.min(overlay.index, modelRowCount - 1))
-    : 0
-  const modelFocusedRef = React.useRef<{
-    query: string
-    group: string | undefined
-    rowsAreGroups: boolean
-    provider: string | undefined
-    id: string | undefined
-    groupKey: string | undefined
-  } | null>(null)
+  const modelFocus = overlay.kind === 'model' ? Math.max(0, Math.min(overlay.index, modelRows.length - 1)) : 0
+  const modelFocused = focusedModelRow(modelRows, modelFocus)
+  const modelFocusIndexRef = React.useRef<{ query: string; index: number } | null>(null)
   React.useEffect(() => {
-    modelFocusedRef.current = overlay.kind === 'model' ? {
-      query: modelQuery,
-      group: activeModelGroup,
-      rowsAreGroups: modelRowsAreGroups,
-      provider: modelRowsAreGroups ? undefined : visibleModelRows[modelFocus]?.provider,
-      id: modelRowsAreGroups ? undefined : visibleModelRows[modelFocus]?.id,
-      groupKey: modelRowsAreGroups ? visibleModelGroups[modelFocus]?.provider : undefined,
+    modelFocusIndexRef.current = overlay.kind === 'model' ? { query: modelQuery, index: modelFocus } : null
+  }, [overlay, modelQuery, modelFocus])
+  const modelFocusedRef = React.useRef<{ query: string; section: string; provider: string; id: string } | null>(null)
+  React.useEffect(() => {
+    modelFocusedRef.current = overlay.kind === 'model' && modelFocused ? {
+      query: modelQuery, section: modelFocused.section,
+      provider: modelFocused.model.provider, id: modelFocused.model.id,
     } : null
-  }, [overlay, modelQuery, activeModelGroup, modelRowsAreGroups, visibleModelRows, visibleModelGroups, modelFocus])
+  }, [overlay, modelQuery, modelFocused])
   React.useEffect(() => {
     const subscribe = channel.providerSetup?.()?.oauth?.onCredentialChange
     if (subscribe === undefined) return
     return subscribe(() => {
       channel.invalidateModelCompletion()
       const request = ++modelRequestRef.current
+      const binding = channel.agentBindingGeneration
       void channel.listModels().then(list => {
-        if (request !== modelRequestRef.current) return
+        if (request !== modelRequestRef.current || binding !== channel.agentBindingGeneration) return
         const focused = modelFocusedRef.current
         if (focused !== null) {
-          const freshGroups = deriveModelGroups(list, providerInfos, modelRecents)
-          if (focused.group !== undefined && !freshGroups.some(group => group.provider === focused.group)) {
-            setModelGroup(undefined)
-            dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
-            dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
-          } else {
-            const scope = focused.group === undefined ? list
-              : focused.group === RECENTS_GROUP_PROVIDER ? recentCatalogModels(modelRecents, list)
-              : list.filter(model => model.provider === focused.group)
-            const rows = filterModels(scope, focused.query, providerInfos)
-            const index = focused.rowsAreGroups
-              ? freshGroups.findIndex(group => group.provider === focused.groupKey)
-              : rows.findIndex(model => model.provider === focused.provider && model.id === focused.id)
-            dispatchOverlay({ type: 'set-index', kind: 'model', index: Math.max(0, index) })
-          }
+          const rows = modelPickerRows(list, providerInfos, modelFavorites, modelRecents, focused.query)
+          const same = rows.findIndex(row => row.kind === 'model' && row.section === focused.section
+            && row.model.provider === focused.provider && row.model.id === focused.id)
+          const index = same >= 0 ? same : rows.findIndex(row => row.kind === 'model'
+            && row.model.provider === focused.provider && row.model.id === focused.id)
+          dispatchOverlay({ type: 'set-index', kind: 'model', index: index >= 0 ? index : moveModelFocus(rows, -1, 1) })
         }
         setModels(list)
         setModelCatalogStatus('ready')
-      }).catch(() => {
-        if (request === modelRequestRef.current) {
-          setModelCatalogStatus('error')
-          channel.notify(t('picker-model-error'), { color: 'warning' })
-        }
-      })
-      void channel.listProviders().then(list => {
-        if (request === modelRequestRef.current) setProviderInfos(list)
-      }).catch(() => undefined)
+      }).catch(() => { if (request === modelRequestRef.current && binding === channel.agentBindingGeneration) setModelCatalogStatus('error') })
+      void channel.listProviders().then(list => { if (request === modelRequestRef.current && binding === channel.agentBindingGeneration) setProviderInfos(list) }).catch(() => undefined)
     })
-  }, [channel, providerInfos, modelRecents])
+  }, [channel, providerInfos, modelFavorites, modelRecents])
   /** Switch + record: every successful switch feeds the /model recents group
    *  (picker Enter/click, `/model provider/id`, the wizard's live switch,
    *  and /reload's applied model all ride this one path). */
@@ -615,6 +567,59 @@ export function Chat({
       setModelRecents(recordModelUse({ provider, id }))
       return ok
     })
+  }
+  const refreshModelPicker = (initialQuery?: string): void => {
+    const request = ++modelRequestRef.current
+    const binding = channel.agentBindingGeneration
+    setModelCatalogStatus('loading')
+    void channel.listModels().then(list => {
+      if (request !== modelRequestRef.current || binding !== channel.agentBindingGeneration) return
+      const focused = modelFocusedRef.current
+      const rows = modelPickerRows(list, providerInfos, modelFavorites, modelRecents, focused?.query ?? initialQuery ?? '')
+      const same = rows.findIndex(row => row.kind === 'model' && row.model.provider === (focused?.provider ?? channel.provider)
+        && row.model.id === (focused?.id ?? channel.model) && (!focused || row.section === focused.section))
+      const index = initialQuery?.trim() ? -1 : same >= 0 ? same : rows.findIndex(row => row.kind === 'model'
+        && row.model.provider === (focused?.provider ?? channel.provider) && row.model.id === (focused?.id ?? channel.model))
+      dispatchOverlay({ type: 'set-index', kind: 'model', index: index >= 0 ? index : moveModelFocus(rows, -1, 1) })
+      setModels(list)
+      setModelCatalogStatus('ready')
+    }).catch(() => {
+      if (request === modelRequestRef.current && binding === channel.agentBindingGeneration) { setModels([]); setModelCatalogStatus('error') }
+    })
+    void channel.listProviders().then(list => { if (request === modelRequestRef.current && binding === channel.agentBindingGeneration) setProviderInfos(list) }).catch(() => undefined)
+  }
+  const openModelPicker = (query: string, catalog?: readonly LlmModelInfo[]): void => {
+    setModelFallback(false)
+    modelFocusedRef.current = null
+    modelFocusIndexRef.current = null
+    setModels(catalog ?? [])
+    setModelCatalogStatus(catalog ? 'ready' : 'loading')
+    const rows = modelPickerRows(catalog ?? [], providerInfos, modelFavorites, modelRecents, query)
+    const current = query ? -1 : rows.findIndex(row => row.kind === 'model'
+      && row.model.provider === channel.provider && row.model.id === channel.model)
+    dispatchOverlay({ type: 'open', overlay: { kind: 'model', index: current >= 0 ? current : moveModelFocus(rows, -1, 1), query, cursor: query.length } })
+    if (!catalog) refreshModelPicker(query)
+    else {
+      const request = ++modelRequestRef.current
+      const binding = channel.agentBindingGeneration
+      void channel.listProviders().then(list => {
+        if (request === modelRequestRef.current && binding === channel.agentBindingGeneration) setProviderInfos(list)
+      }).catch(() => undefined)
+    }
+  }
+  const pickModel = async (model: LlmModelInfo): Promise<void> => {
+    if (modelSwitchingRef.current) return
+    modelSwitchingRef.current = true
+    setModelSwitching(true)
+    try {
+      const ok = await switchModelRecorded(model.provider, model.id, model.name)
+      if (ok) dispatchOverlay({ type: 'close-if', kind: 'model' })
+    } catch (error) {
+      channel.notify(error instanceof Error ? error.message : String(error), { color: 'error' })
+    } finally {
+      modelSwitchingRef.current = false
+      setModelSwitching(false)
+    }
   }
   /** `/skills` 技能目录（issue #204）：null = 注册表快照在途。 */
   const [skillsList, setSkillsList] = React.useState<readonly SkillInfo[] | null>(null)
@@ -2052,85 +2057,22 @@ export function Chat({
         setHelpOpen(true)
         return true
       case 'model': {
-        // `/model <provider/model>` switches directly (same live-fork path
-        // as the picker's Enter), bare `/model` opens the picker.
-        const parts = rawInput.trim().split(/\s+/).filter(Boolean)
-        if (parts.length > 0) {
-          setHelpOpen(false)
-          const spec = parts[0]!
-          const slash = spec.indexOf('/')
-          const provider = slash >= 0 ? spec.slice(0, slash) : undefined
-          const id = slash >= 0 ? spec.slice(slash + 1) : spec
-          if (provider === undefined || id.length === 0 || provider.length === 0) {
-            channel.notify(t('model-usage'), { color: 'warning' })
-            return true
-          }
-          void channel.listModels().then((list) => {
-            const model = list.find(m => m.provider === provider && m.id === id)
-            if (model === undefined) {
-              channel.notify(t('model-unknown', { spec }), { color: 'error', timeoutMs: 8000 })
-              return
-            }
-            void switchModelRecorded(provider, id, model.name)
+        setHelpOpen(false)
+        const query = rawInput.trim()
+        const binding = channel.agentBindingGeneration
+        // A complete advertised route keeps the direct-switch contract.
+        if (query && !/\s/u.test(query)) {
+          void channel.listModels().then(list => {
+            if (binding !== channel.agentBindingGeneration) return
+            const model = list.find(item => `${item.provider}/${item.id}` === query)
+            if (model) { void switchModelRecorded(model.provider, model.id, model.name); return }
+            openModelPicker(query, list)
+          }).catch(() => {
+            if (binding === channel.agentBindingGeneration) openModelPicker(query)
           })
           return true
         }
-        setHelpOpen(false)
-        // Opens over the cached catalog (empty cache shows the loading
-        // pane); the fresh list lands with the authoritative focus, and the
-        // kind-guarded set-index cannot re-focus a picker the user left.
-        // Seed-on-open: the model in use IS a use — recording it here means
-        // the recents group exists before the first post-update switch, and
-        // switching A→B keeps A in the list (the file records what was
-        // used, not only switches made after the file appeared).
-        let recentsNow = modelRecents
-        if (channel.provider !== '' && channel.model !== ''
-          && !recentsNow.some(ref => ref.provider === channel.provider && ref.id === channel.model)) {
-          recentsNow = recordModelUse({ provider: channel.provider, id: channel.model })
-          setModelRecents(recentsNow)
-        }
-        // Search-first landing: show every available model immediately and
-        // focus the current one. Tab still opens the provider groups.
-        {
-          setModelGroup(undefined)
-          setModelPickerFlat(true)
-          dispatchOverlay({ type: 'open', overlay: { kind: 'model', index: modelPickerFlatIndex(models, channel.provider, channel.model), query: '', cursor: 0 } })
-        }
-        const modelRequest = ++modelRequestRef.current
-        setModelCatalogStatus('loading')
-        void channel.listModels().then((list) => {
-          if (modelRequest !== modelRequestRef.current) return
-          const focused = modelFocusedRef.current
-          if (models.length === 0 && (focused === null || (!focused.rowsAreGroups && focused.group === undefined && focused.query === ''))) {
-            dispatchOverlay({ type: 'set-index', kind: 'model', index: modelPickerFlatIndex(list, channel.provider, channel.model) })
-          } else if (focused !== null) {
-            const freshGroups = deriveModelGroups(list, providerInfos, recentsNow)
-            if (focused.group !== undefined && !freshGroups.some(group => group.provider === focused.group)) {
-              setModelGroup(undefined)
-              dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
-              dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
-            } else {
-              const scope = focused.group === undefined ? list
-                : focused.group === RECENTS_GROUP_PROVIDER ? recentCatalogModels(recentsNow, list)
-                : list.filter(model => model.provider === focused.group)
-              const rows = filterModels(scope, focused.query, providerInfos)
-              const index = focused.rowsAreGroups
-                ? freshGroups.findIndex(group => group.provider === focused.groupKey)
-                : rows.findIndex(model => model.provider === focused.provider && model.id === focused.id)
-              dispatchOverlay({ type: 'set-index', kind: 'model', index: Math.max(0, index) })
-            }
-          }
-          setModels(list)
-          setModelCatalogStatus('ready')
-        }).catch(() => {
-          if (modelRequest === modelRequestRef.current) {
-            setModelCatalogStatus('error')
-            channel.notify(t('picker-model-error'), { color: 'warning' })
-          }
-        })
-        void channel.listProviders().then(list => {
-          if (modelRequest === modelRequestRef.current) setProviderInfos(list)
-        }).catch(() => undefined)
+        openModelPicker(query)
         return true
       }
       case 'skills': {
@@ -3439,80 +3381,69 @@ export function Chat({
     }
     if (overlay.kind === 'model') {
       event.stopImmediatePropagation()
-      // Search-first model list; Tab toggles the optional provider groups.
-      const rowCount = modelRowCount
       const query = overlay.query ?? ''
       const cursor = overlay.cursor ?? query.length
-      const editModelQuery = (value: string, nextCursor: number) =>
+      const focusIndex = modelFocusIndexRef.current?.query === query ? modelFocusIndexRef.current.index : modelFocus
+      const focusedRow = focusedModelRow(modelRows, focusIndex)
+      const edit = (value: string, nextCursor: number) => {
         dispatchOverlay({ type: 'model-edit', query: value, cursor: nextCursor })
-      if (key.tab && !key.shift && modelGroups.length > 1) {
-        if (modelPickerFlat) {
-          const landing = modelPickerLanding(models, channel.provider, channel.model, modelRecents)
-          setModelPickerFlat(false)
-          setModelGroup(landing.group)
-          dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
-          dispatchOverlay({ type: 'set-index', kind: 'model', index: landing.index })
-        } else {
-          setModelPickerFlat(true)
-          setModelGroup(undefined)
-          dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
-          dispatchOverlay({ type: 'set-index', kind: 'model', index: modelPickerFlatIndex(models, channel.provider, channel.model) })
+        if (value !== query) {
+          const rows = modelPickerRows(models, providerInfos, modelFavorites, modelRecents, value)
+          const index = moveModelFocus(rows, -1, 1)
+          modelFocusIndexRef.current = { query: value, index }
+          dispatchOverlay({ type: 'set-index', kind: 'model', index })
         }
-      } else if (key.upArrow || key.downArrow) {
-        dispatchOverlay({ type: 'move', delta: key.upArrow ? -1 : 1, count: rowCount })
-      } else if (plainReturn) {
-        if (modelRowsAreGroups) {
-          const group = visibleModelGroups[modelFocus]
-          if (!group) return
-          setModelGroup(group.provider)
-          // The recents group opens on its most-recent entry; a provider
-          // group on its current model when it owns one, else its first row.
-          if (group.provider === RECENTS_GROUP_PROVIDER) {
-            dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
-            return
-          }
-          const landing = modelPickerLanding(
-            models.filter(model => model.provider === group.provider),
-            channel.provider,
-            channel.model,
-          )
-          dispatchOverlay({ type: 'set-index', kind: 'model', index: landing.index })
-          return
-        }
-        const model = visibleModelRows[modelFocus]
-        // oxlint-disable-next-line typescript/no-unnecessary-condition -- runtime guard: out-of-range index on an empty list
-        if (model) {
-          // Enter switches the live model right away: the conversation is
-          // forked at its end and continued with an agent routed to the new
-          // model (history replays unchanged) — and feeds the recents group.
+      }
+      if (key.escape) dispatchOverlay({ type: 'close' })
+      else if (key.ctrl && input === 'f' && focusedRow && !modelSwitchingRef.current) {
+        const result = toggleModelFavorite(modelFavorites, focusedRow.model)
+        setModelFavorites(result.favorites)
+        const rows = modelPickerRows(models, providerInfos, result.favorites, modelRecents, query)
+        const same = rows.findIndex(row => row.kind === 'model' && row.section === focusedRow.section
+          && row.model.provider === focusedRow.model.provider && row.model.id === focusedRow.model.id)
+        const route = rows.findIndex(row => row.kind === 'model' && row.model.provider === focusedRow.model.provider
+          && row.model.id === focusedRow.model.id)
+        const next = same >= 0 ? same : route >= 0 ? route : moveModelFocus(rows, -1, 1)
+        modelFocusIndexRef.current = { query, index: next }
+        dispatchOverlay({ type: 'set-index', kind: 'model', index: next })
+        if (!result.saved) channel.notify(t('picker-model-favorite-save-error'), { color: 'warning' })
+      } else if (key.ctrl && input === 'a' && !modelSwitchingRef.current) {
+        if (!channel.providerSetup()) channel.notify(t('provider-unavailable'), { color: 'warning' })
+        else {
+          const binding = channel.agentBindingGeneration
+          let wizardBinding: number | null = null
           dispatchOverlay({ type: 'close' })
-          void switchModelRecorded(model.provider, model.id, model.name)
+          void runProviderWizard({ host: channel.providerSetup()!, ask: (request, options) => questionStore.ask(request, options),
+            notify: (message, options) => channel.notify(message, options), pushLocal: (title, lines) => channel.pushLocal(title, lines),
+            working: () => channel.working, switchModel: async (provider, model) => {
+              const changed = await switchModelRecorded(provider, model)
+              if (changed) wizardBinding = channel.agentBindingGeneration
+              return changed
+            },
+          }).then(() => {
+            if ((wizardBinding ?? binding) !== channel.agentBindingGeneration) return
+            channel.invalidateModelCompletion()
+            openModelPicker(query)
+          }).catch(() => channel.notify(t('provider-unavailable'), { color: 'warning' }))
         }
-      } else if (key.backspace && cursor > 0) {
+      } else if (key.ctrl && input === 'r') refreshModelPicker()
+      else if (key.upArrow || key.downArrow || key.pageUp || key.pageDown) {
+        const delta = key.upArrow ? -1 : key.downArrow ? 1 : key.pageUp ? -10 : 10
+        const next = moveModelFocus(modelRows, focusIndex, delta)
+        modelFocusIndexRef.current = { query, index: next }
+        dispatchOverlay({ type: 'set-index', kind: 'model', index: next })
+      } else if (plainReturn && focusedRow && !modelSwitchingRef.current) void pickModel(focusedRow.model)
+      else if (key.backspace && cursor > 0) {
         const start = previousModelQueryBoundary(query, cursor)
-        editModelQuery(query.slice(0, start) + query.slice(cursor), start)
-      } else if (key.delete && cursor < query.length) {
-        editModelQuery(query.slice(0, cursor) + query.slice(nextModelQueryBoundary(query, cursor)), cursor)
-      } else if (key.leftArrow && cursor > 0) {
-        editModelQuery(query, previousModelQueryBoundary(query, cursor))
-      } else if (key.rightArrow && cursor < query.length) {
-        editModelQuery(query, nextModelQueryBoundary(query, cursor))
-      } else if (key.home) {
-        editModelQuery(query, 0)
-      } else if (key.end) {
-        editModelQuery(query, query.length)
-      } else if (key.escape || (key.backspace && query === '')) {
-        if (activeModelGroup !== undefined && modelGroups.length > 1) {
-          setModelGroup(undefined)
-          const groupIndex = Math.max(0, modelGroups.findIndex(group => group.provider === activeModelGroup))
-          dispatchOverlay({ type: 'model-edit', query: '', cursor: 0 })
-          dispatchOverlay({ type: 'set-index', kind: 'model', index: groupIndex })
-        } else {
-          dispatchOverlay({ type: 'close' })
-        }
-      } else if (input.length > 0 && !key.ctrl && !key.meta && !key.super && !key.tab) {
+        edit(query.slice(0, start) + query.slice(cursor), start)
+      } else if (key.delete && cursor < query.length) edit(query.slice(0, cursor) + query.slice(nextModelQueryBoundary(query, cursor)), cursor)
+      else if (key.leftArrow && cursor > 0) edit(query, previousModelQueryBoundary(query, cursor))
+      else if (key.rightArrow && cursor < query.length) edit(query, nextModelQueryBoundary(query, cursor))
+      else if (key.home) edit(query, 0)
+      else if (key.end) edit(query, query.length)
+      else if (input.length > 0 && !key.ctrl && !key.meta && !key.super && !key.tab) {
         const inserted = input.replace(/[\r\n\t]+/gu, ' ')
-        editModelQuery(query.slice(0, cursor) + inserted + query.slice(cursor), cursor + inserted.length)
+        edit(query.slice(0, cursor) + inserted + query.slice(cursor), cursor + inserted.length)
       }
       return
     }
@@ -4338,6 +4269,22 @@ export function Chat({
     )
     : null
 
+  if (overlay.kind === 'model' && modelFallback && !fullscreen) {
+    const height = Math.max(1, Math.min(26, terminalRows - 2))
+    return <AlternateScreen>
+      <Box width="100%" height={terminalRows} justifyContent="center" alignItems="center">
+        <Box width={Math.max(1, Math.min(72, terminalColumns - 2))} height={height}
+          backgroundColor="toolCardBackground" opaque overflow="hidden">
+          <ModelPicker rows={modelRows} focusIndex={modelFocus} currentModel={`${channel.provider}/${channel.model}`}
+            favorites={modelFavorites} query={modelQuery} cursor={overlay.cursor ?? modelQuery.length} height={height}
+            status={modelCatalogStatus} switching={modelSwitching}
+            onPick={index => { const row = focusedModelRow(modelRows, index); if (row && !modelSwitchingRef.current) void pickModel(row.model) }}
+            onWheelStep={step => dispatchOverlay({ type: 'set-index', kind: 'model', index: moveModelFocus(modelRows, modelFocus, step) })} />
+        </Box>
+      </Box>
+    </AlternateScreen>
+  }
+
   return (
     <Box ref={wakeTickRef} flexDirection="column" flexGrow={1} width="100%">
       {!isSticky && anchorUserText && (
@@ -4747,58 +4694,6 @@ export function Chat({
               />
             </Box>
           )}
-          {overlay.kind === 'model' && (
-            <Box flexDirection="column" marginTop={1}>
-              {modelRowsAreGroups ? (
-                <ModelPicker
-                  groups={visibleModelGroups}
-                  query={modelQuery}
-                  cursor={overlay.cursor ?? modelQuery.length}
-                  emptyReason={modelCatalogStatus === 'loading' && models.length === 0 ? 'loading' : modelCatalogStatus === 'error' ? 'error' : 'empty'}
-                  focusIndex={modelFocus}
-                  currentProvider={channel.provider}
-                  onPick={(index) => {
-                    // 点击分组行 = 进入该组（与 Enter 同一条路径）
-                    const group = visibleModelGroups[index]
-                    if (!group) return
-                    setModelGroup(group.provider)
-                    if (group.provider === RECENTS_GROUP_PROVIDER) {
-                      dispatchOverlay({ type: 'set-index', kind: 'model', index: 0 })
-                      return
-                    }
-                    const landing = modelPickerLanding(
-                      models.filter(model => model.provider === group.provider),
-                      channel.provider,
-                      channel.model,
-                    )
-                    dispatchOverlay({ type: 'set-index', kind: 'model', index: landing.index })
-                  }}
-                />
-              ) : (
-                <ModelPicker
-                  models={visibleModelRows}
-                  query={modelQuery}
-                  cursor={overlay.cursor ?? modelQuery.length}
-                  emptyReason={modelCatalogStatus === 'loading' && models.length === 0 ? 'loading' : modelCatalogStatus === 'error' ? 'error' : models.length === 0 ? 'empty' : 'no-match'}
-                  groupLabel={activeModelGroup === RECENTS_GROUP_PROVIDER
-                    ? t('picker-group-recent')
-                    : modelGroups.find(group => group.provider === activeModelGroup)?.label}
-                  showBack={activeModelGroup !== undefined && modelGroups.length > 1}
-                  showGroups={modelPickerFlat && modelGroups.length > 1}
-                  showProviderPrefix={activeModelGroup === RECENTS_GROUP_PROVIDER || activeModelGroup === undefined}
-                  focusIndex={modelFocus}
-                  currentModel={`${channel.provider}/${channel.model}`}
-                  onPick={(index) => {
-                    // 点击行 = 应用该行模型（与 Enter 同一条路径）
-                    const model = visibleModelRows[index]
-                    if (!model) return
-                    dispatchOverlay({ type: 'close' })
-                    void switchModelRecorded(model.provider, model.id, model.name)
-                  }}
-                />
-              )}
-            </Box>
-          )}
           {overlay.kind === 'migrate' && (
             <Box flexDirection="column" marginTop={1}>
               <MigratePicker
@@ -5051,6 +4946,12 @@ export function Chat({
           transcript 行，预览必须作为根的最后一个孩子才压得过它）；平时
           预览挂在上面的 transcript 行内，见 imagePreviewNode。 */}
       {promptEditorOpen && imagePreviewNode}
+      {overlay.kind === 'model' && <ModelDialogLayer fullscreen={fullscreen} onClose={() => dispatchOverlay({ type: 'close' })} onInsufficientSpace={() => setModelFallback(true)}>{size =>
+        <ModelPicker rows={modelRows} focusIndex={modelFocus} currentModel={`${channel.provider}/${channel.model}`} favorites={modelFavorites}
+          query={modelQuery} cursor={overlay.cursor ?? modelQuery.length} height={size.rows} status={modelCatalogStatus} switching={modelSwitching}
+          onPick={index => { const row = focusedModelRow(modelRows, index); if (row && !modelSwitchingRef.current) void pickModel(row.model) }}
+          onWheelStep={step => dispatchOverlay({ type: 'set-index', kind: 'model', index: moveModelFocus(modelRows, modelFocus, step) })} />
+      }</ModelDialogLayer>}
     </Box>
   )
 }

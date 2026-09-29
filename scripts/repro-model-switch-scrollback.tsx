@@ -21,7 +21,7 @@ process.env.DSH_TUI_LANG = 'zh'        // 固定中文 UI（splash 标语断言�
 // "no adapter registered for provider fake-provider"。必须在 import src 之前。
 // HOME 与 USERPROFILE 必须成对设置：os.homedir() 在 POSIX 读 HOME、在 Windows
 // 读 USERPROFILE，只设一个等于在另一个平台上根本没有隔离。
-const { mkdtempSync } = await import('node:fs')
+const { mkdtempSync, readFileSync } = await import('node:fs')
 const { tmpdir } = await import('node:os')
 const { join: joinPath } = await import('node:path')
 const reproHome = mkdtempSync(joinPath(tmpdir(), 'dshtui-repro-home-'))
@@ -167,6 +167,17 @@ const channel = createChannel(ctx as never, makeAgent('a1', events) as never, {
   activity: false,
 })
 
+// Optional manual PTY check with the same isolated fixture and real stdio.
+if (process.env.LIVE_TTY === '1') {
+  const live = await render(
+    <Chat channel={channel as never} questionStore={new QuestionStore()} onExit={() => {}} />,
+    { stdout: process.stdout, stdin: process.stdin, stderr: process.stderr, exitOnCtrlC: false, patchConsole: false },
+  )
+  await sleep(30_000) // 固定窗:墙钟 手動確認用の操作時間
+  live.unmount()
+  process.exit(0)
+}
+
 const stdoutObj = new FakeStdout()
 const stdin = new FakeStdin()
 const instance = await render(
@@ -197,15 +208,32 @@ const typeKeys = async (keys: string) => {
   }
 }
 bufLen('boot')
-await typeKeys('/model')
+await typeKeys('/model openai')
+await sleep(200) // 固定窗:pacing 補完が入力を受け付けるまで
+stdin.write('\r')
+await sleep(600) // 固定窗:pacing ダイアログの描画完了まで
+check('一致しない /model 引数も検索欄に残る', fullBufferLines().some(line => line.includes('openai')))
+check('一致しない引数で自動切り替えしない', channel.model === 'deepseek-v4-flash')
+stdin.write('\x1b')
+await sleep(200) // 固定窗:pacing Esc の描画完了まで
+await typeKeys('/model seek deep')
 await sleep(200) // 固定窗:pacing 等补全浮层收键就绪
-bufLen('typed /model')
+bufLen('typed /model seek deep')
 stdin.write('\r')            // 打开 picker（slash 命令派发）
 await sleep(600) // 固定窗:pacing 等 picker 收键就绪
 bufLen('picker open')
-stdin.write('\x1b[200~v4-pro\tdeep\n\x1b[201~') // bracketed paste: tab/newline normalize to spaces
-await sleep(200) // 固定窗:pacing 按键步间
-stdin.write('\r')            // 确认 → fork + replay
+check('順不同の検索語がピッカーに残る', fullBufferLines().some(line => line.includes('seek deep')))
+check('検索結果に DeepSeek が表示される', fullBufferLines().some(line => line.includes('DeepSeek V4 Pro')))
+check('検索語 Enter だけでは切り替えない', channel.model === 'deepseek-v4-flash', `実際 ${channel.model}`)
+stdin.write('\x06')        // Ctrl+F: 現在の候補をお気に入りへ
+await sleep(200) // 固定窗:pacing お気に入りの再描画まで
+const favoriteFile = joinPath(reproHome, '.dsh-tui', 'model-favorites.json')
+check('Ctrl+F がお気に入りを保存する', readFileSync(favoriteFile, 'utf8').includes('deepseek-v4-flash'))
+check('お気に入りの星が表示される', fullBufferLines().some(line => line.includes('★') && line.includes('DeepSeek V4 Flash')))
+stdin.write('\x06')
+await sleep(200) // 固定窗:pacing お気に入り解除の再描画まで
+check('Ctrl+F 再押下でお気に入りを解除する', JSON.parse(readFileSync(favoriteFile, 'utf8')).models.length === 0)
+stdin.write('\x1b[B\r')   // 同一入力バッチで二番目を選択して確定
 // 固定窗:探针 「恰好一份」断言防的是切换后追加帧的多余沉积，对已成立条件
 // （count===1）轮询立即返回等于没测。
 await sleep(1500)
@@ -268,6 +296,11 @@ check('Esc 开关周期缓冲区零增长', term.buffer.active.length === bufBef
 console.log(`final: buffer=${term.buffer.active.length} 行 (视口 ${ROWS}, scrollback ${term.buffer.active.length - ROWS})`)
 const fullResets = rawChunks.join('').match(/\x1b\[10000S/g)?.length ?? 0
 check('全程无 full-reset (CSI 10000S)', fullResets === 0, `实际 ${fullResets}`)
+
+await typeKeys('/model fake-provider/deepseek-v4-pro')
+await sleep(200) // 固定窗:pacing 完全ルートの補完が入力を受け付けるまで
+stdin.write('\r')
+check('登録済み完全ルートは直接切り替える', await settled(() => channel.model === 'deepseek-v4-pro'))
 
 if (process.env.DUMP === '1') {
   const buf = term.buffer.active

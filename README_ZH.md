@@ -77,6 +77,10 @@ PATH 设置与安装问题见[安装指南](docs/getting-started.md)。
 `/resume` 打开会话管理界面，`/auth` 连接提供商，`/model` 选择模型。
 通过 `/bg` 转入后台的会话会在 TUI 退出时停止。完整说明见[交互与命令](docs/interaction.md)。
 
+`/model` 打开居中的模型选择界面，按收藏、最近使用和提供方分组显示。
+`/model seek deep` 使用不依赖词序的搜索；完整的 `/model provider/model-id`
+直接切换。选择界面中按 `Ctrl+F` 收藏、`Ctrl+A` 连接提供方、`Esc` 关闭。
+
 要导入 Claude Code、Codex、OMP、zcode 或 Grok Build 的对话，先运行
 `dsh-cli migrate` 查看可导入的记录，再运行 `dsh-cli migrate <agent> [--dry-run]`。
 工具调用不会导入。详见[会话迁移](docs/migrate.md)。

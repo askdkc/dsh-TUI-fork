@@ -80,6 +80,11 @@ PATH の設定やインストール時の問題は[インストールガイド](
 `/model` でモデルを選びます。`/bg` でバックグラウンドに移したセッションは
 TUI の終了時に停止します。詳しくは[操作・コマンド一覧](docs/interaction.en.md)を参照してください。
 
+`/model` はお気に入り・最近使用・プロバイダー別のモデル選択画面を中央に開きます。
+`/model seek deep` は語順に依存しない検索で開き、完全な
+`/model provider/model-id` は直接切り替えます。選択画面では `Ctrl+F` で
+お気に入りを切り替え、`Ctrl+A` でプロバイダーに接続し、`Esc` で閉じます。
+
 Claude Code、Codex、OMP、zcode、Grok Build の会話を取り込むには、
 `dsh-cli migrate` で対象を確認し、`dsh-cli migrate <agent> [--dry-run]` を実行します。
 ツールの実行履歴は取り込みません。詳しくは[セッション移行ガイド](docs/migrate.en.md)を参照してください。

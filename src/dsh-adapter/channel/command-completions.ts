@@ -23,9 +23,19 @@ export function createCommandCompletions(deps: {
   const { themeHost, commandTrees, workspaceCommands, model } = deps
   return (input: string) => {
     const state = deps.state()
+    // Model arguments are search text, not a hierarchy of route completions.
+    // Keep the original line so Enter, Tab and click cannot select the first model.
+    if (/^\/model(?:[\t ]|$)/iu.test(input) && !/[\r\n]/u.test(input)) {
+      return [{
+        name: input.slice(1),
+        description: 'Open model picker',
+        descriptionKey: 'sugg-model-open-desc',
+        replacement: input,
+        commandLine: input,
+      }]
+    }
     const head = input.slice(1).split(/[\t ]/)[0]?.toLowerCase() ?? ''
     if (head !== '') {
-      if ('model'.startsWith(head)) model.warmModelNodes()
       if ('preset'.startsWith(head)) model.warmPresetOptions()
       if ('effort'.startsWith(head)) model.warmEffortLevels()
     }

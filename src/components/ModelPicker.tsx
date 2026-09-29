@@ -1,134 +1,52 @@
 import React from 'react'
-import { t } from '../i18n.js'
 import { Box, Text } from '../ui.js'
-import type { LlmModelInfo } from '../adapter/ports/channel-view.js'
-import type { ModelGroupRow } from '../modelGroups.js'
-import { RECENTS_GROUP_PROVIDER, RECENTS_LABEL_PLACEHOLDER } from '../modelGroups.js'
-import { Pane } from './design-system/Pane.js'
-import { ListItem } from './design-system/ListItem.js'
-import { HintLine } from './design-system/HintLine.js'
+import { t } from '../i18n.js'
+import type { ModelPickerRow } from '../modelPickerRows.js'
+import { focusedModelRow } from '../modelPickerRows.js'
+import type { ModelRef } from '../modelGroups.js'
 import { listWindow } from './listWindow.js'
-import { useOverlayListRows } from './OverlayAbove.js'
 import { SearchBox } from './SearchBox.js'
+import { ListItem } from './design-system/ListItem.js'
 import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
 
-/**
- * Model picker: a permission-colored Pane with
- * the rows as Select entries (❯ focus pointer, ✓ on the active row,
- * descriptions), plus the Enter/Esc hint line. Selection switches through
- * the Chat coordinator's live-fork path.
- *
- * Opens on the complete searchable model list. Tab can show provider groups
- * (registry display name + model count), where Enter drills into one
- * provider. Enter on a model switches through the live-fork path.
- *
- * 长列表按焦点窗口化（Select 同款）：picker 经 OverlayAbove 浮层挂载后有
- * maxHeight 裁剪，全量渲染会让焦点行被裁掉（看不到焦点按 Enter）。
- */
-export function ModelPicker(props:
-  | {
-    /** Top level: provider groups; Enter/click drills into one. */
-    groups: readonly ModelGroupRow[]
-    focusIndex: number
-    /** Current route key — its group row carries the ✓ marker. */
-    currentProvider: string
-    onPick?: (index: number) => void
-    query?: string
-    cursor?: number
-    emptyReason?: 'loading' | 'empty' | 'no-match' | 'error'
-  }
-  | {
-    /** Flat catalog or one group's models (`showProviderPrefix` for mixed providers). */
-    models: readonly LlmModelInfo[]
-    /** The group's display label as this pane's title (default: "Model"). */
-    groupLabel?: string
-    /** A drilled-in provider or recents group can return to the group list. */
-    showBack: boolean
-    /** Flat catalog can switch to provider groups with Tab. */
-    showGroups?: boolean
-    /** Prefix each row with its provider (the recents group mixes providers). */
-    showProviderPrefix?: boolean
-    focusIndex: number
-    /** `provider/model` of the current model — its row carries the ✓ marker. */
-    currentModel: string
-    onPick?: (index: number) => void
-    query?: string
-    cursor?: number
-    emptyReason?: 'loading' | 'empty' | 'no-match' | 'error'
-  }): React.ReactNode {
-  const inGroups = 'groups' in props
+export function ModelPicker({ rows, focusIndex, currentModel, favorites, query, cursor, height, status, switching, onPick, onWheelStep }: {
+  rows: readonly ModelPickerRow[]
+  focusIndex: number
+  currentModel: string
+  favorites: readonly ModelRef[]
+  query: string
+  cursor: number
+  height: number
+  status: 'loading' | 'ready' | 'error'
+  switching: boolean
+  onPick(index: number): void
+  onWheelStep(step: number): void
+}): React.ReactNode {
   const terminalFocused = useTerminalFocus()
-  // Captured before the map: union narrowing does not survive into closures.
-  const onPick = props.onPick
-  // 焦点窗口化按行预算：ListItem 带 description 时占 2 行（正文+描述，均
-  // truncate 成单行），只数项数会把焦点裁出浮层（二次审查实证）。
-  // 预算来自最近一层 OverlayAbove 的有效高度（已钳到输入簇上方的真实空间——
-  // 按 terminalRows 预算在短会话 + 高终端下窗口高过浮层、顶部整行被裁、
-  // 焦点行不可见，#493/#698），减去本面板框架行：Pane 2 + 标题 2 +
-  // 搜索栏 1 + 结果数 1 + 页脚 1 + 挂载包裹 marginTop 1 = 8。
-  const rowHeights = inGroups
-    ? props.groups.map(() => 2)
-    : props.models.map(m => (m.description ? 2 : 1))
-  const rows = inGroups ? props.groups : props.models
-  const listRows = useOverlayListRows(8)
-  const { start, end } = listWindow(rowHeights, props.focusIndex, listRows)
-  const hint = inGroups
-    ? t('hint-model-groups')
-    : props.showBack ? t('hint-model-back') : props.showGroups ? t('hint-model-all') : t('hint-confirm-exit')
+  const available = Math.max(1, height - 6)
+  const window = listWindow(rows.map(() => 1), focusIndex, available)
+  const focused = focusedModelRow(rows, focusIndex)
+  const route = focused ? `${focused.model.provider}/${focused.model.id}` : ''
+  const hint = switching ? t('model-switching', { name: focused?.model.name ?? '' }) : t('hint-model-dialog')
   return (
-    <Pane color="permission">
-      <Box flexDirection="column">
-        <Box marginBottom={1}>
-          <Text color="remember" bold>
-            {inGroups || props.groupLabel === undefined ? t('picker-title-model') : props.groupLabel}
-          </Text>
-        </Box>
-        <SearchBox
-          query={props.query ?? ''}
-          cursorOffset={props.cursor ?? 0}
-          isFocused
-          isTerminalFocused={terminalFocused}
-          borderless
-          placeholder={t('picker-model-search')}
-        />
-        <Text dimColor>{t('picker-model-results', { count: rows.length })}</Text>
-        {rows.length === 0 && <Text dimColor>{t(props.emptyReason === 'loading' ? 'model-loading' : props.emptyReason === 'error' ? 'picker-model-error' : props.emptyReason === 'no-match' ? 'picker-model-no-match' : 'picker-model-empty')}</Text>}
-        {rows.slice(start, end).map((row, index) => {
-          const absoluteIndex = start + index
-          return inGroups ? (
-            <ListItem
-              key={row.provider}
-              isFocused={absoluteIndex === props.focusIndex}
-              declareCursor={false}
-              isSelected={row.provider === props.currentProvider}
-              description={t('picker-group-count', { count: row.count })}
-              showScrollUp={absoluteIndex === start && start > 0}
-              showScrollDown={absoluteIndex === end - 1 && end < rows.length}
-              onClick={onPick ? () => onPick(absoluteIndex) : undefined}
-            >
-              {row.label === RECENTS_LABEL_PLACEHOLDER && row.provider === RECENTS_GROUP_PROVIDER
-                ? t('picker-group-recent')
-                : row.label}
+    <Box flexDirection="column" width="100%" height={height} paddingX={1} overflow="hidden" onWheel={(event) => {
+      event.stopImmediatePropagation()
+      onWheelStep(event.deltaY < 0 ? -1 : 1)
+    }}>
+      <Box flexDirection="row" justifyContent="space-between"><Text bold>{t('picker-title-model')}</Text><Text dimColor>esc</Text></Box>
+      <SearchBox query={query} cursorOffset={cursor} isFocused isTerminalFocused={terminalFocused} borderless placeholder={t('picker-model-search')} />
+      <Text dimColor>{t('picker-model-results', { count: rows.filter(row => row.kind === 'model').length })}</Text>
+      {rows.length === 0 && <Text dimColor>{t(status === 'loading' ? 'model-loading' : status === 'error' ? 'picker-model-error' : query.trim() ? 'picker-model-no-match' : 'picker-model-empty')}</Text>}
+      {rows.slice(window.start, window.end).map((row, offset) => row.kind === 'heading'
+        ? <Text key={row.key} color="warning" bold wrap="truncate-end">{row.key === 'heading:favorites' ? t('picker-model-favorites') : row.key === 'heading:recent' ? t('picker-group-recent') : row.label}</Text>
+        : <Box key={row.key} width="100%" height={1} overflow="hidden" backgroundColor={window.start + offset === focusIndex ? 'userMessageBackgroundHover' : undefined}>
+            <ListItem isFocused={window.start + offset === focusIndex} isSelected={`${row.model.provider}/${row.model.id}` === currentModel} declareCursor={false} onClick={() => onPick(window.start + offset)}>
+              {favorites.some(ref => ref.provider === row.model.provider && ref.id === row.model.id) ? '★ ' : ''}{row.model.name}<Text dimColor>{`  ${row.providerName}`}</Text>
             </ListItem>
-          ) : (
-            <ListItem
-              key={`${row.provider}/${row.id}`}
-              isFocused={absoluteIndex === props.focusIndex}
-              declareCursor={false}
-              isSelected={`${row.provider}/${row.id}` === props.currentModel}
-              description={row.description}
-              showScrollUp={absoluteIndex === start && start > 0}
-              showScrollDown={absoluteIndex === end - 1 && end < rows.length}
-              onClick={onPick ? () => onPick(absoluteIndex) : undefined}
-            >
-              {props.showProviderPrefix === true ? `${row.provider} / ${row.name}` : row.name}
-            </ListItem>
-          )
-        })}
-      </Box>
-      <Text dimColor italic>
-        <HintLine text={hint} />
-      </Text>
-    </Pane>
+          </Box>)}
+      <Box flexGrow={1} />
+      <Text dimColor wrap="truncate-end">{route}</Text>
+      <Text dimColor wrap="truncate-end">{hint}</Text>
+    </Box>
   )
 }

@@ -169,7 +169,7 @@ check('T7g decision ignored outside rewind', reduce({ kind: 'tips' }, { type: 'r
 const gates = { workspaceTargetCount: 0, effortOptionCount: 0, presetOptionCount: 0 }
 const loaded = { workspaceTargetCount: 2, effortOptionCount: 3, presetOptionCount: 2 }
 check('T8a none never mounts', dialogOverlayVisible(NO_OVERLAY, loaded), false)
-check('T8b plain picker mounts', dialogOverlayVisible({ kind: 'model', index: 0 }, gates), true)
+check('T8b model uses the root modal layer', dialogOverlayVisible({ kind: 'model', index: 0 }, gates), false)
 check('T8c workspace picker gated on targets', [
   dialogOverlayVisible({ kind: 'workspace-picker', index: 0 }, gates),
   dialogOverlayVisible({ kind: 'workspace-picker', index: 0 }, loaded),

@@ -79,6 +79,11 @@ Chinese. Ambiguous short requests keep that session's previous progress language
 selects a model. `/bg` keeps a session running until the TUI exits. See
 [Interaction and commands](docs/interaction.en.md) for the full reference.
 
+`/model` opens a centered picker with Favorites, Recent, and provider sections.
+`/model seek deep` opens it with an order-independent search; an exact
+`/model provider/model-id` switches directly. In the picker, use `Ctrl+F` to
+toggle a favorite, `Ctrl+A` to connect a provider, and `Esc` to close.
+
 To import Claude Code, Codex, OMP, zcode, or Grok Build conversations, run
 `dsh-cli migrate` to see available histories, then
 `dsh-cli migrate <agent> [--dry-run]`. Tool traffic is not imported.

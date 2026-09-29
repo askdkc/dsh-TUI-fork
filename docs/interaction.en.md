@@ -619,9 +619,9 @@ Additional forms:
 - `/activity status` reports the current choice.
 - `/preset <id>` and `/preset status` are described in the configuration guide.
 - `/effort` opens the reasoning-effort slider (←/→ adjusts live); `/effort <id>` sets a level directly; `/effort status` reports the current one.
-- `/model` opens the available model list with search ready. Words match in any order, so `seek deep` finds DeepSeek.
-  - `Tab` switches to provider groups, with **Recently used** pinned first when available. The last 10 used models are persisted at `~/.dsh-tui/model-recents.json`.
-  - `Enter` drills into a group or selects a model.
+- `/model` opens a centered model dialog. `/model <words>` starts with those words in search; `/model provider/model-id` switches directly only when the complete route exists. Words match in any order, so `seek deep` finds DeepSeek.
+  - With an empty search, Favorites, Recent, then all provider groups appear. The last 10 used models are persisted at `~/.dsh-tui/model-recents.json`; favorites are persisted at `~/.dsh-tui/model-favorites.json`.
+  - Arrow keys and PageUp/PageDown move among models; `Enter` selects, `Ctrl+F` toggles a favorite, `Ctrl+A` opens provider setup, and `Esc` closes the dialog.
   - Switching = fork continuation, history preserved.
 - `/theme <name>` and `/theme status` are described in the theme guide.
 - `/permission` reads the DSH `permissionPresets` registry, preserving registry order for
