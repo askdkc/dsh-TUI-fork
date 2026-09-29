@@ -115,10 +115,9 @@ export function ListItem({
       {/* 行高恒 1、不压缩、溢出隐藏：压边换行会把每个列表项膨胀成 2 个
           屏幕行，与 listWindow 按每项申报的高度失配——浮层顶行被裁、真
           终端上换行泄入 scrollback 使行寻址错位、翻页错位累加（#396）。
-          选中 ✓ 仍作为独立列保留：行容器溢出隐藏后，长名截断不会因尾部
-          ✓ 把整行撑成两行，且 ✓ 不会被 truncate-end 截掉（与 e43021a
-          边框行加固同族）。 */}
-      <Box flexDirection="row" gap={1} height={1} flexShrink={0} overflow="hidden" width="100%">
+          选中 ✓ 固定在倒数第二列，最后一列留给终端的 pending-wrap：
+          长名截断时不会挤掉 ✓，也不会把整行撑成两行。 */}
+      <Box flexDirection="row" gap={1} height={1} flexShrink={0} overflow="hidden" width="100%" paddingRight={isSelected && !disabled ? 2 : 0}>
         {renderIndicator()}
         {styled ? (
           <Text color={getTextColor()} dimColor={disabled} wrap="truncate-end">
@@ -127,7 +126,7 @@ export function ListItem({
         ) : (
           flatChildren
         )}
-        {isSelected && !disabled && <Text color="success">{TICK}</Text>}
+        {isSelected && !disabled && <Box position="absolute" right={1} width={1}><Text color="success">{TICK}</Text></Box>}
       </Box>
       {description && (
         <Box paddingLeft={2}>
