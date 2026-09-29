@@ -9,8 +9,8 @@
  * the screenshot in the issue).
  *
  * This gate mounts the real ModelPicker in a headless xterm at narrow widths
- * with names sized to land the ellipsis (and the focused row's ✓) exactly on
- * the last cell, and asserts across a page turn:
+ * with names sized to reach the right edge while the selected row's ✓ stays
+ * visible, and asserts across a page turn:
  *   - zero wrapped buffer rows (isWrapped),
  *   - no phantom blank rows between items,
  *   - the pane top (row 0 content) and the focus indicator stay on screen.
@@ -45,8 +45,8 @@ function check(name: string, ok: boolean, detail = ''): void {
 const ROWS = 30
 
 async function mountAt(cols: number) {
-  // Name length lands the truncation ellipsis — and the focused+selected
-  // row's ✓ — exactly on the terminal's last cell.
+  // Name length reaches the right edge; the selected row's ✓ must remain
+  // visible without triggering pending-wrap.
   const NAME = 'x'.repeat(cols - 2)
   const models = Array.from({ length: 24 }, (_, i) => ({
     provider: 'p',

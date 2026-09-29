@@ -195,12 +195,21 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
-      # deepseek-ai/deepseek-harness tag dsh-v0.1.7-rc.2
+      # deepseek-ai/deepseek-harness tag dsh-v0.2.0-rc.1
+      - uses: actions/checkout@v7
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: 4878cdabd87d4041bdaff61d04c966883b9fd07a
+          path: .upstream/deepseek-harness
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Keep the previous primary line source-checked while its peer range is supported.
       - uses: actions/checkout@v7
         with:
           repository: deepseek-ai/deepseek-harness
           ref: 477b4f420553e8a52c2fbccc464d7561b239c443
-          path: .upstream/deepseek-harness
+          path: .upstream/deepseek-harness-rc2
           fetch-depth: 1
           persist-credentials: false
 
@@ -226,8 +235,12 @@ jobs:
           cache-dependency-path: |
             pnpm-lock.yaml
             .upstream/deepseek-harness/pnpm-lock.yaml
+            .upstream/deepseek-harness-rc2/pnpm-lock.yaml
+            .upstream/deepseek-harness-alpha2/pnpm-lock.yaml
 
       - run: pnpm --dir "$DSH_HARNESS_SOURCE_ROOT" install --frozen-lockfile --ignore-scripts
+
+      - run: pnpm --dir "$GITHUB_WORKSPACE/.upstream/deepseek-harness-rc2" install --frozen-lockfile --ignore-scripts
 
       # The compat-line type-check resolves against that tree's own sources,
       # so it needs that tree's dependencies too (its own lockfile, same pnpm).
@@ -235,7 +248,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
-      # Build validates the installed rc.1 baseline and, with the required
+      # Build validates the installed 0.2.0-rc.1 baseline and, with the required
       # source env above, must also compose that release's base/web patch.
       - run: pnpm build
         env:
@@ -243,12 +256,14 @@ jobs:
 
       - run: pnpm verify:alpha-source
 
+      - run: DSH_HARNESS_SOURCE_ROOT="$GITHUB_WORKSPACE/.upstream/deepseek-harness-rc2" DSH_HARNESS_EXPECTED_VERSION=0.1.7-rc.2 pnpm verify:alpha-source
+
       # Same source check against the alpha.2 compat line; the primary
       # checkout above keeps driving build and live-session.
       - run: DSH_HARNESS_SOURCE_ROOT="$GITHUB_WORKSPACE/.upstream/deepseek-harness-alpha2" DSH_HARNESS_EXPECTED_VERSION=0.1.5-alpha.2 pnpm verify:alpha-source
 
       # Exercise the compatibility facade in both directions: it reads a real
-      # rc.1 Session and the real constructor accepts its seed metadata.
+      # 0.2.0-rc.1 Session and the real constructor accepts its seed metadata.
       # The ordinary CI groups also keep running the legacy fixture suite.
       - run: TSX_TSCONFIG_PATH="$DSH_HARNESS_SOURCE_ROOT/tsconfig.base.json" pnpm verify:live-session -- --real-upstream
 

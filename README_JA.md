@@ -43,6 +43,7 @@
 [Node.js](https://nodejs.org/en) `^22.19 || >=24`、pnpm 11、依存関係をインストール済みの
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) ソース checkout、
 `DEEPSEEK_API_KEY` が必要です。基本的にDSH最新版サポートを目指します。
+主な検証対象は `0.2.0-rc.1` です。対応する旧版は [ADAPTER.md](ADAPTER.md) を参照してください。
 
 サブモジュール解決のため再帰的に clone してください。既存の checkout では、インストール前に
 `git submodule update --init --recursive` を実行してください。
