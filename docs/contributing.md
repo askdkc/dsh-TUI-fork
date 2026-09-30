@@ -217,7 +217,7 @@ CI 回归都要跑。窄改动还要跑最近的聚焦脚本：
 | 改动区域 | 聚焦验证 |
 | --- | --- |
 | 通用无头屏幕组装 | `pnpm smoke` |
-| Harness 验证线更新 | `pnpm typecheck`、`pnpm verify:alpha-source`（`DSH_HARNESS_SOURCE_ROOT` 指向 `0.2.0-rc.1` 源码）、`pnpm verify:live-session -- --real-upstream`、`pnpm --dir dsh-auth verify`；旧版源码用 `DSH_HARNESS_EXPECTED_VERSION` 分别校验 |
+| Harness 验证线更新 | `pnpm typecheck`、`pnpm verify:alpha-source`（`DSH_HARNESS_SOURCE_ROOT` 指向 `0.2.0-rc.2` 源码）、`pnpm verify:live-session -- --real-upstream`、`pnpm --dir dsh-auth verify`；旧版源码用 `DSH_HARNESS_EXPECTED_VERSION` 分别校验 |
 | 跨代理会话迁移（src/migrate、adapter 解析或事件合成） | `node --import tsx/esm scripts/verify-migrate.mjs` |
 | Channel submit/steer/pending 行为 | `node scripts/verify-submit.mjs` |
 | 回退后编辑重发与历史 Inbox 清理 | `pnpm verify:rewind-edit` |

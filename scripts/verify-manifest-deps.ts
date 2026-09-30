@@ -19,12 +19,25 @@
  * Run via `node --import tsx/esm scripts/verify-manifest-deps.ts`.
  */
 import { readFileSync } from 'node:fs'
+import { satisfies } from 'semver'
 
-const { UPSTREAM_BLESSED_PACKAGES } = await import('../src/dsh-adapter/contract.js')
+const { UPSTREAM_BLESSED_PACKAGES, UPSTREAM_VALIDATED_VERSION } = await import('../src/dsh-adapter/contract.js')
 
 const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 const FRAMEWORK = /^@deepseek-ai\//
 const failures: string[] = []
+
+// DSH checks every harness peer before loading a bundle. Optional peers still
+// participate, and bundled plugins need the same runtime compatibility.
+for (const path of ['../package.json', '../dsh-auth/package.json', '../vendor/dsh-working-activity/package.json']) {
+  const plugin = JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'))
+  for (const [name, range] of Object.entries(plugin.peerDependencies ?? {})) {
+    if ((name === '@deepseek-ai/dsh' || name.startsWith('@deepseek-ai/dsh-'))
+      && (typeof range !== 'string' || !satisfies(UPSTREAM_VALIDATED_VERSION, range, { includePrerelease: true }))) {
+      failures.push(`${plugin.name}: ${name} peer range ${range} excludes validated DSH ${UPSTREAM_VALIDATED_VERSION}`)
+    }
+  }
+}
 
 for (const section of ['dependencies', 'optionalDependencies'] as const) {
   for (const name of Object.keys(manifest[section] ?? {})) {
