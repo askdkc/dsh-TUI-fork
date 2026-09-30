@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto'
 import { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { adapterBuiltinProviders, type PiAiProvider } from './pi-ai.js'
+import { withFreshModels, type FreshRouteId } from './fresh-models.js'
 
 /** Provider routes this build mounts, in picker order. */
 export const OAUTH_PROVIDER_IDS = ['openai-codex', 'anthropic', 'xai'] as const
@@ -143,10 +144,12 @@ export function buildOAuthProfile(
     throw new Error(`dsh-auth: "${id}" is not a catalog provider this build mounts (${CATALOG_PROVIDER_IDS.join(', ')})`)
   }
   const provider = catalogProviderOf(id)
-  const catalog = withModelOverrides(
-    id === 'opencode' || id === 'opencode-go' ? withOpenCodeSessionHeader(provider) : provider,
-    modelOverrides,
-  )
+  const routed = id === 'opencode' || id === 'opencode-go' ? withOpenCodeSessionHeader(provider) : provider
+  // OpenCode routes serve the live roster on top of the installed catalog:
+  // per-model wire protocols resolve from the nearest catalog sibling and
+  // installed models always win, so this only ever adds (see fresh-models).
+  const fresh = id === 'opencode' || id === 'opencode-go' ? withFreshModels(routed, id) : routed
+  const catalog = withModelOverrides(fresh, modelOverrides)
   return {
     provider: id,
     displayName: catalog.name,

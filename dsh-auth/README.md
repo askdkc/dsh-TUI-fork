@@ -118,6 +118,11 @@ the `/auth login <provider>` hint — never silently.
   profile naming the same provider — is refused by the registry; the plugin
   logs the refusal and mounts the remaining routes. Keep one provider on one
   adapter.
+- `opencode` / `opencode-go` serve the live Zen roster on top of the installed
+  pi-ai catalog (per-model wire protocols resolve from the nearest catalog
+  sibling; installed models always win). Refresh the checked-in snapshot with
+  `pnpm --dir dsh-auth sync:models` (reads `models.dev` plus the live Zen
+  `/v1/models` rosters); runtime stays offline-safe.
 
 ## Security notes
 

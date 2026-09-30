@@ -112,6 +112,7 @@ export type { AskFn, QuestionBridgeHelpers } from './interaction.js'
 export { copyToClipboard, openInBrowser, openerFor } from './opener.js'
 export { CredentialFile, defaultCredentialsFile } from './credentials.js'
 export { OAUTH_PROVIDER_IDS, CATALOG_PROVIDER_IDS, AUTH_PROVIDER_IDS, canonicalProvider, buildOAuthProfile, type ModelOverride } from './profiles.js'
+export { freshRosterIds, type FreshRouteId } from './fresh-models.js'
 
 /**
  * The ambient auth context providers may consult while resolving their own

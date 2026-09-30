@@ -45,6 +45,7 @@
     "build": "tsc -p tsconfig.json",
     "clean": "node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\"",
     "smoke": "node scripts/smoke.mjs",
+    "sync:models": "node scripts/sync-opencode-models.mjs",
     "verify": "npm run build && npm run smoke"
   },
   "peerDependencies": {

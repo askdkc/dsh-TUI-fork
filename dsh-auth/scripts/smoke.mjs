@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
-const { CredentialFile, buildOAuthProfile, OAUTH_PROVIDER_IDS, canonicalProvider, QuestionBridge, createDshAuthApi, openerFor, CredentialGatedAdapter, apply } =
+const { CredentialFile, buildOAuthProfile, OAUTH_PROVIDER_IDS, canonicalProvider, QuestionBridge, createDshAuthApi, openerFor, CredentialGatedAdapter, apply, freshRosterIds } =
   await import('../lib/index.js')
 const { createCustomProfile } = await import('../lib/custom-profiles.js')
 const { loginNous, refreshNous } = await import('../lib/nous-oauth.js')
@@ -220,11 +220,30 @@ try {
   ok(router.auth.oauth !== undefined && router.auth.apiKey !== undefined,
     'OpenRouter keeps both catalog OAuth and API-key methods')
 
+  // Fresh rosters: the snapshot union only ever adds beyond the frozen pi-ai
+  // catalog, with clean unique ids (no `chat:`-style namespacing leaks).
+  for (const [id, beyond] of [
+    ['opencode', ['gpt-5.3-codex-spark', 'deepseek-v4-flash-free', 'gpt-6.1-sol', 'mimo-v2.5-free', 'muse-spark-1.2-contributor-free']],
+    ['opencode-go', ['omen-alpha', 'deepseek-flash', 'glm-5', 'mimo-v2-omni', 'grok-4.5', 'kimi-k2.6']],
+  ]) {
+    const models = buildOAuthProfile(id).piProvider.getModels()
+    const roster = freshRosterIds(id)
+    ok(beyond.every(wanted => models.some(model => model.id === wanted)),
+      `${id} serves live models beyond the frozen catalog (${models.length} total)`)
+    ok(roster.every(wanted => models.some(model => model.id === wanted)) && models.length >= roster.length,
+      `${id} covers its snapshot roster without shrinking`)
+    ok(models.every(model => !model.id.includes(':'))
+      && new Set(models.map(model => model.id)).size === models.length,
+      `${id} exposes clean unique model ids`)
+  }
+
   const catalogFetch = globalThis.fetch
   try {
     for (const [id, modelId, expectedUrl] of [
       ['opencode', 'deepseek-v4-flash', 'https://opencode.ai/zen/v1/chat/completions'],
       ['opencode-go', 'deepseek-v4-flash', 'https://opencode.ai/zen/go/v1/chat/completions'],
+      // Sibling-cloned fresh model: same Chat Completions boundary as catalog.
+      ['opencode-go', 'omen-alpha', 'https://opencode.ai/zen/go/v1/chat/completions'],
       ['openrouter', 'aion-labs/aion-2.0', 'https://openrouter.ai/api/v1/chat/completions'],
     ]) {
       let request
@@ -290,6 +309,22 @@ try {
       }
       ok(fallbackSessions.length === 2 && fallbackSessions.every(Boolean) && fallbackSessions[0] !== fallbackSessions[1],
         `${id} direct calls without a session id receive distinct routing headers`)
+      // A synthesized openai-responses model routes its own wire protocol
+      // through the same boundary (fixture rejects; URL + header prove it).
+      if (id === 'opencode') {
+        let seen
+        globalThis.fetch = async (url, options) => {
+          seen = { url: String(url), session: new Headers(options.headers).get('x-opencode-session') }
+          return new Response('fixture rejection', { status: 418 })
+        }
+        try {
+          for await (const _chunk of adapter.stream({ provider: id, model: 'gpt-5.3-codex-spark',
+            sessionId: 'dsh-session-123', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [],
+          })) { /* A rejected fixture only needs to reach the HTTP boundary. */ }
+        } catch { /* Expected fixture rejection. */ }
+        ok(seen?.url === 'https://opencode.ai/zen/v1/responses' && seen?.session === 'dsh-session-123',
+          'synthesized responses model routes its own protocol with the session header')
+      }
     }
   } finally { globalThis.fetch = catalogFetch }
 
