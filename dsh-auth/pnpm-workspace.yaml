@@ -48,6 +48,7 @@ overrides:
 
 # Prereleases can be younger than pnpm 11 default 24h minimumReleaseAge;
 # exempt the whole scope (name patterns cannot carry a version spec).
+# @earendil-works/* covers pi-ai plus its pi-telemetry companion pin.
 minimumReleaseAgeExclude:
   - '@deepseek-ai/*'
-  - '@earendil-works/pi-ai@0.99.1'
+  - '@earendil-works/*'
