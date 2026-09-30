@@ -57,13 +57,18 @@ node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
 TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
 
 cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh plugin --profile dsh-cli add "@askdkc/dsh-cli@file:${TARBALL}"
 pnpm dsh --profile dsh-cli
 ```
 
 Replace `~/DIR/TO/deepseek-harness` with your checkout path. The first interactive
 launch registers `dsh-cli`; open a new shell, then run it from your project directory.
 To update this fork, rebuild and reinstall the tarball. `/update` uses the registry.
+
+Use the named `@askdkc/dsh-cli@file:...` form for local tarball updates. A bare
+tarball path can fail with `ENOENT` when pnpm resolves a previous `file:` dependency
+whose archive has been deleted. `TARBALL` holds the archive's absolute path; pass
+it to the install command instead of executing it.
 
 For PATH setup and install issues, see [Getting started](docs/getting-started.en.md).
 

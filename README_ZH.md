@@ -57,13 +57,17 @@ node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
 TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
 
 cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh plugin --profile dsh-cli add "@askdkc/dsh-cli@file:${TARBALL}"
 pnpm dsh --profile dsh-cli
 ```
 
 将 `~/DIR/TO/deepseek-harness` 换成实际检出路径。首次交互启动会注册
 `dsh-cli`；打开新终端后，即可从项目目录运行。更新本 fork 时，请重新构建
 并安装 tarball。`/update` 会从 registry 更新。
+
+更新本地 tarball 时，使用带包名的 `@askdkc/dsh-cli@file:...` 格式。只传入 tarball
+路径时，pnpm 可能先解析旧的 `file:` 依赖；若旧归档已删除，就会报 `ENOENT`。
+`TARBALL` 保存归档的绝对路径，应传给安装命令，不要直接执行它。
 
 PATH 设置与安装问题见[安装指南](docs/getting-started.md)。
 

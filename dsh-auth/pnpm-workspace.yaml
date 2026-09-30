@@ -41,8 +41,13 @@ overrides:
   '@deepseek-ai/dsh-timeout': 0.2.0-rc.2
   '@deepseek-ai/dsh-typert-protocol': 0.2.0-rc.2
   '@deepseek-ai/dsh-user-questions': 0.2.0-rc.2
+  # OpenCode model list: force the pi-ai catalog past dsh-llm-pi-ai's
+  # ^0.87.1 pin to the latest verified list (0.99.1). Mirrors the parent
+  # repo override; dsh-auth installs from its own directory.
+  '@earendil-works/pi-ai': 0.99.1
 
 # Prereleases can be younger than pnpm 11 default 24h minimumReleaseAge;
 # exempt the whole scope (name patterns cannot carry a version spec).
 minimumReleaseAgeExclude:
   - '@deepseek-ai/*'
+  - '@earendil-works/pi-ai@0.99.1'

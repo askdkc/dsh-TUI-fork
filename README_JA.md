@@ -57,7 +57,7 @@ node scripts/with-publish-manifest.mjs npm pack --ignore-scripts
 TARBALL="$PWD/askdkc-dsh-cli-$(node -p "require('./package.json').version").tgz"
 
 cd ~/DIR/TO/deepseek-harness
-pnpm dsh plugin --profile dsh-cli add "$TARBALL"
+pnpm dsh plugin --profile dsh-cli add "@askdkc/dsh-cli@file:${TARBALL}"
 pnpm dsh --profile dsh-cli
 ```
 
@@ -65,6 +65,11 @@ pnpm dsh --profile dsh-cli
 初回の対話型起動で `dsh-cli` が登録されます。新しいシェルを開けば、
 プロジェクトのディレクトリから起動できます。この fork を更新するときは
 tarball を再ビルドして再インストールしてください。`/update` は registry から更新します。
+
+ローカルの tarball を更新するときは、パッケージ名付きの `@askdkc/dsh-cli@file:...` 形式を使ってください。
+tarball のパスだけを渡すと、pnpm が以前の `file:` 依存を先に解決し、削除済みのアーカイブを
+読み込もうとして `ENOENT` になる場合があります。`TARBALL` はアーカイブの絶対パスを保存する変数です。
+直接実行せず、インストールコマンドの引数として渡してください。
 
 PATH の設定やインストール時の問題は[インストールガイド](docs/getting-started.en.md)を参照してください。
 
