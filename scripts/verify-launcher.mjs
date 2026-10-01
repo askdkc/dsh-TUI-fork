@@ -322,7 +322,7 @@ mkdirSync(projectDir)
 writeFileSync(join(sourceCli, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh', type: 'module' }))
 writeFileSync(join(sourceCli, 'lib', 'bin.js'), `#!/usr/bin/env node
 import { appendFileSync } from 'node:fs'
-appendFileSync(process.env.DSH_STUB_LOG, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd() }) + '\\n')
+appendFileSync(process.env.DSH_STUB_LOG, JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd(), resume: process.env.DSH_TUI_RESUME_SESSION }) + '\\n')
 if (process.argv[2] === '--version') console.log('0.1.7-rc.2')
 `)
 setProfileVersion(ownVersion)
@@ -331,6 +331,13 @@ r = runBin(['a b'], { ...envNoDsh, DSH_TUI_DSH_ROOT: sourceRoot }, { cwd: projec
 const sourceCalls = readFileSync(stubLog, 'utf8').trim().split('\n').map(line => JSON.parse(line))
 check('source clone: launches without dsh on PATH', r.status === 0 && sourceCalls.length === 2)
 check('source clone: keeps caller cwd and args', sourceCalls.at(-1)?.cwd === realpathSync(projectDir) && JSON.stringify(sourceCalls.at(-1)?.args) === JSON.stringify(['--profile', PROFILE, 'a b']))
+const resumeSession = '00000000-0000-4000-8000-000000000001'
+resetStubLog()
+r = runBin([], { ...envNoDsh, DSH_TUI_DSH_ROOT: sourceRoot, DSH_TUI_RESUME_SESSION: resumeSession }, { cwd: projectDir })
+const resumedCalls = readFileSync(stubLog, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+check('resume hint: launcher preserves session and profile without dsh on PATH',
+  r.status === 0 && resumedCalls.at(-1)?.resume === resumeSession
+    && JSON.stringify(resumedCalls.at(-1)?.args) === JSON.stringify(['--profile', PROFILE]))
 resetStubLog()
 r = runBin([], { ...envNoDsh, DSH_TUI_DSH_ROOT: 'relative/path' }, { cwd: projectDir })
 check('source clone: rejects relative root before launch', r.status === 1 && r.stderr.includes('DSH_TUI_DSH_ROOT') && readFileSync(stubLog, 'utf8') === '')

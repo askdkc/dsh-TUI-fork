@@ -32,7 +32,7 @@ import { readEffortPref } from '../effortPrefs.js'
 import { composePreset, filterMinimalPresetTools, resolvePersistedPreset, resolvePersistedRoute, runningPresetOf } from './presets.js'
 import { registerBundledPresets } from './bundled-presets.js'
 import { registerTuiSessionEventTypes, snapshotLiveSessionEvents } from './compat/index.js'
-import { clearResumeTarget, resumeTargetFromArgv, writeResumeTarget } from '../sessionHistory.js'
+import { clearResumeTarget, resumeCommand, resumeTargetFromArgv, writeResumeTarget } from '../sessionHistory.js'
 import { readHomePrefs } from '../homePrefs.js'
 import { resolveSessionCwd } from '../utils/workspaceRoot.js'
 import { beginRestartAttempt, checkForTuiUpdate, installedTuiVersion, isBootDeadlockTarget, isStandaloneRuntime, isVersionNewer, logRestartEvent, resolveDshProfileName, resolveTuiUpdateTarget, restartTui, updateTuiAndRestart, writeHandoffNotice } from '../update.js'
@@ -2151,21 +2151,6 @@ export function handleStartupError(ctx: Context, error: unknown): void {
  */
 function disposeRootAndExit(ctx: Context, code: number): void {
   disposeRootAndThen(ctx, () => process.exit(code), code)
-}
-
-/**
- * The real way back into a session after the TUI process is gone. The
- * package ships no `dsh-tui` bin — resuming means feeding the session id
- * through `DSH_TUI_RESUME_SESSION` (what cordis.patch.yml's `sessionId`
- * reads) and
- * booting the same profile; on Windows the repo's dsh-tui.cmd wrapper
- * does this via --resume + ~/.dsh-tui/resume.txt.
- */
-function resumeCommand(profile: string | undefined, sessionId: string): string {
-  const boot = profile === undefined ? 'dsh --config cordis.yml' : `dsh --profile ${profile}`
-  return process.platform === 'win32'
-    ? `dsh-tui --resume ${sessionId}`
-    : `DSH_TUI_RESUME_SESSION=${sessionId} ${boot}`
 }
 
 /**

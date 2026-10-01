@@ -18,6 +18,15 @@ const LAST_USED_FILE = join(DIR, 'last-used.json')
 let lastUsedStamp: string | undefined
 let lastUsedCache: Readonly<Record<string, number>> | undefined
 
+/** Render exit and fork guidance using the installed CLI for its own profile. */
+export function resumeCommand(profile: string | undefined, sessionId: string, platform = process.platform): string {
+  const boot = profile === 'dsh-cli' ? 'dsh-cli'
+    : profile === undefined ? 'dsh --config cordis.yml' : `dsh --profile ${profile}`
+  return platform === 'win32'
+    ? `${boot} --resume ${sessionId}`
+    : `DSH_TUI_RESUME_SESSION=${sessionId} ${boot}`
+}
+
 function lastUsedFileStamp(): string | undefined {
   try {
     const stats = statSync(LAST_USED_FILE)

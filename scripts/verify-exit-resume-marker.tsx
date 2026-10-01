@@ -17,12 +17,27 @@
  * user/message injected by a non-user source does not count.
  */
 const { isExitResumable } = await import('../src/dsh-adapter/plugin.js')
+const { resumeCommand } = await import('../src/sessionHistory.js')
 
 let failed = 0
 const check = (name: string, ok: boolean) => {
   console.log(`${ok ? 'PASS' : 'FAIL'}: ${name}`)
   if (!ok) failed++
 }
+
+const sessionId = '00000000-0000-4000-8000-000000000001'
+for (const platform of ['darwin', 'linux'] as const) {
+  check(`${platform}: installed CLI resume hint uses dsh-cli`,
+    resumeCommand('dsh-cli', sessionId, platform) === `DSH_TUI_RESUME_SESSION=${sessionId} dsh-cli`)
+  check(`${platform}: custom profile stays selected`,
+    resumeCommand('custom', sessionId, platform) === `DSH_TUI_RESUME_SESSION=${sessionId} dsh --profile custom`)
+  check(`${platform}: source launch retains its config`,
+    resumeCommand(undefined, sessionId, platform) === `DSH_TUI_RESUME_SESSION=${sessionId} dsh --config cordis.yml`)
+}
+check('Windows: installed CLI uses supported resume flag',
+  resumeCommand('dsh-cli', sessionId, 'win32') === `dsh-cli --resume ${sessionId}`)
+check('Windows: custom profile stays selected',
+  resumeCommand('custom', sessionId, 'win32') === `dsh --profile custom --resume ${sessionId}`)
 
 // Minimal structural fakes — the helper only reads session.events.
 let seq = 0

@@ -4,6 +4,7 @@ import { SessionId, type Session, type SessionEvent } from '@deepseek-ai/dsh-ses
 import { randomUUID } from 'node:crypto'
 import { t } from '../../i18n.js'
 import { resolveDshProfileName } from '../../update.js'
+import { resumeCommand } from '../../sessionHistory.js'
 import { appendSessionTitle, liveSessionCreateOptions, sliceLiveSessionSeed } from '../compat/index.js'
 import { composePreset, runningPresetOf } from '../presets.js'
 import { attachSessionToWorkspace } from '../workspace.js'
@@ -103,10 +104,7 @@ export function createForkSessionAction(
       reservation.abandon()
     }
     const profile = resolveDshProfileName()
-    const boot = profile === undefined ? 'dsh --config cordis.yml' : `dsh --profile ${profile}`
-    const command = process.platform === 'win32'
-      ? `dsh-tui --resume ${childId}`
-      : `DSH_TUI_RESUME_SESSION=${childId} ${boot}`
+    const command = resumeCommand(profile, String(childId))
     deps.notify(t('fork-done', { id: String(childId), command }), { timeoutMs: 8000 })
     return true
   }

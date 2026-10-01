@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { OpenCodeCatalog, normalizeCatalog, parseSnapshot, rosterIds, fetchCatalogJson } from '../lib/opencode-catalog.js'
 import { OpenCodeAdapter } from '../lib/opencode-adapter.js'
 import { CredentialFile } from '../lib/credentials.js'
+import { OPEN_CODE_SNAPSHOTS } from '../lib/opencode-owned.generated.js'
+import { AssistantStreamAccumulator, expandAssistantStream } from '@deepseek-ai/dsh-llm'
 const raw = (npm = '@ai-sdk/openai-compatible') => ({ npm, models: { 'future-model': { name: 'Future', limit: { context: 100000, output: 4000 }, modalities: { input: ['text', 'image'], output: ['text'] }, tool_call: true, reasoning: true, temperature: true, reasoning_options: [{ type: 'effort', values: ['low', 'high'] }] } } })
 const snapshot = (route = 'opencode', npm) => normalizeCatalog(route, ['future-model'], raw(npm), Date.now())
 const listing = ids => ({ data: ids.map(id => ({ id })) })
@@ -57,7 +59,7 @@ test('Chat Completions future id streams tool arguments, reasoning, usage and ow
   const catalog = new OpenCodeCatalog('opencode', snapshot(), { directory })
   const adapter = new OpenCodeAdapter({ catalogs: new Map([['opencode', catalog]]), store, fetcher })
   try {
-    const chunks = []; for await (const chunk of adapter.stream({ provider: 'opencode', model: 'future-model', sessionId: 'session-1', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [{ name: 'search', description: 'search', parameters: { type: 'object' } }] })) chunks.push(chunk)
+    const chunks = await collect(adapter.stream({ provider: 'opencode', model: 'future-model', sessionId: 'session-1', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [{ name: 'search', description: 'search', parameters: { type: 'object' } }] }))
     assert.equal(request.url, 'https://opencode.ai/zen/v1/chat/completions'); assert.equal(request.body.model, 'future-model')
     assert.equal(request.headers.get('authorization'), 'Bearer fixture-key'); assert.equal(request.headers.get('x-opencode-session'), 'session-1'); assert(request.headers.get('user-agent'))
     assert.equal(chunks.filter(chunk => chunk.type === 'tool-call-delta').map(chunk => chunk.argumentsDelta).join(''), '{"q":"x"}')
@@ -99,7 +101,7 @@ for (const [npm, suffix, events] of [
   }
   const catalog = new OpenCodeCatalog(route, snapshot(route, npm), { directory }); const adapter = new OpenCodeAdapter({ catalogs: new Map([[route, catalog]]), store, fetcher })
   try {
-    const chunks = []; for await (const chunk of adapter.stream({ provider: route, model: 'future-model', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] })) chunks.push(chunk)
+    const chunks = await collect(adapter.stream({ provider: route, model: 'future-model', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }))
     assert.equal(request.url, `https://opencode.ai/zen${route === 'opencode-go' ? '/go' : ''}/v1${suffix}`)
     assert(request.headers.get('x-opencode-session')); assert(request.headers.get('user-agent'))
     assert(chunks.some(chunk => chunk.type === 'text-delta' && chunk.text === 'answer'))
@@ -111,12 +113,42 @@ import { encodePrompt } from '../lib/opencode-codec.js'
 import { projectReplay } from '../lib/opencode-replay.js'
 import { createDshAuthApi } from '../lib/service.js'
 import { createAuthCommandHandler } from '../lib/command.js'
-const collect = async stream => { const chunks = []; for await (const chunk of stream) chunks.push(chunk); return chunks }
+async function collect(stream) {
+  const accumulator = new AssistantStreamAccumulator()
+  const chunks = []
+  for await (const chunk of stream) chunks.push(accumulator.push({ time: chunks.length, chunk }).chunk)
+  assert.deepEqual(expandAssistantStream(accumulator.snapshot()).map(item => item.chunk), chunks)
+  return chunks
+}
+
+for (const usage of [undefined, { prompt_tokens: 2, completion_tokens: 1 }, {
+  prompt_tokens: 2, completion_tokens: 1,
+  prompt_tokens_details: { cached_tokens: 0 }, completion_tokens_details: { reasoning_tokens: 0 },
+}]) test(`DeepSeek chat stream persists with optional usage ${JSON.stringify(usage)}`, async () => {
+  await environment(undefined, async () => sse([
+    { choices: [{ index: 0, delta: { reasoning_content: 'thinking' }, finish_reason: null }] },
+    { choices: [{ index: 0, delta: { content: 'answer' }, finish_reason: 'stop' }], ...(usage ? { usage } : {}) },
+  ]), async ({ adapter }) => {
+    const chunks = await collect(adapter.stream({ provider: 'opencode', model: 'deepseek-v4-flash', messages: [] }))
+    const tokens = chunks.find(chunk => chunk.type === 'usage').usage
+    const response = chunks.at(-1).replayState.response
+    assert.equal(Object.hasOwn(response, 'responseId'), false)
+    assert.equal(Object.hasOwn(tokens, 'cacheWriteTokens'), false)
+    // The compatible SDK supplies zero cache/reasoning counts when usage is present.
+    assert.equal(Object.hasOwn(tokens, 'cacheReadTokens'), Boolean(usage))
+    assert.equal(Object.hasOwn(tokens, 'reasoningTokens'), Boolean(usage))
+    if (usage) {
+      assert.equal(tokens.cacheReadTokens, 0)
+      assert.equal(tokens.reasoningTokens, 0)
+    }
+    assert.equal(chunks.at(-1).reason.kind, 'stop')
+  }, OPEN_CODE_SNAPSHOTS.opencode)
+})
 const chatReply = () => sse([{ id: 'response', choices: [{ index: 0, delta: { content: 'answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } }])
-async function environment(npm, fetcher, body) {
+async function environment(npm, fetcher, body, owned = snapshot('opencode', npm)) {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-owned-')); const store = new CredentialFile(join(directory, 'keys.json'))
   await store.modify('opencode', async () => ({ type: 'api_key', key: 'fixture-key' }))
-  const catalog = new OpenCodeCatalog('opencode', snapshot('opencode', npm), { directory })
+  const catalog = new OpenCodeCatalog('opencode', owned, { directory })
   const adapter = new OpenCodeAdapter({ catalogs: new Map([['opencode', catalog]]), store, fetcher })
   try { await body({ directory, store, catalog, adapter }) } finally { catalog.dispose(); await rm(directory, { recursive: true, force: true }) }
 }

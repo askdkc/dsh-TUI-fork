@@ -109,11 +109,20 @@ export class OpenCodeAdapter extends LlmAdapter {
         if (part.type === 'finish') {
           for (const entry of blocks.values()) if (!entry.ended) { entry.ended = true; yield { type: 'block-end', index: entry.index, block: entry.block } }
           const input = part.usage.inputTokens; const output = part.usage.outputTokens
-          yield { type: 'usage', usage: { inputTokens: input.noCache ?? Math.max(0, (input.total ?? 0) - (input.cacheRead ?? 0) - (input.cacheWrite ?? 0)), outputTokens: output.total ?? 0, cacheReadTokens: input.cacheRead, cacheWriteTokens: input.cacheWrite, reasoningTokens: output.reasoning, ...(input.total !== undefined && output.total !== undefined ? { totalTokens: input.total + output.total } : {}) } }
+          // DSH snapshots chunks losslessly: optional SDK values must be absent,
+          // not own properties containing undefined. Preserve reported zeroes.
+          yield { type: 'usage', usage: {
+            inputTokens: input.noCache ?? Math.max(0, (input.total ?? 0) - (input.cacheRead ?? 0) - (input.cacheWrite ?? 0)),
+            outputTokens: output.total ?? 0,
+            ...(input.cacheRead !== undefined ? { cacheReadTokens: input.cacheRead } : {}),
+            ...(input.cacheWrite !== undefined ? { cacheWriteTokens: input.cacheWrite } : {}),
+            ...(output.reasoning !== undefined ? { reasoningTokens: output.reasoning } : {}),
+            ...(input.total !== undefined && output.total !== undefined ? { totalTokens: input.total + output.total } : {}),
+          } }
           if (!blocks.size) throw new LlmError('OpenCode returned no content', 'EMPTY_RESPONSE')
           const finish = part.finishReason.unified
           if (finish === 'error' || finish === 'content-filter' || finish === 'other') throw new LlmError(`OpenCode generation ended: ${finish}`, 'PROVIDER_ERROR')
-          yield { type: 'finish', reason: { kind: finish === 'tool-calls' ? 'tool-calls' : finish === 'length' ? 'max-tokens' : 'stop' }, replayState: { response: { kind: 'dsh-opencode', version: 1, protocol: descriptor.protocol, provider: options.provider, model: descriptor.id, responseId }, blocks: [...blocks.values()].map(entry => ({ type: entry.block.type, ...(entry.providerOptions ? { providerOptions: entry.providerOptions } : {}) })) } }
+          yield { type: 'finish', reason: { kind: finish === 'tool-calls' ? 'tool-calls' : finish === 'length' ? 'max-tokens' : 'stop' }, replayState: { response: { kind: 'dsh-opencode', version: 1, protocol: descriptor.protocol, provider: options.provider, model: descriptor.id, ...(responseId !== undefined ? { responseId } : {}) }, blocks: [...blocks.values()].map(entry => ({ type: entry.block.type, ...(entry.providerOptions ? { providerOptions: entry.providerOptions } : {}) })) } }
           return
         }
       }
