@@ -475,7 +475,7 @@ const subagentRows = (channel: { rows: Array<{ kind: string }> }) => channel.row
     seq: 0,
     time: 0,
     data: role === 'user'
-      ? { content: [{ type: 'text', text }] }
+      ? { source: { kind: 'user' }, content: [{ type: 'text', text }] }
       : { message: { content: [{ type: 'text', text }] } },
   })
   const events = [1, 2, 3, 4, 5, 6].map(n => message(n % 2 === 0 ? 'assistant' : 'user', `msg${n}-`.repeat(1500)))
