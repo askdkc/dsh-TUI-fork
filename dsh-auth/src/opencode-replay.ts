@@ -28,11 +28,15 @@ function completeResponseSignatures(blocks: (SharedV4ProviderOptions | undefined
   }
 }
 const APIS = { messages: 'anthropic-messages', responses: 'openai-responses', chat: 'openai-completions', google: 'google-generative-ai' }
-export interface ReplayProjection { blocks: (SharedV4ProviderOptions | undefined)[]; callIds: Map<string, string>; trusted: boolean }
+export interface ReplayProjection { blocks: (SharedV4ProviderOptions | undefined)[]; callIds: Map<string, string>; trusted: boolean; foreign: boolean }
 /** Validate the entire aligned envelope before restoring any signature or item id. */
 export function projectReplay(source: unknown, content: readonly ContentBlock[], model: OpenCodeModel, route: string, warn?: (reason: string) => void): ReplayProjection {
-  const empty = (): ReplayProjection => ({ blocks: content.map(() => undefined), callIds: new Map(), trusted: false })
   const message = record(source); const envelope = record(message?.replayState)
+  // A model switch deliberately discards provider-specific replay data. It is
+  // distinct from a damaged native envelope, whose signature checks still apply.
+  const foreign = typeof message?.provider === 'string' && !!message.provider && typeof message.model === 'string' && !!message.model && (message.provider !== route || message.model !== model.id)
+  const empty = (): ReplayProjection => ({ blocks: content.map(() => undefined), callIds: new Map(), trusted: false, foreign })
+  if (foreign) return empty()
   if (!envelope) { if (message?.replayState !== undefined) warn?.('OpenCode history: malformed replay envelope; retaining message content'); return empty() }
   try {
     const response = record(envelope.response)
@@ -91,7 +95,7 @@ export function projectReplay(source: unknown, content: readonly ContentBlock[],
       return undefined
     })
     if (model.protocol === 'responses') completeResponseSignatures(blocks, content)
-    return { blocks, callIds, trusted: true }
+    return { blocks, callIds, trusted: true, foreign: false }
   } catch (error) {
     warn?.(`OpenCode history: ${error instanceof Error ? error.message : 'invalid replay'}; retaining message content`)
     return empty()

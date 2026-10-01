@@ -147,12 +147,97 @@ for (const usage of [undefined, { prompt_tokens: 2, completion_tokens: 1 }, {
 const chatReply = () => sse([{ id: 'response', choices: [{ index: 0, delta: { content: 'answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } }])
 async function environment(npm, fetcher, body, owned = snapshot('opencode', npm)) {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-owned-')); const store = new CredentialFile(join(directory, 'keys.json'))
-  await store.modify('opencode', async () => ({ type: 'api_key', key: 'fixture-key' }))
-  const catalog = new OpenCodeCatalog('opencode', owned, { directory })
-  const adapter = new OpenCodeAdapter({ catalogs: new Map([['opencode', catalog]]), store, fetcher })
+  await store.modify(owned.provider, async () => ({ type: 'api_key', key: 'fixture-key' }))
+  const catalog = new OpenCodeCatalog(owned.provider, owned, { directory })
+  const adapter = new OpenCodeAdapter({ catalogs: new Map([[owned.provider, catalog]]), store, fetcher })
   try { await body({ directory, store, catalog, adapter }) } finally { catalog.dispose(); await rm(directory, { recursive: true, force: true }) }
 }
 const history = (api, blocks, signatures) => ({ role: 'assistant', content: blocks, source: { provider: 'opencode', model: 'future-model', replayState: { response: { kind: 'pi-ai', version: 2, provider: 'opencode', model: 'future-model', api, responseId: 'reply_old', stopReason: 'toolUse' }, blocks: signatures } } })
+test('switching from DeepSeek to Muse contributor streams a complete JSON-safe answer at high effort', async () => {
+  const model = 'muse-spark-1.3-contributor'; let request
+  await environment('@ai-sdk/openai', async (_url, init) => {
+    request = JSON.parse(init.body)
+    return sse([
+      { type: 'response.created', response: { id: 'resp_muse', model, created_at: 1 } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'msg_muse', role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, item_id: 'msg_muse', delta: 'new answer' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'msg_muse', role: 'assistant', content: [{ type: 'output_text', text: 'new answer', annotations: [] }], status: 'completed' } },
+      { type: 'response.completed', response: { id: 'resp_muse', model, status: 'completed', usage: { input_tokens: 10, output_tokens: 3 } } },
+    ])
+  }, async ({ adapter }) => {
+    const chunks = await collect(adapter.stream({ provider: 'opencode-go', model, reasoningEffort: 'high', messages: [
+      { role: 'assistant', source: { provider: 'opencode', model: 'deepseek-v4-flash' }, content: [{ type: 'reasoning', text: 'previous thought' }, { type: 'text', text: 'previous answer' }] },
+      { role: 'user', content: [{ type: 'text', text: 'continue' }] },
+    ] }))
+    assert.equal(request.model, model); assert.equal(request.reasoning.effort, 'high')
+    assert(!JSON.stringify(request.input).includes('previous thought'))
+    assert(JSON.stringify(request.input).includes('previous answer'))
+    assert.equal(chunks.at(-1).reason.kind, 'stop')
+    assert(chunks.some(chunk => chunk.type === 'block-end' && chunk.block.text === 'new answer'))
+  }, OPEN_CODE_SNAPSHOTS['opencode-go'])
+})
+for (const change of ['model', 'provider']) test(`Responses model switch (${change}) retains answers and paired tools without foreign reasoning`, async () => {
+  const message = history('openai-responses', [
+    { type: 'reasoning', text: 'foreign thought' }, { type: 'text', text: 'previous answer' },
+    { type: 'tool-call', id: 'call_old|opaque_item_id', name: 'search', arguments: '{"q":"x"}' },
+  ], [{ type: 'reasoning', thinkingSignature: JSON.stringify({ type: 'reasoning', id: 'rs_old', encrypted_content: 'foreign-secret' }) }, { type: 'text', textSignature: 'foreign-message' }, { type: 'tool-call' }])
+  message.source[change] = 'previous'
+  message.source.replayState.response[change] = 'previous'
+  const messages = [message, { role: 'tool', toolCallId: 'call_old|opaque_item_id', content: [{ type: 'text', text: 'result' }] }, { role: 'user', content: [{ type: 'text', text: 'continue' }] }]
+  const original = structuredClone(messages)
+  let request
+  await environment('@ai-sdk/openai', async (_url, init) => { request = JSON.parse(init.body); throw new Error('request inspected') }, async ({ adapter }) => {
+    await assert.rejects(collect(adapter.stream({ provider: 'opencode', model: 'future-model', messages })))
+  })
+  assert(request, 'model switch must reach the transport')
+  assert(!JSON.stringify(request).includes('foreign'))
+  assert(request.input.some(item => item.role === 'assistant' && item.content === 'previous answer'))
+  const call = request.input.find(item => item.type === 'function_call')
+  assert.equal(call.name, 'search'); assert.equal(call.arguments, '{"q":"x"}')
+  assert.match(call.call_id, /^[a-zA-Z0-9_-]+$/)
+  assert.equal(call.id, undefined)
+  assert.equal(request.input.find(item => item.type === 'function_call_output').call_id, call.call_id)
+  assert.deepEqual(messages, original)
+})
+for (const npm of ['@ai-sdk/openai', '@ai-sdk/anthropic', '@ai-sdk/google', '@ai-sdk/openai-compatible']) test(`${npm} omits foreign reasoning-only turns, without requiring replay metadata`, async () => {
+  const messages = [
+    { role: 'assistant', source: { provider: 'previous', model: 'previous' }, content: [{ type: 'reasoning', text: 'foreign thought' }] },
+    { role: 'assistant', source: { provider: 'previous', model: 'previous' }, content: [{ type: 'reasoning', text: 'foreign thought' }, { type: 'text', text: 'answer' }] },
+    { role: 'user', content: [{ type: 'text', text: 'continue' }] },
+  ]
+  const original = structuredClone(messages)
+  const prompt = await encodePrompt({ provider: 'opencode', model: 'future-model', messages }, snapshot('opencode', npm).models[0])
+  assert.equal(prompt.length, 2)
+  assert.deepEqual(prompt[0].content.map(part => part.type), ['text'])
+  assert.equal(prompt[0].content[0].text, 'answer')
+  assert.deepEqual(messages, original)
+})
+for (const npm of ['@ai-sdk/openai', '@ai-sdk/anthropic', '@ai-sdk/google', '@ai-sdk/openai-compatible']) test(`${npm} no effort support sends no effort and rejects explicit unsupported levels before fetching`, async () => {
+  const data = raw(npm); data.models['future-model'].reasoning_options = []
+  let request; let calls = 0
+  await environment(npm, async (_url, init) => { calls++; request = JSON.parse(init.body); throw new Error('request inspected') }, async ({ adapter }) => {
+    assert.equal((await adapter.resolveModel('opencode', 'future-model')).reasoning, undefined)
+    await assert.rejects(collect(adapter.stream({ provider: 'opencode', model: 'future-model', reasoningEffort: 'high', messages: [] })), error => error.code === 'UNSUPPORTED_CAPABILITY')
+    assert.equal(calls, 0)
+    await assert.rejects(collect(adapter.stream({ provider: 'opencode', model: 'future-model', messages: [] })))
+    assert.equal(calls, 1)
+    assert.equal(request.reasoning?.effort, undefined)
+    assert.equal(request.reasoning_effort, undefined)
+    assert.equal(request.output_config?.effort, undefined)
+    assert.equal(request.generationConfig?.thinkingConfig?.thinkingLevel, undefined)
+  }, normalizeCatalog('opencode', ['future-model'], data, Date.now()))
+})
+test('native or unidentified reasoning still requires verified Responses replay metadata', async () => {
+  for (const source of [undefined, { provider: 'opencode', model: 'future-model' }, { provider: 'opencode', model: 'future-model', replayState: { response: { provider: 'other', model: 'other' }, blocks: [] } }]) {
+    await assert.rejects(encodePrompt({ provider: 'opencode', model: 'future-model', messages: [
+      { role: 'assistant', ...(source ? { source } : {}), content: [{ type: 'reasoning', text: 'native thought' }] },
+    ] }, snapshot('opencode', '@ai-sdk/openai').models[0]), error => error.code === 'INVALID_REPLAY_STATE')
+  }
+})
+test('Responses call ids cannot collide across distinct native history messages', async () => {
+  const messages = ['item_one', 'item_two'].map(item => history('openai-responses', [{ type: 'tool-call', id: `same_call|${item}`, name: 'search', arguments: '{}' }], [{ type: 'tool-call' }]))
+  await assert.rejects(encodePrompt({ provider: 'opencode', model: 'future-model', messages }, snapshot('opencode', '@ai-sdk/openai').models[0]), /Duplicate wire tool call id/)
+})
 for (const [npm, api, blocks, signatures, verify] of [
   ['@ai-sdk/anthropic', 'anthropic-messages', [{ type: 'reasoning', text: 'old thought' }, { type: 'tool-call', id: 'call_old', name: 'search', arguments: '{"q":"x"}' }], [{ type: 'reasoning', thinkingSignature: 'signed_old' }, { type: 'tool-call' }], body => { assert.equal(body.messages[0].content[0].signature, 'signed_old'); assert.equal(body.messages[0].content[1].id, 'call_old'); assert.equal(body.messages[1].content[0].tool_use_id, 'call_old') }],
   ['@ai-sdk/openai', 'openai-responses', [{ type: 'reasoning', text: 'old thought' }, { type: 'text', text: 'old answer' }, { type: 'tool-call', id: 'call_old|opaque_item_id', name: 'search', arguments: '{"q":"x"}' }], [{ type: 'reasoning', thinkingSignature: JSON.stringify({ type: 'reasoning', id: 'rs_old', encrypted_content: 'encrypted_old', summary: [{ type: 'summary_text', text: 'old thought' }] }) }, { type: 'text', textSignature: '{"v":1,"id":"msg_old","phase":"commentary"}' }, { type: 'tool-call' }], body => { assert.equal(body.store, false); assert.equal(body.reasoning.effort, 'high'); assert(body.include.includes('reasoning.encrypted_content')); assert.equal(body.input[0].encrypted_content, 'encrypted_old'); assert.equal(body.input[1].phase, 'commentary'); const call = body.input.find(item => item.type === 'function_call'); assert.equal(call.call_id, 'call_old'); assert.equal(call.id, 'opaque_item_id'); assert.equal(body.input.at(-1).call_id, 'call_old') }],
