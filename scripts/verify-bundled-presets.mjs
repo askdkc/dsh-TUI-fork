@@ -32,10 +32,8 @@ function harness(declared = []) {
   return { ctx: makeContext(new URL('../cordis.patch.yml', import.meta.url).href), registrations, effects, disposed }
 }
 
-assert.equal(await registerBundledPresets({ get: () => ({ list() {} }) }), false,
-  'legacy directory discovery remains on its existing path')
 const fresh = harness()
-assert.equal(await registerBundledPresets(fresh.ctx), true)
+await registerBundledPresets(fresh.ctx)
 assert.deepEqual(fresh.registrations.map(row => row.definition.id), ['standard', 'ptc', 'minimal', 'cordis', 'liangshen'])
 const standard = fresh.registrations[0]
 assert.match(standard.baseUrl, /standard\.patch\.yml$/u)
@@ -52,7 +50,7 @@ assert.deepEqual(fresh.disposed, ['standard', 'ptc', 'minimal', 'cordis', 'liang
 const mixed = harness(['standard', 'ptc', 'minimal', 'cordis', 'liangshen'].map(id => ({
   disabled: false, options: { name: '@deepseek-ai/dsh-agent-preset', config: { id } },
 })))
-assert.equal(await registerBundledPresets(mixed.ctx), true)
+await registerBundledPresets(mixed.ctx)
 assert.deepEqual(mixed.registrations, [], 'profile declarations own their seats before activation completes')
 const disabled = harness([{ disabled: true, options: { name: '@deepseek-ai/dsh-agent-preset', config: { id: 'standard' } } }])
 await registerBundledPresets(disabled.ctx)
@@ -125,4 +123,4 @@ try {
   await runtime.fiber.dispose()
   rmSync(relocatedRoot, { recursive: true, force: true })
 }
-console.log('bundled presets OK (official definitions, expressions, ownership, legacy, relocated Include, metadata, disposal)')
+console.log('bundled presets OK (official definitions, expressions, ownership, relocated Include, metadata, disposal)')

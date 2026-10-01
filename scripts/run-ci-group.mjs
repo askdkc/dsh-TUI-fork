@@ -347,7 +347,6 @@ const GROUPS = {
 // load() 抛 SessionFormatUnsupportedError（原样复现 issue）、注册后
 // 放行；日志字节与 0600 权限绝不被改写；非白名单未知类型保持拒读
 // （上游 fail-closed 新格式保护不破）。
-    ["verify-resume-legacy-events", ['node', 'scripts/verify-resume-legacy-events.mjs']],
 // 会话 cwd 回归（issue #96）：启动目录向上解析 git 仓库根（普通克隆
 // 与 .git 文件 worktree 均覆盖、dotfiles ~/.git 守卫），/resume 过滤
 // 双向兼容升级前记录的子目录会话，$HOME/盘符根容器目录只精确匹配
@@ -407,7 +406,7 @@ const GROUPS = {
     ["verify-resume-route", ['node', 'scripts/verify-resume-route.mjs']],
 // /resume 任意深度重命名回归：会话索引取消了标题解析窗口，最旧的一条
 // 也必须解析出自己的标题、改名后立即显示新名。stub 只提供 list（不给
-// listSnapshots/locate），因此同时覆盖降级路径。
+// locate），因此同时覆盖当前非文件后端的发现路径。
     ["verify-resume-rename-mru", ['node', 'scripts/verify-resume-rename-mru.mjs']],
 // 会话种类与视图真值表：origin 判子 agent、parentSession 单独出现是
 // /rewind 分叉（不能一起过滤掉）、空会话只计数不列出、搜索/分组/
@@ -505,12 +504,12 @@ const GROUPS = {
 // installModelSelection、#34 的投递异步化都没被它们拦下），挂进来
 // 防再腐烂。
     ["verify-submit", ['node', '--import', 'tsx/esm', 'scripts/verify-submit.mjs']],
-    ['verify-shell-compat', ['node', 'scripts/verify-shell-compat.mjs']],
-    ['verify-agent-lifecycle-compat', ['node', 'scripts/verify-agent-lifecycle-compat.mjs']],
+    ['verify-shell', ['node', 'scripts/verify-shell.mjs']],
+    ['verify-agent-lifecycle', ['node', 'scripts/verify-agent-lifecycle.mjs']],
     ['verify-bundled-presets', ['node', 'scripts/verify-bundled-presets.mjs']],
     ['verify-preset-startup', ['node', 'scripts/verify-preset-startup.mjs']],
-    ['verify-message-compat', ['node', 'scripts/verify-message-compat.mjs']],
-    ['verify-settings-compat', ['node', '--import', 'tsx/esm', 'scripts/verify-settings-compat.mjs']],
+    ['verify-message-projection', ['node', 'scripts/verify-message-projection.mjs']],
+    ['verify-settings-config', ['node', '--import', 'tsx/esm', 'scripts/verify-settings-config.mjs']],
     ["verify-compact", ['node', '--import', 'tsx/esm', 'scripts/verify-compact.mjs']],
     ["verify-context-warning", ['node', '--import', 'tsx/esm', 'scripts/verify-context-warning.mjs']],
     ["verify-channel-goal-todo", ['node', '--import', 'tsx/esm', 'scripts/verify-channel-goal-todo.mjs']],
@@ -558,8 +557,8 @@ const GROUPS = {
 // 丢上下文"事故根因）；persistence 类失败与通用失败分开提示。
     ["verify-compact-switch", ['node', '--import', 'tsx/esm', 'scripts/verify-compact-switch.tsx']],
     ["verify-live-session", ['node', '--import', 'tsx/esm', 'scripts/verify-live-session.ts']],
-    ["verify-session-v3", ['node', '--import', 'tsx/esm', 'scripts/verify-session-v3.ts']],
-    ["verify-session-tree-generations", ['node', '--import', 'tsx/esm', 'scripts/verify-session-tree-generations.ts']],
+    ["verify-session-storage", ['node', 'scripts/verify-session-storage.mjs']],
+    ["verify-session-runtime", ['node', '--import', 'tsx/esm', 'scripts/verify-session-runtime.ts']],
 // 裸 ● 空行回归：纯思考/纯工具步骤（无文本块）的 assistant/message
 // 不得创建空 assistant 行，否则思考块折叠后转录里多出一个只有
 // ● 前缀、内容为空的行。
@@ -616,7 +615,6 @@ const GROUPS = {
 // 翻转前钉在 settings 用户层的显式 false 首启被 unset 一次（marker 仅在
 // 写入成功后落盘，失败下次自愈重试），此后再写的 false 是用户主动选择
 // 永不触碰；首启 apply 收到的值必须整键缺省而非 false。
-    ["verify-fullscreen-migration", ['node', 'scripts/verify-fullscreen-migration.mjs']],
 // CJK 显示宽度截断回归（issue #41）：4 处描述按终端显示宽度处理，
 // CJK 不劈字、窄终端布局不破。
     ["verify-cjk-truncate", ['node', '--import', 'tsx/esm', 'scripts/verify-cjk-truncate.tsx']],
@@ -738,7 +736,7 @@ const GROUPS = {
 // 白名单名（name/hostId/id 字段可被任意插件拷贝伪造）走 alert-unverified
 // 诚实告知；第三方在位或无身份信息走保守告警。判定为纯函数 + 真实
 // UserQuestionService 端到端。
-    ["verify-question-provider-guard", ['node', '--import', 'tsx/esm', 'scripts/verify-question-provider-guard.tsx']],
+    ["verify-question-routing", ['node', '--import', 'tsx/esm', 'scripts/verify-question-routing.tsx']],
 // secret.ref 保留名单守卫回归：第三方设置区块的 DEEPSEEK_API_KEY /
 // DEEPSEEK_、DSH_ 前缀 ref 在注册层被摘除（其余字段照常）、宿主身份
 // 放行、channel.settingsHost().writeCredential 对保留 ref 抛 i18n 文案

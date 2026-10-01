@@ -2,7 +2,7 @@
  * Subagent stream projection batching regression（外部审计 P0-C）。
  *
  * 真实 cordis Context + 真实 createChannel + 假 agents 服务。向一个
- * 已链接的 subagent session 连发 N 个 assistant/chunk（text-delta），
+ * 已链接的 subagent session 连发 N 个 assistant stream frame（text-delta），
  * 统计 SubagentActivityStore.snapshot 的调用次数（投影次数的精确代理：
  * 每次 snapshot 都伴随一次全量深拷贝 + SubagentRow 重建路径）。
  *
@@ -53,12 +53,13 @@ SubagentActivityStore.prototype.snapshot = function (...args: []) {
 } as typeof SubagentActivityStore.prototype.snapshot
 
 // ── harness：真实 cordis root + 假 agents 服务（含 get） ──
-const childSession = { id: 'child-session', seq: 0, events: [], header: {} }
+const childSession = { id: 'child-session', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }}
+const childAgent = { id: 'child-agent', session: childSession, options: { provider: 'fake-provider', model: 'model-00' } }
 const ctx = new Context()
 ;(ctx as unknown as { provide(name: string, value: unknown): () => void }).provide('agents', {
   get(id: string) {
     return id === 'child-agent'
-      ? { session: childSession, options: { provider: 'fake-provider', model: 'model-00' } }
+      ? childAgent
       : undefined
   },
 })
@@ -68,7 +69,7 @@ const parent = {
   status: 'idle',
   options: {},
   ctx,
-  session: { id: 'parent-session', seq: 0, events: [], header: {} },
+  session: { id: 'parent-session', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }},
   followup() {},
   steer() {},
   inbox: { remove() {} },
@@ -79,10 +80,13 @@ const channel = createChannel(ctx as never, parent, {
 })
 const unregister = registerTuiChannel(ctx, channel)
 const mount = mountChannelUi(ctx, channel, undefined, 'new')
-const emitSessionEvent = (event: unknown) =>
-  (ctx as unknown as { emit(event: string, ...args: unknown[]): void }).emit('session/event', childSession, event)
+let revision = 0
+const emitSessionEvent = (event: any) => {
+  if (event.type === 'stream') ctx.emit('agent/assistant-stream', { agent: childAgent, frame: { type: 'chunk', attemptId: 'child-attempt', revision: ++revision, time: Date.now(), chunk: event.data.chunk } } as never)
+  else (ctx as any).emit('session/event', childSession, event)
+}
 
-const chunk = (text: string) => ({ type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text } } })
+const chunk = (text: string) => ({ type: 'stream', data: { chunk: { type: 'text-delta', text } } })
 
 // ── subagent/start：真实事件路径建立 agentId↔session 链接 ──
 ;(ctx as unknown as { emit(event: string, ...args: unknown[]): void }).emit('subagent/start', {
@@ -135,6 +139,8 @@ check('tool/call 立即投影（不等帧）', toolVisible === true, 'toolCalls=
 // ── 3. chunk 后 16ms 内 end：最终状态同步可见且包含 chunk 数据 ──
 emitSessionEvent(chunk('尾巴'))
 expected += '尾巴'
+// Current hosts persist the settled message before emitting subagent/end.
+emitSessionEvent({ type: 'assistant/message', seq: 1, data: { stream: [], message: { content: [{ type: 'text', text: expected }] } } })
 ;(ctx as unknown as { emit(event: string, ...args: unknown[]): void }).emit('subagent/end', {
   id: 'child-agent', stopReason: 'completed', lastAssistantMessage: [{ type: 'text', text: '最终结论' }],
 })

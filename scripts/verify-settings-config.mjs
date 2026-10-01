@@ -1,7 +1,7 @@
 /**
- * Legacy scopes and 0.1.7 Config-backed settings. Uses source via tsx so the
+ * Current Config-backed settings and profile forms. Uses source via tsx so the
  * same assertions can run with TSX_TSCONFIG_PATH pointing at upstream sources.
- * Run: node --import tsx/esm scripts/verify-settings-compat.mjs
+ * Run: node --import tsx/esm scripts/verify-settings-config.mjs
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -21,14 +21,14 @@ import { DEFAULT_PAGE_MARGIN, DEFAULT_STATUS_BAR, isPageMarginMode, normalizePag
 import { getLang, isLang } from '../src/i18n.ts'
 import { SHORTCUT_ACTIONS, setKeymapOverrides, resetKeymapOverrides, effectiveComboString, parseComboDraft, draftComboConflicts } from '../src/utils/keymap.ts'
 
-const modernSchema = typeof Schema.boolean().volatile === 'function'
+assert.equal(typeof Schema.boolean().volatile, 'function')
 const parsed = Config({ fullscreen: false, whale: false, effortDefault: 'high', statusBar: { model: false } })
 const plain = configValues(parsed)
 assert.equal(plain.fullscreen, false)
 assert.equal(plain.whale, false)
 assert.equal(plain.effortDefault, 'high')
 assert.equal(plain.statusBar.model, false)
-assert.equal(Config.dict.fullscreen.meta.volatile === true, modernSchema)
+assert.equal(Config.dict.fullscreen.meta.volatile, true)
 for (const field of ['sessionId', 'model', 'provider', 'cwd', 'preset']) {
   assert.notEqual(Config.dict[field].meta.volatile, true, `${field} cannot change without agent lifecycle handling`)
 }
@@ -40,8 +40,7 @@ const ctx = { on(event, handler) {
   return () => { update = undefined }
 } }
 let current = { fullscreen: false, diffLayout: 'split' }
-const scope = createSettingsScope(ctx, {}, 'dsh-tui', Schema.object({}), () => current)
-assert.equal(scope.legacy, false)
+const scope = createSettingsScope(ctx, () => current)
 assert.equal(scope.get().fullscreen, false, 'modern profile inline choice is not a legacy migration')
 let observed
 const dispose = scope.watch(value => { observed = value })
@@ -51,39 +50,6 @@ assert.equal(observed, current, 'watch reads the committed config snapshot')
 dispose()
 assert.equal(update, undefined, 'watch has an owned disposer')
 
-let registered = 0
-let legacyWatch
-const legacy = {
-  register(ns, schema) {
-    assert.equal(this, legacy)
-    assert.equal(ns, 'dsh-tui')
-    assert.ok(schema)
-    registered++
-    return { get: () => ({ fullscreen: false }), watch: callback => { legacyWatch = callback; return () => { legacyWatch = undefined } } }
-  },
-}
-const oldScope = createSettingsScope(ctx, legacy, 'dsh-tui', Schema.object({}), () => { throw new Error('legacy host must read its user scope') })
-assert.equal(oldScope.legacy, true)
-assert.equal(registered, 1)
-assert.equal(oldScope.get().fullscreen, false)
-const stopOld = oldScope.watch(value => { observed = value })
-legacyWatch({ fullscreen: true })
-assert.equal(observed.fullscreen, true)
-stopOld()
-assert.equal(legacyWatch, undefined)
-
-// Reproduce the old schema capability without changing the installed framework.
-const oldField = Schema.boolean()
-oldField.volatile = undefined
-const oldConfig = editableConfig(Schema.object({ fullscreen: oldField }), ['fullscreen'])
-assert.notEqual(oldConfig.dict.fullscreen.meta.volatile, true)
-assert.equal(resolveSettingsNamespace({ get: () => legacy }, oldConfig), 'dsh-tui')
-assert.equal(resolveSettingsNamespace({ get: () => undefined }, oldConfig), 'dsh-tui', 'settings remains optional')
-assert.throws(() => resolveSettingsNamespace({ get: () => ({}) }, oldConfig), /schemastery >= 3\.18\.3.*reinstall/)
-
-// Execute the production settings wiring, not a hand-copied listener/merge.
-// Isolate these statements from TTY/agent startup, retaining their real lexical
-// ctx/settingsCtx ownership and watch disposer. Loader itself dispatches events.
 const source = ts.createSourceFile('plugin.ts', readFileSync(new URL('../src/dsh-adapter/plugin.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true)
 let settingsBody
 let namespaceDeclaration, sectionRegistration
@@ -146,7 +112,7 @@ const javascript = ts.transpileModule(`
 `, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
 const bindSettings = dependencies => new Function(...Object.keys(dependencies), javascript)(...Object.values(dependencies))
 
-if (modernSchema) for (const registry of ['service', 'local']) for (const entryId of ['dsh-tui', 'custom-tui', '1234abcd', 'Custom.TUI', ' custom-tui ']) {
+for (const registry of ['service', 'local']) for (const entryId of ['dsh-tui', 'custom-tui', '1234abcd', 'Custom.TUI', ' custom-tui ']) {
   const root = new Context()
   const home = mkdtempSync(join(tmpdir(), 'dsh-tui-settings-'))
   const observed = []
@@ -239,13 +205,6 @@ if (modernSchema) for (const registry of ['service', 'local']) for (const entryI
       applyShortcuts({ shortcuts })
       assert.equal(effectiveComboString('paste'), defaultPaste, 'unset and blank overrides do not revive the startup snapshot')
     }
-    // The legacy scope still layers user choices over the deployment config.
-    liveScope.legacy = true
-    applyShortcuts({ shortcuts: {} })
-    assert.equal(effectiveComboString('paste'), 'alt+v')
-    applyShortcuts({ shortcuts: { paste: 'ctrl+shift+v' } })
-    assert.equal(effectiveComboString('paste'), 'ctrl+shift+v')
-    liveScope.legacy = false
     await child.fiber.dispose()
     await root.loader.update(entryId, { config: { diffLayout: 'split', shortcuts: {} } })
     await root.loader.await()
@@ -278,13 +237,12 @@ try {
   await pluginRoot.fiber.dispose()
 }
 
-for (const api of ['legacy', 'forms']) {
+for (const api of ['forms']) {
   const value = { providers: { test: { baseURL: 'https://example.invalid', apiKeyEnv: 'TEST_CREDENTIAL' } } }
   const mutations = []
   const settings = {
     describe: () => [{ ns: 'llm-pi-ai', revision: 7, applies: 'live', value }],
     mutate(...args) { mutations.push(args); return Promise.resolve() },
-    ...(api === 'legacy' ? { get: () => value } : {}),
   }
   const services = {
     settings,
@@ -304,4 +262,4 @@ for (const api of ['legacy', 'forms']) {
   await host.write('llm-pi-ai', ops, 7)
   assert.deepEqual(mutations, [['llm-pi-ai', ops, 7]], 'writes retain revision fencing and path operations')
 }
-console.log(`PASS: settings scopes, config snapshots and provider reads (${modernSchema ? 'production sections, exact Loader IDs, volatile updates, shortcut resets and disposal' : 'legacy schema'})`)
+console.log('PASS: current Config, exact Loader IDs, volatile updates, shortcut resets and disposal')

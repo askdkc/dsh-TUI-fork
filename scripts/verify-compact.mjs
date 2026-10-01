@@ -48,7 +48,7 @@ const ctx = {
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   // bindAgent 挂 installModelSelection 需要 agent.ctx 提供"可订阅、返回
   // 解除函数"的最小面（0.3.6 Shift+Tab 推理等级）。
   ctx: { on: () => () => {} },
@@ -73,7 +73,7 @@ const SUMMARY = 'Summary of the entire conversation history up to this point.'
 const LONG_SUMMARY = '这是一个很长的压缩摘要，用来验证折叠后预览会被截断，不会把全文都显示在一行里。'.repeat(3)
 
 emit({ type: 'request/context', seq: 1, data: { contextWindow: 100000 } })
-emit({ type: 'request/header', seq: 2, data: { header: { system: SYSTEM } } })
+emit({ type: 'system/message', seq: 2, data: { message: { content: [{ type: 'text', text: SYSTEM }] } } })
 emit({ type: 'user/message', seq: 3, data: { source: { kind: 'user' }, content: [{ type: 'text', text: USER_TEXT }] } })
 emit({
   type: 'assistant/message',
@@ -102,7 +102,7 @@ emit({
   type: 'user/message',
   seq: 5,
   data: {
-    source: { kind: 'plugin', plugin: 'compact' },
+    source: { kind: 'compact-checkpoint' },
     content: [{ type: 'text', text: SUMMARY }],
   },
 })
@@ -140,7 +140,7 @@ check(
 emit({
   type: 'user/message',
   seq: 6,
-  data: { source: { kind: 'plugin', plugin: 'compact' }, content: [] },
+  data: { source: { kind: 'compact-checkpoint' }, content: [] },
 })
 const rows2 = channel.rows
 check('empty summary adds no compact row', rows2[rows2.length - 1]?.kind === 'notice', JSON.stringify(rows2[rows2.length - 1]))

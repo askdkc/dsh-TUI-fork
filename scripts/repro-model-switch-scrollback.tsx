@@ -117,7 +117,7 @@ function makeAgent(id: string, sessionEvents: readonly unknown[]) {
   return {
     id,
     status: 'idle',
-    session: { id: `s-${id}`, seq: sessionEvents.length, events: sessionEvents, header: {} },
+    session: { id: `s-${id}`, seq: sessionEvents.length, events: sessionEvents, header: {} , snapshotEvents() { return this.events }},
     ctx: stubAgentCtx,
     followup() {},
     steer() {},

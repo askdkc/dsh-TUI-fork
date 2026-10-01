@@ -1,10 +1,7 @@
 /**
  * Upstream compatibility contract.
  *
- * The TUI is validated against a set of upstream prerelease lines — the
- * current primary (0.2.0-rc.2) plus older lines kept in backward
- * compatibility across the 0.1.5, 0.1.3, 0.1.2, 0.1.1 and 0.1.0 release
- * families.
+ * The TUI supports one validated upstream release: 0.2.0-rc.2.
  * Every official package this adapter touches is blessed here; anything
  * else must go through upstream channels or the adapter, never the UI.
  *
@@ -19,42 +16,8 @@ import { fileURLToPath } from 'node:url'
 /** Primary validated upstream line (newest). */
 export const UPSTREAM_VALIDATED_VERSION = '0.2.0-rc.2'
 
-/**
- * Explicitly supported upstream prerelease lines, oldest first.
- *
- * 0.2.0-rc.2 = primary continuous-CI line; 0.2.0-rc.1 = previous primary;
- * 0.1.7-rc.2/rc.1 = previous
- * build (mapped compatibility); 0.1.5-rc.1/alpha.2/alpha.1 = mapped
- * compatibility lines (source-checked when the primary line moves);
- * 0.1.3-alpha.2 = compatibility line (the only 0.1.3 build on npm);
- * 0.1.2-rc.1 = previous family (full CI coverage); 0.1.2-alpha.3–alpha.5 =
- * mapped compatibility lines; 0.1.1-rc.1/rc.2 = compatibility lines
- * (install- and type-level compatibility); 0.1.0-rc.7/rc.8 = full CI
- * coverage; 0.1.0-rc.6 = legacy line (install- and type-level
- * compatibility, feature surface may lack later additions — new features
- * must degrade gracefully there).
- * The peer range in package.json is deliberately wider than this list: an
- * install on an older or newer line is allowed but reports drift at boot.
- */
-export const UPSTREAM_VALIDATED_VERSIONS = [
-  '0.1.0-rc.6',
-  '0.1.0-rc.7',
-  '0.1.0-rc.8',
-  '0.1.1-rc.1',
-  '0.1.1-rc.2',
-  '0.1.2-alpha.3',
-  '0.1.2-alpha.4',
-  '0.1.2-alpha.5',
-  '0.1.2-rc.1',
-  '0.1.3-alpha.2',
-  '0.1.5-alpha.1',
-  '0.1.5-alpha.2',
-  '0.1.5-rc.1',
-  '0.1.7-rc.1',
-  '0.1.7-rc.2',
-  '0.2.0-rc.1',
-  '0.2.0-rc.2',
-] as const
+/** Update the baseline in place; older releases are unsupported. */
+export const UPSTREAM_VALIDATED_VERSIONS = [UPSTREAM_VALIDATED_VERSION] as const
 
 /**
  * Framework packages version on their own lines; the contract validates
@@ -105,8 +68,7 @@ export interface UpstreamDriftEntry {
   validated: string
 }
 
-// These capabilities are loaded dynamically and did not exist on every
-// supported host line. Their absence is valid at runtime, not in the CI tree.
+// These capabilities are optional at runtime. CI requires the complete dev tree.
 const OPTIONAL_RUNTIME_PACKAGES = new Set<string>([
   '@deepseek-ai/dsh-agent-preset-registry',
   '@deepseek-ai/dsh-ptc-runtime-node',
@@ -138,24 +100,8 @@ export function compareVersions(a: UpstreamVersionTuple, b: UpstreamVersionTuple
   return channelOrder !== 0 ? channelOrder : a[4] - b[4]
 }
 
-/** Collapse validated versions into per-release and per-channel groups. */
-function validatedLinesLabel(): string {
-  const groups: { release: string; channel: UpstreamPrereleaseChannel; numbers: number[] }[] = []
-  for (const version of UPSTREAM_VALIDATED_VERSIONS) {
-    const [major, minor, patch, channel, number] = parseUpstreamVersion(version)!
-    const release = `${major}.${minor}.${patch}`
-    let group = groups.find(candidate => candidate.release === release && candidate.channel === channel)
-    if (group === undefined) {
-      group = { release, channel, numbers: [] }
-      groups.push(group)
-    }
-    group.numbers.push(number)
-  }
-  return groups.map(({ release, channel, numbers }) => `${release}-${channel}.${numbers.join('/')}`).join(', ')
-}
-
-/** Human-readable summary of the exact validated prerelease lines. */
-export const UPSTREAM_VALIDATED_LABEL = `${UPSTREAM_VALIDATED_VERSION} (${validatedLinesLabel()})`
+/** Human-readable supported release. */
+export const UPSTREAM_VALIDATED_LABEL = UPSTREAM_VALIDATED_VERSION
 
 function resolvePackageJson(packageName: string): string | undefined {
   try {
@@ -168,8 +114,8 @@ function resolvePackageJson(packageName: string): string | undefined {
 
 let cachedVersions: Record<string, string | undefined> | undefined
 export function installedUpstreamVersions(): Record<string, string | undefined> {
-  // Package manifests do not change mid-process; memoize so per-call gates
-  // (e.g. the command-images line check) stay cheap. Frozen so callers can
+  // Package manifests do not change mid-process; memoize the boot diagnosis.
+  // Frozen so callers can
   // never corrupt the shared cache.
   if (cachedVersions !== undefined) return cachedVersions
   const result: Record<string, string | undefined> = {}
@@ -188,29 +134,6 @@ export function installedUpstreamVersions(): Record<string, string | undefined> 
   }
   cachedVersions = Object.freeze(result)
   return cachedVersions
-}
-
-/**
- * The installed upstream version of one blessed package, parsed; undefined
- * when missing or not on a supported `x.y.z-(alpha|beta|rc).n` line. Feature gates
- * compare this against the line a behavior was introduced on, so the
- * adapter degrades on older installs instead of calling APIs they do not
- * have.
- */
-export function installedUpstreamVersion(packageName: string): UpstreamVersionTuple | undefined {
-  return parseUpstreamVersion(installedUpstreamVersions()[packageName])
-}
-
-/**
- * Whether the installed version of `packageName` is at or beyond `minimum`
- * (a literal like `'0.1.0-rc.8'`). Unparseable or older installs return
- * false so features introduced on the minimum line degrade gracefully.
- */
-export function installedMeetsVersion(packageName: string, minimum: string): boolean {
-  const installed = installedUpstreamVersion(packageName)
-  const floor = parseUpstreamVersion(minimum)
-  if (installed === undefined || floor === undefined) return false
-  return compareVersions(installed, floor) >= 0
 }
 
 /**

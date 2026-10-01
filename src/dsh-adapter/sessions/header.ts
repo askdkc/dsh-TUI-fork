@@ -59,20 +59,13 @@ export function readHeader(value: unknown): RawSessionHeader | undefined {
 }
 
 /**
- * Exact inherited prefix length from a persistence record. Accepts physical
- * `seedLength` or inspect `inheritedEventCount`. Never infers 0 from
+ * Exact inherited prefix length from a persistence record. Reads handle
+ * `inheritedEventCount`. Never infers 0 from
  * `isSeeded`, snapshot length, or `session/end-seed`.
  */
 export function readInheritedCut(value: unknown): number | undefined {
   if (value === null || typeof value !== 'object') return undefined
   const record = value as Record<string, unknown>
-  const seedLength = finiteNumber(record['seedLength'])
-  if (
-    seedLength !== undefined &&
-    Number.isSafeInteger(seedLength) &&
-    seedLength >= 0 &&
-    !Object.is(seedLength, -0)
-  ) return seedLength
   const inherited = finiteNumber(record['inheritedEventCount'])
   if (
     inherited !== undefined &&

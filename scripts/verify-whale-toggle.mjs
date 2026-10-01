@@ -56,7 +56,7 @@ function makeChannel(options = {}) {
   const agent = {
     id: 'a1',
     status: 'idle',
-    session: { id: 's1', seq: 0, events: [] },
+    session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
     followup() {},
     steer() {},

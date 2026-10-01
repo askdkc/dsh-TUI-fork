@@ -55,22 +55,9 @@ boundaries and helpers over introducing parallel abstractions.
   lazy handoff to the runtime plugin.
 - `src/dsh-adapter/plugin.ts`: TTY validation, service registration, agent creation/resume,
   React tree mounting, and terminal/process teardown.
-- `src/dsh-adapter/questions-answerer.ts` and `preset-resolution.ts`: isolate
-  upstream prerelease dispatch for user questions and agent presets so version
-  branches do not spread into bootstrap or channel actions.
-  - The questionnaire "provider seat" guard (DUPLICATE_PROVIDER probe + private
-    symbol check, #586) only applies to the legacy rc `registerProvider` path.
-  - On the 0.1.2 line's `user-questions/request` waterfall, Cordis first
-    scope-filters requests carrying an agent; agentless `/auth` requests are
-    dispatched without a scope carrier.
-  - Under the answerer convention, the first eligible listener that returns
-    instead of delegating with `next()` claims the request.
-  - Cordis waterfall is around middleware, however: an outer listener can call
-    `next()` and then observe, replace, or reject the downstream result, while
-    `{ prepend: true }` inserts a listener at the front.
-  - Upstream offers no supported way to discover or reserve a verifiably
-    exclusive claimant, so the legacy seat guard and its warning cannot be
-    reproduced locally.
+- `src/dsh-adapter/questions-answerer.ts` and `preset-resolution.ts`: current
+  question waterfall ownership and exact preset resolution. Foreign-agent
+  requests delegate with `next()`; agentless `/auth` requests remain answerable.
 - `src/dsh-adapter/channel.ts`: event-to-view projection and the non-React
   action surface.
   - It translates DSH session events into transcript rows.
@@ -527,7 +514,7 @@ guide owns detailed contracts such as the toolchain and verification matrix.
 | User-facing documented behavior | Chinese and English READMEs, plus config comments/help text where applicable |
 | Contribution intake | `docs/contributing.md`, `docs/contributing.en.md`, `.github/ISSUE_TEMPLATE/`, `.github/workflows/ci.yml` |
 | Package version or dependency | `package.json`, `pnpm-lock.yaml`, generated/published artifacts as applicable; do not churn the legacy npm lock incidentally |
-| Upstream validated-line bump | `src/dsh-adapter/contract.ts`, both peer and dev ranges in `package.json`, bundled `dsh-auth/package.json` and `dsh-auth/pnpm-lock.yaml`, `pnpm-workspace.yaml`, the upstream SHA in the `alpha-compat` job of `.github/workflows/ci.yml`, the version constants in `scripts/verify-{alpha-source,patch-surface,web-coexistence,upstream-contract}`, `patch-surface.snapshot.json`, `ADAPTER.md`, `docs/user-guide.md`; steps in the upgrade section of [ADAPTER.md](../ADAPTER.md) |
+| Upstream validated-line bump | `src/dsh-adapter/contract.ts`, both peer and dev ranges in `package.json`, bundled `dsh-auth/package.json` and `dsh-auth/pnpm-lock.yaml`, `pnpm-workspace.yaml`, the upstream SHA in the `upstream-contract` job of `.github/workflows/ci.yml`, the version constants in `scripts/verify-{upstream-source,patch-surface,web-coexistence,upstream-contract}`, `patch-surface.snapshot.json`, `ADAPTER.md`, `docs/user-guide.md`; steps in the upgrade section of [ADAPTER.md](../ADAPTER.md) |
 
 ## Git And Release Safety
 

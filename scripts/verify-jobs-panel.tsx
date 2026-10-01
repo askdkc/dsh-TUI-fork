@@ -151,7 +151,7 @@ function makeAgent(id: string, sessionId: string): FakeAgent {
     status: 'idle',
     options: {},
     ctx: { on: () => () => {} },
-    session: { id: sessionId, seq: 0, events: [], header: {} },
+    session: { id: sessionId, seq: 0, events: [], header: {} , snapshotEvents() { return this.events }},
     steered,
     followup() {},
     steer(message) { steered.push(JSON.stringify((message as { content?: unknown }).content)) },
@@ -222,7 +222,7 @@ const NOW = Date.now()
     data: {
       message: {
         source: { callId: 'cj1' },
-        content: [{ type: 'tool-result', content: [{ type: 'text', text: 'build step 1 ok\nbuild step 2 ok\n[status: running]' }] }],
+        content: [{ type: 'text', text: 'build step 1 ok\nbuild step 2 ok\n[status: running]' }],
       },
     },
   })
@@ -285,7 +285,7 @@ const NOW = Date.now()
     data: {
       message: {
         source: { callId: 'cj9' },
-        content: [{ type: 'tool-result', content: [{ type: 'text', text: 'started background job pwsh-9' }] }],
+        content: [{ type: 'text', text: 'started background job pwsh-9' }],
       },
     },
   })

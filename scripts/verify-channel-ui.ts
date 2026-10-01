@@ -62,7 +62,7 @@ function fixture(jobs?: unknown, options: { throwOnEvent?: string; effectCleanup
         creates += 1
         const created = {
           id: `created-${creates}`, status: 'idle', options: options.agentOptions,
-          session: { id: options.sessionId ?? `created-session-${creates}`, seq: 0, events: [], header: { cwd: options.meta?.cwd } },
+          session: { id: options.sessionId ?? `created-session-${creates}`, seq: 0, events: [], header: { cwd: options.meta?.cwd } , snapshotEvents() { return this.events }},
           ctx: { on: () => () => undefined }, followup() {}, steer() {}, cancel() {}, inbox: { remove: () => true },
         }
         return { agent: created, dispose: async () => undefined }
@@ -88,7 +88,7 @@ function fixture(jobs?: unknown, options: { throwOnEvent?: string; effectCleanup
   }
   const agent = {
     id: 'ui-agent', status: 'idle',
-    session: { id: 'ui-session', seq: 0, events: [] },
+    session: { id: 'ui-session', seq: 0, events: [] , snapshotEvents() { return this.events }},
     ctx: { on: () => () => undefined },
     followup: () => { writes.push('submit') },
     steer: () => { writes.push('steer') },
@@ -152,7 +152,7 @@ function fixture(jobs?: unknown, options: { throwOnEvent?: string; effectCleanup
   assert.equal(raw.notifications.length, 1)
   route(agent.session, {
     type: 'user/message', time: 2,
-    data: { source: { kind: 'plugin', plugin: 'compact' }, content: [{ type: 'text', text: 'summary' }] },
+    data: { source: { kind: 'compact-checkpoint' }, content: [{ type: 'text', text: 'summary' }] },
   })
   raw.lastUsage = { input: 90_000, cacheRead: 0, cacheWrite: 0 }
   route(agent.session, { type: 'turn/end', data: { turn: 2, reason: { kind: 'completed' } }, time: 3 })

@@ -1,32 +1,14 @@
 /**
- * Live Session compatibility facade.
- *
- * rc.2 / alpha.3 expose `Session.events` and header `seedLength`. alpha.4
- * deletes `events` in favour of `snapshotEvents` / `eventAt` / exclusive
- * `seq`, and moves fork lineage from header `seedLength` onto `isSeeded` plus
- * `Session.inheritedEventCount`. Feature detection stays here; callers must
- * not probe the two shapes themselves.
- *
- * `ctx.sessions.fork()` is not a seed extractor: it creates and registers a
- * real child. A child snapshot MAY include child-owned `session/end-seed`,
- * so snapshot length cannot reliably be inferred as the inherited cut.
- * Seed copies are sliced from the *source* snapshot through an inclusive
- * event seq. The cut is that source-slice length (or
- * `Session.inheritedEventCount` / physical `seedLength`), never a child
- * snapshot length.
- *
- * Physical JSONL still stores optional `seedLength`. That encoding belongs to
- * `sessionLog` / `sessions/header`, not this module.
- *
- * @module dsh-cli/compat/liveSession
+ * Live Session snapshots and exact inherited-prefix boundaries.
+ * Source slices never infer their cut from a child-owned end-seed marker.
+ * Physical JSONL seedLength belongs to the storage reader, not the live API.
  */
-import * as dshSession from '@deepseek-ai/dsh-session'
+import { SessionSeq, SessionLogOffset, interruptedTurnClosers } from '@deepseek-ai/dsh-session'
 import type { CreateAgentOptions } from '@deepseek-ai/dsh-agent'
 import type { Session, SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 
 interface LiveSessionShape {
   readonly seq?: unknown
-  readonly events?: readonly SessionEvent[]
   readonly inheritedEventCount?: unknown
   readonly header?: Record<string, unknown>
   snapshotEvents?: (fromSeq?: unknown, toSeqExclusive?: unknown) => unknown
@@ -37,19 +19,6 @@ function liveOf(session: unknown): LiveSessionShape {
     throw new Error('live Session contract violation: session is not an object')
   }
   return session as LiveSessionShape
-}
-
-function brandCtor(name: 'SessionSeq' | 'SessionLogOffset'): ((value: number) => number) | undefined {
-  const ctor = (dshSession as Record<string, unknown>)[name]
-  return typeof ctor === 'function' ? ctor as (value: number) => number : undefined
-}
-
-function brandSessionSeq(value: number): number {
-  return brandCtor('SessionSeq')?.(value) ?? value
-}
-
-function brandSessionLogOffset(value: number): number {
-  return brandCtor('SessionLogOffset')?.(value) ?? value
 }
 
 function asNonNegativeInt(value: unknown): number | undefined {
@@ -72,8 +41,7 @@ export function snapshotLiveSessionEvents(session: unknown): readonly SessionEve
     }
     return snap as readonly SessionEvent[]
   }
-  if (Array.isArray(live.events)) return live.events
-  throw new Error('live Session contract violation: neither snapshotEvents() nor events is available')
+  throw new Error('live Session contract violation: snapshotEvents() is unavailable')
 }
 
 /**
@@ -83,11 +51,7 @@ export function snapshotLiveSessionEvents(session: unknown): readonly SessionEve
 export function liveSessionOffset(session: unknown): number {
   const seq = asNonNegativeInt(liveOf(session).seq)
   if (seq !== undefined) return seq
-  return snapshotLiveSessionEvents(session).length
-}
-
-function usesIsSeeded(session: unknown): boolean {
-  return typeof liveOf(session).header?.['isSeeded'] === 'boolean'
+  throw new Error('live Session contract violation: seq is not a non-negative safe integer')
 }
 
 /**
@@ -104,7 +68,7 @@ export function liveSessionPhysicalSeedLength(session: unknown): number | undefi
     if (header['isSeeded'] !== true) return undefined
     return asNonNegativeInt(live.inheritedEventCount)
   }
-  return asNonNegativeInt(header?.['seedLength'])
+  return undefined
 }
 
 /** Listing-shaped fields for overlaying a live Session onto the session tree. */
@@ -175,35 +139,12 @@ export function sliceLiveSessionSeed(session: unknown, boundary?: number): Sessi
   return sliced
 }
 
-export interface LiveSessionSeedMetadata {
-  readonly meta: {
-    readonly seedLength?: number
-    readonly isSeeded?: boolean
-  }
-  readonly inheritedEventCount?: number
-}
-
-/**
- * Create-time seed ownership fields. Every copied source prefix is inherited
- * state for domain projections, even when `/fork` deliberately omits
- * `parentSession` so the copy is presented as an independent root. The exact
- * cut distinguishes copied history from child-owned events. Not every
- * projection skips inherited events: newer inbox folds restore pending input
- * from them, so rewind must cancel that work through the child's Inbox API.
- * A child snapshot length cannot reliably be used as the cut because
- * construction may append `session/end-seed`.
- */
-export function liveSessionSeedMetadata(
-  session: unknown,
-  inheritedCount: number,
-): LiveSessionSeedMetadata {
-  if (usesIsSeeded(session)) {
-    return {
-      meta: { isSeeded: true },
-      inheritedEventCount: brandSessionLogOffset(inheritedCount),
-    }
-  }
-  return { meta: { seedLength: inheritedCount } }
+/** Seed ownership is independent of whether the child is shown as a root. */
+export function liveSessionSeedMetadata(inheritedCount: number): {
+  readonly meta: { readonly isSeeded: true }
+  readonly inheritedEventCount: ReturnType<typeof SessionLogOffset>
+} {
+  return { meta: { isSeeded: true }, inheritedEventCount: SessionLogOffset(inheritedCount) }
 }
 
 /** Close an open turn with the `turn/end` shape a real user cancellation writes. */
@@ -212,7 +153,7 @@ export function appendInterruptedTurnEnd(seed: SessionEvent[], turn: number): vo
   if (last === undefined) return
   seed.push({
     type: 'turn/end',
-    seq: brandSessionSeq(Number(last.seq) + 1),
+    seq: SessionSeq(Number(last.seq) + 1),
     time: last.time + 1,
     data: { turn, reason: { kind: 'aborted', reason: { kind: 'user' } } },
   } as SessionEvent)
@@ -220,7 +161,7 @@ export function appendInterruptedTurnEnd(seed: SessionEvent[], turn: number): vo
 
 /** Close a V3 fork's open inherited turn as child-owned events, after its marker. */
 export function closeLiveForkTurn(session: Session, turn: number): void {
-  for (const event of dshSession.interruptedTurnClosers(snapshotLiveSessionEvents(session))) {
+  for (const event of interruptedTurnClosers(snapshotLiveSessionEvents(session))) {
     switch (event.type) {
       case 'tool/result':
         session.append('tool/result', event.data, {
@@ -244,8 +185,6 @@ export function closeLiveForkTurn(session: Session, turn: number): void {
 export interface LiveSessionCreateRequest {
   readonly sessionId: SessionId
   readonly seed: readonly SessionEvent[]
-  /** Live Session whose shape identifies the active upstream runtime line. */
-  readonly runtimeSession: unknown
   readonly inheritedCount: number
   readonly cwd: string
   readonly parentSession?: SessionId
@@ -254,13 +193,9 @@ export interface LiveSessionCreateRequest {
   readonly setup?: CreateAgentOptions['setup']
 }
 
-/**
- * Dual-runtime seed metadata for `agents.create`. The only
- * CreateAgentOptions assertion lives here: rc.2 meta carries `seedLength`,
- * alpha.4 carries `isSeeded` plus top-level `inheritedEventCount`.
- */
+/** Create a seeded agent using the current host contract. */
 export function liveSessionCreateOptions(request: LiveSessionCreateRequest): CreateAgentOptions {
-  const seedMetadata = liveSessionSeedMetadata(request.runtimeSession, request.inheritedCount)
+  const seedMetadata = liveSessionSeedMetadata(request.inheritedCount)
   return {
     sessionId: request.sessionId,
     seed: request.seed,
@@ -270,10 +205,8 @@ export function liveSessionCreateOptions(request: LiveSessionCreateRequest): Cre
       ...seedMetadata.meta,
       ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
     },
-    ...(seedMetadata.inheritedEventCount === undefined
-      ? {}
-      : { inheritedEventCount: seedMetadata.inheritedEventCount }),
+    inheritedEventCount: seedMetadata.inheritedEventCount,
     agentOptions: request.agentOptions,
     ...(request.setup === undefined ? {} : { setup: request.setup }),
-  } as CreateAgentOptions
+  }
 }

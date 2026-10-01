@@ -10,10 +10,7 @@
  * factory's `setup(agentCtx)` hook, where a composition failure rolls the
  * whole creation back instead of publishing a half-configured agent.
  *
- * A deployment without the roster (bare `dsh --config cordis.yml` boots,
- * older CLI without the shipped preset root) composes nothing: callers get
- * no `setup` and every session shares the host composition — the behavior
- * before presets existed.
+ * A composition without a preset registry supplies no preset setup.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -24,7 +21,6 @@ import { recordedModelRoute, type ModelRoute } from '../modelRoute.js'
 import { snapshotLiveSessionEvents } from './compat/liveSession.js'
 import { readPersistedSession, type SessionReader } from './compat/persistence.js'
 import {
-  resolveCompatiblePreset,
   resolveRecordedPreset,
   rosterOf,
 } from './preset-resolution.js'
@@ -57,7 +53,7 @@ export async function composePreset(ctx: Context, requested?: string): Promise<P
   if (presets === undefined) return {}
   let resolvedId: string
   try {
-    resolvedId = (await resolveCompatiblePreset(presets, requested)).id
+    resolvedId = (await presets.resolve(requested)).id
   } catch (error) {
     ctx.logger.warn(
       `dsh-tui: agent preset ${requested === undefined ? '(default)' : `"${requested}"`} unavailable ` +

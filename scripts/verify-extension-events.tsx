@@ -180,7 +180,7 @@ function makeAgent(id: string, sessionEvents: readonly unknown[], captured: { fo
   return {
     id,
     status: 'idle',
-    session: { id: `s-${id}`, seq: sessionEvents.length, events: sessionEvents, header: {} },
+    session: { id: `s-${id}`, seq: sessionEvents.length, events: sessionEvents, header: {} , snapshotEvents() { return this.events }},
     ctx: stubAgentCtx,
     followup(message: { content?: readonly { type?: string; text?: string }[] }) {
       const content = message.content ?? []

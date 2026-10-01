@@ -44,7 +44,7 @@ function fixture(eventCount: number) {
   const events: Array<Record<string, unknown>> = []
   for (let i = 0; i < eventCount; i++) {
     events.push({
-      type: 'assistant/chunk', seq: i, time: 1_700_000_000_000 + i,
+      type: 'plugin/noise', seq: i, time: 1_700_000_000_000 + i,
       data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: `字${i}` } },
     })
   }

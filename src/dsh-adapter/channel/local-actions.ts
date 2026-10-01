@@ -1,4 +1,5 @@
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { TuiCommandShell } from '../workspaces.js'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { markChannelReadDirty } from '../../adapter/channel/read-view.js'
 import { writeActivityFrames } from '../../activityPrefs.js'
@@ -24,7 +25,7 @@ export function createLocalActions(deps: {
   subagents: { dropRows(): void }
   jobs: { dropRows(): void }
   foldBack: typeof FoldBack
-  workspace: { describe(cwd: string): { kind: string; badge: string; label: string }; commandShell(cwd: string): Promise<ForegroundShell | undefined> }
+  workspace: { describe(cwd: string): { kind: string; badge: string; label: string }; commandShell(cwd: string): Promise<TuiCommandShell | undefined> }
   shell?: ForegroundShell
   notify: ChannelState['notify']
 }) {
@@ -92,11 +93,15 @@ export function createLocalActions(deps: {
       state.rows.push({ id: rowIds.value++, kind: 'local', text: command, executionTarget: target.kind === 'local' ? target.badge : `${target.badge} · ${target.label}` })
       state.emit()
       let output = '(no output)'
-      const executor = await workspace.commandShell(cwd) ?? shell
+      const workspaceShell = await workspace.commandShell(cwd)
+      const executor = workspaceShell ?? shell
       if (!current(capture)) return
       if (executor) {
         try {
-          const result = await runForegroundShell(executor, { command, workdir: cwd, timeoutMs: 30000 })
+          const request = { command, workdir: cwd, timeoutMs: 30000 }
+          const result = workspaceShell
+            ? await workspaceShell.run(workspaceShell.resolve(request))
+            : await runForegroundShell(shell!, request)
           output = result.stdout.text.trim() || result.stderr.text.trim() || (result.timedOut ? '(timed out)' : '(no output)')
         } catch (error) { output = error instanceof Error ? error.message : String(error) }
       }

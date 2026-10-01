@@ -70,11 +70,10 @@ function synthesize() {
     out.push(ev('user/message', { source: { kind: 'skill', name: 'review' }, content: [{ type: 'text', text: 'injected' }] }))
     for (let step = 1; step <= 3; step++) {
       out.push(ev('step/start', { turn, step }))
-      out.push(ev('assistant/chunk', { turn, step, chunk: { type: 'block-start', index: 0, blockType: 'reasoning' } }))
-      out.push(ev('assistant/chunk', { turn, step, chunk: { type: 'delta', text: 'x' } }))
       out.push(ev('assistant/message', {
         turn,
         step,
+        stream: [{ type: 'text-chunks', index: 0, time0: T0 + seq * 10, dt: [10], texts: ['x', 'y'] }],
         message: { content: [{ type: 'reasoning', text: `thinking ${turn}.${step}` }, { type: 'text', text: `reply ${turn}.${step}` }] },
         usage: { input: 100, output: 20, think: 5, cacheRead: 50, cacheWrite: 10 },
       }))
@@ -92,8 +91,8 @@ function synthesize() {
       })
       // Nested code-runner sub-calls.
       const subCallId = `c${turn}.${step}.sub`
-      out.push(ev('tool/code-dispatch-start', { rootCallId: 'root', parentCallId: 'root', subCallId, name: 'todo_write', arguments: { todos: [] } }))
-      out.push(ev('tool/code-dispatch', { rootCallId: 'root', parentCallId: 'root', subCallId, name: 'todo_write', arguments: { todos: [] } }))
+      out.push(ev('tool/ptc-dispatch-start', { rootCallId: 'root', parentCallId: 'root', subCallId, name: 'todo_write', arguments: { todos: [] } }))
+      out.push(ev('tool/ptc-dispatch', { rootCallId: 'root', parentCallId: 'root', subCallId, name: 'todo_write', arguments: { todos: [] } }))
       out.push(ev('step/end', { turn, step }))
     }
     if (turn === 2) {
@@ -215,7 +214,7 @@ check('fixture folds to a non-trivial ledger', whole.nodes.length > 40, `${whole
     ev('llm/retry-started', { retryId: 'ghost' }),
     ev('approval/decided', { id: 'ghost', outcome: 'allowed' }),
     ev('compaction/end', { removed: 1 }),
-    ev('tool/code-dispatch', { rootCallId: 'r', parentCallId: 'r', subCallId: 'ghost', name: 'x', arguments: {} }),
+    ev('tool/ptc-dispatch', { rootCallId: 'r', parentCallId: 'r', subCallId: 'ghost', name: 'x', arguments: {} }),
   ]
   let threw = null
   let nodes = []
@@ -229,8 +228,8 @@ check('fixture folds to a non-trivial ledger', whole.nodes.length > 40, `${whole
   const samples = [
     ['llm/retry', { retryId: 'r', turn: 1, step: 1, provider: 'p', retry: 1, maxRetries: 2, delayMs: 5, failure: { message: 'm', code: 'C' } }],
     ['llm/retry-started', { retryId: 'r', turn: 1, step: 1, retry: 1 }],
-    ['tool/code-dispatch-start', { rootCallId: 'r', parentCallId: 'r', subCallId: 's', name: 'n', arguments: { a: 1 } }],
-    ['tool/code-dispatch', { rootCallId: 'r', parentCallId: 'r', subCallId: 's', name: 'n', arguments: { a: 1 } }],
+    ['tool/ptc-dispatch-start', { rootCallId: 'r', parentCallId: 'r', subCallId: 's', name: 'n', arguments: { a: 1 } }],
+    ['tool/ptc-dispatch', { rootCallId: 'r', parentCallId: 'r', subCallId: 's', name: 'n', arguments: { a: 1 } }],
     ['request/header', { header: { config: { provider: 'p', model: 'm', reasoningEffort: 'max' } }, reason: 'change' }],
     ['subagent/descriptor', { version: 2, mode: 'continuable', label: 'l', agentModel: 'm' }],
     ['approval/asked', { id: 'a', toolName: 't', callId: 'c', reason: 'r' }],
@@ -250,7 +249,7 @@ check('fixture folds to a non-trivial ledger', whole.nodes.length > 40, `${whole
     ['turn/end', { turn: 1, reason: { kind: 'completed' } }],
     ['step/start', { turn: 1, step: 1 }],
     ['step/end', { turn: 1, step: 1 }],
-    ['assistant/chunk', { turn: 1, step: 1, chunk: { type: 'delta' } }],
+    ['assistant/attempt', { turn: 1, step: 1, stream: [] }],
   ]
   /** Every degradation a renamed / retyped upstream field can produce. */
   const mutate = (value) => {
@@ -373,8 +372,7 @@ function burstEvents(count, { interleave = -1 } = {}) {
   const streamed = [
     ev('turn/start', { turn: 1 }),
     ev('step/start', { turn: 1, step: 1 }),
-    ev('assistant/chunk', { turn: 1, step: 1, chunk: {} }),
-    ev('assistant/chunk', { turn: 1, step: 1, chunk: {} }),
+    ev('assistant/message', { turn: 1, step: 1, message: { content: [] }, stream: [{ type: 'text-chunks', index: 0, time0: T0 + 30, dt: [10], texts: ['a', 'b'] }] }),
     ev('step/end', { turn: 1, step: 1 }),
     // A step that never streamed: request failed before first token.
     ev('step/start', { turn: 1, step: 2 }),
@@ -467,7 +465,7 @@ function burstEvents(count, { interleave = -1 } = {}) {
   check('events before the first turn fold under turn 0', noTurn.length === 1 && noTurn[0].turn === 0)
 }
 
-// ───────────────────────── 9 · 0.1.5 generation: V3 streams + PTC rename ────
+// ───────────────────────── 9 · current settlement streams and PTC ────
 //
 // 0.1.5 retires per-token `assistant/chunk` events: settlement events embed
 // the compact `AssistantStreamRecord[]` instead (`assistant/message.stream`,
@@ -488,7 +486,7 @@ function burstEvents(count, { interleave = -1 } = {}) {
       turn: 1, step: 1,
       stream: [{ type: 'text-chunks', time0: attemptT0, index: 0, dt: [30], texts: ['par', 'tial'] }],
     }),
-    // The renamed dispatch bracket pairs exactly like the old spelling.
+    // The PTC dispatch bracket pairs by its call identity.
     ev('tool/ptc-dispatch-start', { rootCallId: 'root', parentCallId: 'root', subCallId: 'p1', name: 'run_js', arguments: { code: '1' } }),
     ev('tool/ptc-dispatch', { rootCallId: 'root', parentCallId: 'root', subCallId: 'p1', name: 'run_js', arguments: { code: '1' } }),
     // The committed retry's message carries its own stream; firstChunk stays

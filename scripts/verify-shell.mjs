@@ -1,7 +1,7 @@
 /**
- * Shell API compatibility (#974 / #983): legacy run and 0.1.7 execute/result().
+ * Shell API compatibility (#974 / #983): current execute/result() policy and lifecycle.
  * Exercises both Channel consumers. Run after compile:
- *   node scripts/verify-shell-compat.mjs
+ *   node scripts/verify-shell.mjs
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -32,7 +32,7 @@ function channelFor(shell) {
   const messages = []
   const ctx = { on: () => () => {}, get: name => name === 'shell' ? shell : undefined, logger: { warn() {} } }
   const agent = {
-    id: 'shell-agent', status: 'idle', session: { id: 'shell-session', seq: 0, events: [] },
+    id: 'shell-agent', status: 'idle', session: { id: 'shell-session', seq: 0, events: [] , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} }, followup: message => messages.push(message),
   }
   const channel = createChannel(ctx, agent, { cwd: home, model: 'deepseek-chat', provider: 'deepseek', activity: false })
@@ -40,7 +40,7 @@ function channelFor(shell) {
 }
 
 try {
-  for (const api of ['run', 'execute']) {
+  for (const api of ['execute']) {
     const requests = []
     const specs = []
     let result = output(' main\n')
@@ -55,7 +55,6 @@ try {
       async [api](spec) {
         assert.equal(this, shell)
         assert.equal(spec, specs.at(-1), 'pass the resolved policy-bearing spec unchanged')
-        if (api === 'run') return result
         const execution = { async result() { assert.equal(this, execution); return result } }
         return execution
       },
@@ -79,15 +78,12 @@ try {
     } finally { channel.releaseContributions() }
   }
 
-  let legacyCalls = 0
   const failure = new Error('sandbox unavailable')
   const modern = {
     resolve: value => value,
     async execute() { return { async result() { throw failure } } },
-    async run() { legacyCalls++; return output() },
   }
   await assert.rejects(runForegroundShell(modern, request), error => error === failure)
-  assert.equal(legacyCalls, 0, 'an execution failure must never rerun through the old API')
 
   // A synchronous resolver failure must not escape best-effort startup.
   const broken = { resolve() { throw failure } }
@@ -122,7 +118,7 @@ try {
   assert.equal(stale.channel.rows.length, rowCount)
   assert.equal(stale.messages.length, 0)
   assert.equal(stale.channel.gitBranch, undefined)
-  console.log('shell compatibility OK: legacy/execute, policy forwarding, errors, timeout, lifecycle')
+  console.log('shell compatibility OK: execute, policy forwarding, errors, timeout, lifecycle')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

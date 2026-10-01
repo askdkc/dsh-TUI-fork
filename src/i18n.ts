@@ -122,8 +122,8 @@ const dict = {
   'preset-desc-standard': { zh: '功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。', en: 'Full-featured coding agent: file editing, shell, file & web search, skills, plans, goals, subagents and workflows.' },
   'preset-name-minimal': { zh: '极简模式', en: 'Minimal' },
   'preset-desc-minimal': { zh: '仅提供持久 bash 与 str_replace_editor 的双工具编码 Agent。', en: 'A two-tool coding agent exposing only persistent bash and str_replace_editor.' },
-  'preset-name-code': { zh: 'PTC 模式', en: 'PTC' },
-  'preset-desc-code': { zh: '具备标准模式的全部能力，并通过 Code Mode SDK 呈现工具，让模型用一个 TypeScript 程序组合多步操作。', en: 'Everything standard mode offers, with tools exposed through the Code Mode SDK so the model composes multi-step operations in one TypeScript program.' },
+  'preset-name-ptc': { zh: 'PTC 模式', en: 'PTC' },
+  'preset-desc-ptc': { zh: '具备标准模式的全部能力，并通过 Code Mode SDK 呈现工具，让模型用一个 TypeScript 程序组合多步操作。', en: 'Everything standard mode offers, with tools exposed through the Code Mode SDK so the model composes multi-step operations in one TypeScript program.' },
   'preset-name-cordis': { zh: '创造模式', en: 'Creation' },
   'preset-desc-cordis': { zh: '用于创建自定义 Agent preset：具备标准模式的全部能力，并提供运行时检查、插件实验和 preset 创作指导。', en: 'For authoring custom agent presets: everything standard mode offers plus runtime inspection, plugin experiments and preset-authoring guidance.' },
   'preset-name-liangshen': { zh: '梁神模式', en: 'Liangshen mode' },
@@ -609,10 +609,6 @@ const dict = {
     zh: '/{{name}} 不接受图片；草稿已保留',
     en: '/{{name}} does not accept images; the draft was preserved',
   },
-  'command-images-runtime-unsupported': {
-    zh: '/{{name}}：当前命令运行时不支持图片；草稿已保留',
-    en: '/{{name}}: this command runtime cannot accept images; the draft was preserved',
-  },
   'command-images-limit': {
     zh: '/{{name}}：图片数量或总大小超过当前 profile 限制；草稿已保留',
     en: '/{{name}}: the image batch exceeds this profile\'s limits; the draft was preserved',
@@ -809,7 +805,6 @@ const dict = {
   // ── dsh-adapter/plugin.ts（/settings 渲染设置）───────────────────────
   'settings-fullscreen-restart': { zh: '全屏设置已保存，重启 dsh-tui 后生效', en: 'Fullscreen preference saved — restart dsh-tui to apply' },
   'settings-terminal-images-restart': { zh: '图片预览设置已保存，使用 /restart 重启 TUI 后生效', en: 'Image preview preference saved — use /restart to apply' },
-  'settings-fullscreen-migrated': { zh: '全屏已是出厂默认（已清除更新前的 inline 选择）；偏好 inline 可在 /settings 改回', en: 'Fullscreen is now the factory default (pre-update inline choice cleared); prefer inline? Switch back in /settings' },
 
   // ── components/HelpMenu.tsx ─────────────────────────────────────────
   'help-for-commands': { zh: '/ 查看命令', en: '/ for commands' },
@@ -1073,9 +1068,6 @@ const dict = {
   'context-panel-tools': { zh: '工具 · {{n}}', en: 'Tools · {{n}}' },
 
   // ── components/questions/AskUserQuestionPanel.tsx ───────────────────
-  'question-provider-occupied': { zh: '⚠️ 问卷通道已被非宿主组件 {{id}} 占用，模型提问可能被代答（本界面未接入问卷）', en: '⚠️ The questionnaire channel is held by a non-host component ({{id}}); model questions may be answered by it (this UI did not take the seat)' },
-  'question-provider-occupied-unverified': { zh: '⚠️ 问卷通道被一个自报为 {{id}} 的组件占用——身份未经宿主验证，模型提问可能被代答（本界面未接入问卷）', en: '⚠️ The questionnaire channel is held by a component self-reporting as {{id}} — identity not host-verified; model questions may be answered by it (this UI did not take the seat)' },
-  'question-provider-occupied-unknown': { zh: '身份未知', en: 'identity unknown' },
   'question-select-or-answer': { zh: '至少选择一个选项，或在最后一行输入回答', en: 'Select at least one option, or type an answer on the last line' },
   'question-answer-or-check': { zh: '输入回答或勾选选项后再提交', en: 'Type an answer or check options before submitting' },
   'question-type-answer-first': { zh: '先输入回答内容再提交', en: 'Type your answer before submitting' },

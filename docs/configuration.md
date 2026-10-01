@@ -27,8 +27,7 @@ Profile 启动按顺序叠加：
 
 ## TUI 配置
 
-DSH 0.1.7 的 `/settings` 写入当前 profile 的 `cordis.patch.yml`，字段属于插件
-Config；旧版仍使用 `~/.dsh/settings.yaml`。不要把旧文件路径当成新版设置入口。
+`/settings` 写入当前 profile 的 `cordis.patch.yml`，字段属于插件 Config。
 语言、布局等偏好实时更新；全屏和图片预览需 `/restart`。
 
 下面是完整的常用覆盖示例：
@@ -118,13 +117,12 @@ Config；旧版仍使用 `~/.dsh/settings.yaml`。不要把旧文件路径当成
 
 ## Agent Preset
 
-每个会话通过官方 preset registry 组合模型可见的工具和提示词。0.1.7 使用
-`@deepseek-ai/dsh-agent-preset-registry`，旧版使用 `@deepseek-ai/dsh-agent-presets`：
+每个会话通过官方 `@deepseek-ai/dsh-agent-preset-registry` 组合模型可见的工具和提示词：
 
 | ID | 名称 | 能力 |
 | --- | --- | --- |
 | `standard` | 标准模式（默认） | 编辑、Shell、检索、Skills、计划、Goals、子代理与工作流 |
-| `ptc`（0.1.2）/ `code`（旧 0.1.1） | PTC 模式 | 标准能力，加 PTC SDK 呈现工具，可用 TypeScript 组合多步操作；两个名字可跨版本兼容解析 |
+| `ptc` | PTC 模式 | 标准能力，加 PTC SDK 呈现工具，可用 TypeScript 组合多步操作 |
 | `minimal` | 极简模式 | 仅持久 Bash 与 `str_replace_editor`，不带 compaction |
 | `cordis` | 创造模式 | 标准能力，加运行时检查与插件实验工具 |
 | `liangshen` | 梁神模式 | 主 Agent 与子 Agent 首轮均保持 Minimal 双工具，首次工具调用后开放完整目录，压缩后重新锚定 |
@@ -133,9 +131,9 @@ Config；旧版仍使用 `~/.dsh/settings.yaml`。不要把旧文件路径当成
 
 - `/preset` 打开选择器。
 - `/preset <id>` 直接选择；`/preset status` 查看当前状态。
-- 选择器显示的名称与描述取自 registry 声明（旧版取自 `preset.yml`）。
+- 选择器显示的名称与描述取自 registry 声明。
 - 界面语言为 `en`（`/lang en`）时，内置 preset 显示本地化的英文名称与描述。
-- 内置 preset：`standard` / `minimal` / `ptc`（旧版 `code`）/ `cordis` / `liangshen`；
+- 内置 preset：`standard` / `minimal` / `ptc`/ `cordis` / `liangshen`；
   自定义 preset 原样显示。
 - 空白会话可以原地切换。已产生对话的会话遵循官方 blank-only 规则：选择只
   保存为新默认值，在 `/new` 或下一次启动时生效。
@@ -145,14 +143,11 @@ Config；旧版仍使用 `~/.dsh/settings.yaml`。不要把旧文件路径当成
 - 默认值保存在 `~/.dsh-tui/agent-preset.json`。
 - 优先级：显式 `config.preset` 或 `DSH_TUI_PRESET` → 持久化偏好 → 名册
   默认值 `standard`。
-- 名册不再提供 `code` 时，旧偏好回退解析为 `ptc`，解析成功后迁移；rc 名册
-  仍保留真实 `code` id，历史会话日志始终不改写。
 - 恢复旧会话时，以该会话日志记录的 preset 为准，不读取当前默认值覆盖它。
 
 ### 梁神模式
 
-- 梁神模式随 dsh-tui 包发布，0.1.7 启动时注册到官方 registry，已有同名 profile 声明优先。
-- 旧版安装到用户 preset 根目录；已有非托管目录不会被覆盖。
+- 梁神模式随 dsh-tui 包发布，启动时注册到官方 registry，已有同名 profile 声明优先。
 - Windows 首轮 `bash` 通过自动发现的 Git Bash 执行，依次尝试：
   - PATH 上的 `git.exe` 所在安装树（安装器/便携/Scoop 布局通用，穿透 Scoop shim）
   - 常规安装位置与 Scoop 约定目录
@@ -163,9 +158,8 @@ Config；旧版仍使用 `~/.dsh/settings.yaml`。不要把旧文件路径当成
 
 ### 自定义 preset
 
-0.1.7 通过 profile/bundle 声明 `@deepseek-ai/dsh-agent-preset`，配置包含 `id`、
-`name` 与 `plugins`。旧目录预设需要按上游迁移为 bundle，TUI 不再自行扫描目录。
-旧版仍从 `$DSH_HOME/.agent-presets/<name>/agent.cordis.yml` 发现预设。
+通过 profile/bundle 声明 `@deepseek-ai/dsh-agent-preset`，配置包含 `id`、
+`name` 与 `plugins`。
 
 从 0.3 起，模型侧工具、plan、compaction、delegation 等由 preset 自己组合。
 Profile 模式不再使用旧的 `DSH_TUI_COMPACT_RATIO`、`DSH_TUI_COMPACT_RETAIN`
@@ -251,7 +245,7 @@ Profile 模式不再使用旧的 `DSH_TUI_COMPACT_RATIO`、`DSH_TUI_COMPACT_RETA
 
 | 产物 | 位置 |
 | --- | --- |
-| provider profile | 0.1.7 当前 profile 配置中的 `llm-pi-ai.providers.<路由名>`；旧版在 `~/.dsh/settings.yaml`，写入即注册路由，删除即注销 |
+| provider profile | 当前 profile 配置中的 `llm-pi-ai.providers.<路由名>`，写入即注册路由，删除即注销 |
 | API key | `~/.dsh/.credentials.yaml`（0600），引用名为 `<路由名大写>_API_KEY` |
 
 捆绑 dsh-auth 挂载时，添加分支提供**提供商认证**。ChatGPT / Claude / Grok

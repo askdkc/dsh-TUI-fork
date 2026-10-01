@@ -208,7 +208,7 @@ function channelFixture(events: object[] = []): {
     id: 'transcript-images-session',
     seq: events.at(-1) === undefined ? 0 : (events.at(-1) as { seq: number }).seq,
     events: [...events],
-  }
+   snapshotEvents() { return this.events }}
   const ctx = {
     on(event: string, handler: (...args: never[]) => void) {
       handlers.set(event, handler)

@@ -130,7 +130,7 @@ import { createModelActions } from '../src/dsh-adapter/channel/model-actions.js'
   const owner = createChannelOwner()
   const attempted: string[] = []
   let backgroundDisposed = 0
-  const foreground = { id: 'foreground', session: { id: 'foreground', events: [], header: { createdAt: 0 } } }
+  const foreground = { id: 'foreground', session: { id: 'foreground', events: [], header: { createdAt: 0 } , snapshotEvents() { return this.events }} }
   const projection = createAgentViewProjection({
     get(name: string) {
       if (name === 'agents') return { list: () => [], get: () => undefined, create: async () => { throw new Error('unused') } }

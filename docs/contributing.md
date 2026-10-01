@@ -44,18 +44,9 @@
 - `src/index.ts`：公共 Cordis 插件入口、配置 Schema，与对运行时插件的惰性移交。
 - `src/dsh-adapter/plugin.ts`：TTY 校验、服务注册、Agent 创建/恢复、React 树挂载，以及
   终端/进程的收尾清理。
-- `src/dsh-adapter/questions-answerer.ts` 与 `preset-resolution.ts`：
-  隔离 user-questions / agent-preset 的上游预发布兼容分派，避免把版本分支
-  散进 bootstrap 与 channel 动作面。
-  - 问卷 "provider 座位"守卫（DUPLICATE_PROVIDER 探测 + 私有 symbol 校验，#586）
-    只在旧 rc 的 `registerProvider` 路径生效。
-  - 0.1.2 线的 `user-questions/request` waterfall 对带 agent 的请求先按 scope
-    过滤 listener；agentless 的 `/auth` 请求不带 scope carrier。
-  - 按 answerer 约定，首个不调用 `next()` 委派的 eligible listener 会 claim 请求。
-  - 但 Cordis waterfall 是 around middleware：外层 listener 即使调用 `next()`
-    也能观察、替换或拒绝下游结果；`{ prepend: true }` 会把 listener 插到队首。
-  - 上游没有受支持的方法发现或保留可验证的独占 claimant，
-    因此 legacy seat guard 及其告警无法在本地复现。
+- `src/dsh-adapter/questions-answerer.ts` 与 `preset-resolution.ts`：当前
+  问卷 waterfall 归属与精确 preset 解析。其他 agent 请求交给 `next()`；
+  agentless 的 `/auth` 请求由 TUI 回答。
 - `src/dsh-adapter/channel.ts`：事件到视图的投影 + 非 React 的动作面。把 DSH 会话事件
   翻译成 transcript 行，实现 submit、steer、rewind、resume、模型/preset 切换、
   本地报告及相关状态迁移。
@@ -217,7 +208,7 @@ CI 回归都要跑。窄改动还要跑最近的聚焦脚本：
 | 改动区域 | 聚焦验证 |
 | --- | --- |
 | 通用无头屏幕组装 | `pnpm smoke` |
-| Harness 验证线更新 | `pnpm typecheck`、`pnpm verify:alpha-source`（`DSH_HARNESS_SOURCE_ROOT` 指向 `0.2.0-rc.2` 源码）、`pnpm verify:live-session -- --real-upstream`、`pnpm --dir dsh-auth verify`；旧版源码用 `DSH_HARNESS_EXPECTED_VERSION` 分别校验 |
+| Harness 验证线更新 | `pnpm typecheck`、`pnpm verify:upstream-source`（`DSH_HARNESS_SOURCE_ROOT` 指向 `0.2.0-rc.2` 源码）、`pnpm verify:live-session -- --real-upstream`、`pnpm --dir dsh-auth verify` |
 | 跨代理会话迁移（src/migrate、adapter 解析或事件合成） | `node --import tsx/esm scripts/verify-migrate.mjs` |
 | Channel submit/steer/pending 行为 | `node scripts/verify-submit.mjs` |
 | 回退后编辑重发与历史 Inbox 清理 | `pnpm verify:rewind-edit` |
@@ -404,7 +395,7 @@ TypeScript 源的脚本在头部声明 `node --import tsx/esm <script>` 形式�
 | 用户可见的文档化行为 | 中英文 README，外加适用的配置注释/帮助文本 |
 | 贡献入口 | `docs/contributing.md`、`docs/contributing.en.md`、`.github/ISSUE_TEMPLATE/`、`.github/workflows/ci.yml` |
 | 包版本或依赖 | `package.json`、`pnpm-lock.yaml`、适用时的生成/发布产物；不要顺手搅动旧 npm 锁文件 |
-| 上游验证线 bump | `src/dsh-adapter/contract.ts`、`package.json` peer+dev 两组范围、随包内置的 `dsh-auth/package.json` 与 `dsh-auth/pnpm-lock.yaml`、`vendor/dsh-working-activity/package.json` 的适用 peer、`pnpm-workspace.yaml`、`.github/workflows/ci.yml` alpha-compat 的上游 SHA、`scripts/verify-{alpha-source,patch-surface,web-coexistence,upstream-contract}` 内的版本常量、`patch-surface.snapshot.json`、`ADAPTER.md`、`docs/user-guide.md`；步骤见 [ADAPTER.md](../ADAPTER.md) 升级流程 |
+| 上游验证线 bump | `src/dsh-adapter/contract.ts`、`package.json` peer+dev 两组范围、随包内置的 `dsh-auth/package.json` 与 `dsh-auth/pnpm-lock.yaml`、`vendor/dsh-working-activity/package.json` 的适用 peer、`pnpm-workspace.yaml`、`.github/workflows/ci.yml` upstream-contract 的上游 SHA、`scripts/verify-{upstream-source,patch-surface,web-coexistence,upstream-contract}` 内的版本常量、`patch-surface.snapshot.json`、`ADAPTER.md`、`docs/user-guide.md`；步骤见 [ADAPTER.md](../ADAPTER.md) 升级流程 |
 
 ## Git 与发布安全（Git And Release Safety）
 

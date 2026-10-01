@@ -29,7 +29,7 @@ const tools = [
 
 const assemble = (id, events, delegationDepth = 0) => listeners['system-prompt/assemble'](
   undefined,
-  { agent: { session: { id, events, header: { delegationDepth } } } },
+  { agent: { session: { id, events, header: { delegationDepth } , snapshotEvents() { return this.events }} } },
   async () => ({ sections: [], contexts: [], tools, variables: {} }),
 )
 

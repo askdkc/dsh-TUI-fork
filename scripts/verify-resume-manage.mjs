@@ -41,7 +41,7 @@ const dir = join(root, '--work-space--', sessionId)
 mkdirSync(dir, { recursive: true })
 const file = join(dir, 'session.jsonl.zstd')
 
-const header = { type: 'session', version: 0, id: sessionId, createdAt: 1, cwd: 'D:\\work', delegationDepth: 0 }
+const header = { type: 'session', version: 4, id: sessionId, createdAt: 1, cwd: 'D:\\work', delegationDepth: 0 }
 const first = { type: 'user/message', seq: 0, time: 1, data: { content: [{ type: 'text', text: 'original question' }] } }
 const autoTitle = { type: 'session/title', seq: 1, time: 2, data: { title: 'auto title', messageSeqs: [0], source: { kind: 'fallback' } } }
 

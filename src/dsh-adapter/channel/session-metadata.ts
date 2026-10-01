@@ -134,12 +134,9 @@ export function createSessionMetadataActions(ctx: Context, deps: {
   const llmRequest = (capture: Capture, messages: Message[], includesHistory: boolean, signal?: AbortSignal): Record<string, unknown> => {
     const header = capture.agent.session.requestHeader()
     const config = header?.config
-    // Pre-V3 headers carried the system prompt inline; V3 moved it to
-    // `system/message` surface nodes (see currentSystemText).
-    const legacySystem = (header as { system?: unknown } | undefined)?.system
     const system = messages.some(message => message.role === 'system')
       ? undefined
-      : typeof legacySystem === 'string' ? legacySystem : includesHistory ? undefined : currentSystemText(capture)
+      : includesHistory ? undefined : currentSystemText(capture)
     return {
       provider: config?.provider ?? deps.provider(),
       model: config?.model ?? deps.model(),

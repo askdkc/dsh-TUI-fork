@@ -524,7 +524,7 @@ export interface PermissionPresetSnapshot {
   readonly current?: PermissionPresetCurrent
 }
 
-export type PermissionPresetAvailability = 'runtime' | 'legacy' | 'unavailable'
+export type PermissionPresetAvailability = 'runtime' | 'unavailable'
 
 export interface PermissionPresetOption {
   readonly value: string

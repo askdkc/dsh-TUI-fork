@@ -23,7 +23,7 @@ const agent = {
     id: sessionId,
     header: { id: sessionId, cwd: workspace },
     events,
-  },
+   snapshotEvents() { return this.events }},
 }
 
 let definition

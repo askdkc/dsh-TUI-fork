@@ -7,7 +7,7 @@
  * each baseline's package root so the snapshot records effective ownership,
  * not the raw YAML representation. The installed package is always checked; a
  * source-authoritative prerelease tree is checked too when present. CI sets
- * DSH_REQUIRE_ALPHA_BASELINE=1 so that baseline can never be skipped.
+ * DSH_REQUIRE_UPSTREAM_BASELINE=1 so that baseline can never be skipped.
  *
  * Run via `node --import tsx/esm scripts/verify-patch-surface.ts`.
  */
@@ -153,7 +153,7 @@ if (installedManifest !== undefined) {
 const sourceRoot = resolve(process.env.DSH_HARNESS_SOURCE_ROOT ?? resolve(root, '../deepseek-harness'))
 const sourceManifest = join(sourceRoot, 'packages/bundle/web-app/package.json')
 const sourcePatch = join(sourceRoot, 'packages/bundle/web-app/cordis.patch.yml')
-const requireSourceBaseline = process.env.DSH_REQUIRE_ALPHA_BASELINE === '1'
+const requireSourceBaseline = process.env.DSH_REQUIRE_UPSTREAM_BASELINE === '1'
 if (existsSync(sourceManifest) && existsSync(sourcePatch)) {
   const resolver = prepareUpstreamSourceResolver(sourceRoot)
   const source = baseline('source', sourceManifest, sourcePatch, resolver.baseUrl)
@@ -193,15 +193,9 @@ if (mode === '--snapshot') {
     console.error('refusing to snapshot without any @deepseek-ai/dsh-web-app baseline')
     process.exit(1)
   }
-  let retained: Record<string, WebComparison> = {}
-  if (existsSync(snapshotPath)) {
-    const previous = JSON.parse(readFileSync(snapshotPath, 'utf8')) as Partial<Snapshot>
-    retained = previous.webAppComparisons ?? {}
-  }
   const next: Snapshot = {
     ...ownSurface,
     webAppComparisons: {
-      ...retained,
       ...Object.fromEntries(liveComparisons),
     },
   }

@@ -68,7 +68,6 @@ export function createForkSessionAction(
       detached = await deps.createDetachedHandle(() => agents.create(liveSessionCreateOptions({
         sessionId: childId,
         seed,
-        runtimeSession: source,
         inheritedCount: seed.length,
         cwd: state.cwd,
         // NO parentSession: a /fork copy is an independent conversation

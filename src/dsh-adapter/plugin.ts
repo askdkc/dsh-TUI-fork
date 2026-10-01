@@ -19,21 +19,19 @@ import { removeClipboardImageDir } from '../utils/clipboard.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { QuestionStore, bindQuestionStore } from './questions.js'
-import { prepareQuestionAnswerer } from './questions-answerer.js'
+import { registerQuestionAnswerer } from './questions-answerer.js'
 import { adapterRuntimeFor } from '../adapter/kernel/runtime-context.js'
 import { ApprovalStore, bindApprovalStore } from './approvals.js'
 import { registerPromptDebug } from './promptDebug.js'
 import { readActivityFrames } from '../activityPrefs.js'
-import { commitFullscreenFactoryMigration, planFullscreenFactoryMigration, readAppliedMigrations } from '../migrationPrefs.js'
 import { readModelPref } from '../modelPrefs.js'
 import { explicitModelRoute, recordedModelRoute, resolveModelRoute, validateModelRoute } from '../modelRoute.js'
 import type { ModelRoute } from '../modelRoute.js'
 import { migratePresetPref, readPresetPref } from '../presetPrefs.js'
 import { readEffortPref } from '../effortPrefs.js'
 import { composePreset, filterMinimalPresetTools, resolvePersistedPreset, resolvePersistedRoute, runningPresetOf } from './presets.js'
-import { ensurePackagedPresets } from './packaged-presets.js'
 import { registerBundledPresets } from './bundled-presets.js'
-import { ensureLegacySessionEventTypes, snapshotLiveSessionEvents } from './compat/index.js'
+import { registerTuiSessionEventTypes, snapshotLiveSessionEvents } from './compat/index.js'
 import { clearResumeTarget, resumeTargetFromArgv, writeResumeTarget } from '../sessionHistory.js'
 import { readHomePrefs } from '../homePrefs.js'
 import { resolveSessionCwd } from '../utils/workspaceRoot.js'
@@ -85,7 +83,7 @@ import { CLEAR_ITERM2_PROGRESS, CLEAR_TAB_STATUS, supportsTabStatus, wrapForMult
  * Fullscreen decision latched across host recomposes. The launcher disposes
  * and re-mounts the plugin tree (teardown → apply() runs again) — a fresh
  * apply() re-resolves `bootedFullscreen` from cordis config, and the
- * settings user layer (settings.yaml) can arrive after the 300ms
+ * profile configuration can arrive after the 300ms
  * `settingsReady` bound when the recompose is also re-mounting the settings
  * service. The tree would then mount INLINE and `rendererSettingsFrozen` would
  * swallow the late application — the app lands on the main screen
@@ -225,24 +223,10 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   // Validate settings before creating an agent or taking over the terminal.
   const tuiSettingsNs = resolveSettingsNamespace(configOwner, Config) as SettingsNamespace
 
-  // Modern hosts own a declarative registry; old hosts discover directories.
-  // A modern bundle failure must not silently fall back to obsolete files.
-  if (!await registerBundledPresets(ctx)) try {
-    for (const result of ensurePackagedPresets()) {
-      if (result.status === 'conflict') {
-        ctx.logger.warn(
-          `dsh-tui: packaged preset "${result.id}" was not installed because an unmanaged preset already uses that id`,
-        )
-      }
-    }
-  } catch (error) {
-    // A read-only home must not make the whole terminal unusable; the other
-    // official and user presets remain available.
-    ctx.logger.warn(`dsh-tui: unable to install packaged presets (${error instanceof Error ? error.message : String(error)})`)
-  }
+  await registerBundledPresets(ctx)
 
   // UI language resolution: DSH_TUI_LANG env var wins, then the
-  // settings.yaml `dsh-tui.lang` user layer (applied once the settings
+  // active profile `dsh-tui.lang` configuration (applied once the settings
   // namespace registers below), then cordis.yml `lang`, then the
   // persisted `/lang` choice, then `zh`. Must settle before the first
   // render so every module resolves strings in the same language.
@@ -309,10 +293,8 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   // service when the composition doesn't (the official dsh-base
   // user-interaction config row does; a bare plugin mount creates it on
   // this context), then expose the model-facing tool before resolving the
-  // agent so per-step assembly includes ask_user_question. rc.2's provider
-  // seat is registered below; the 0.1.2 line's agent-aware waterfall needs the
-  // channel owner and is therefore registered immediately after the channel
-  // is created. Optional-service access goes through `ctx.get`, not the
+  // agent so per-step assembly includes ask_user_question. The answerer needs
+  // the channel owner and registers immediately after channel creation. Optional-service access goes through `ctx.get`, not the
   // inject proxy.
   const userQuestions = ctx.get('userQuestions') ?? new UserQuestionService(ctx)
   ctx.plugin(toolAskUser)
@@ -328,35 +310,11 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   })
   const questionStore = new QuestionStore(adapterRuntimeFor(ctx))
   bindQuestionStore(ctx, questionStore)
-  // One store, one teardown effect on both API lines. The compatibility
-  // adapter binds either registration to this Cordis fiber; this separate
-  // effect rejects asks still parked in the UI during teardown.
+  // Reject questions still parked in the UI when its fiber is disposed.
   ctx.effect(() => () => questionStore.rejectAll())
   // `/debug-prompt` snapshots the final provider-neutral request at the
   // llm/stream boundary, after every prompt and tool contributor has run.
   registerPromptDebug(ctx)
-  // API selection and registration live behind one adapter boundary. The UI
-  // bootstrap only translates a legacy seat conflict into its visible notice.
-  const questionAnswererRegistration = prepareQuestionAnswerer(ctx, userQuestions, questionStore)
-  const questionSeatDecision = questionAnswererRegistration.kind === 'legacy'
-    ? questionAnswererRegistration.yieldDecision
-    : undefined
-  let questionSeatNotice: string | undefined
-  if (questionSeatDecision?.action === 'alert-unverified') {
-    ctx.logger.error(
-      `dsh-tui: user-questions provider seat is held by a component self-reporting as ${questionSeatDecision.incumbentId} ` +
-        '(identity not host-verified); this TUI will not register its questionnaire and model questions may be answered by it',
-    )
-    questionSeatNotice = t('question-provider-occupied-unverified', { id: questionSeatDecision.incumbentId ?? '' })
-  } else if (questionSeatDecision?.action === 'alert') {
-    const displayId = questionSeatDecision.incumbentId ?? t('question-provider-occupied-unknown')
-    ctx.logger.error(
-      `dsh-tui: user-questions provider seat is held by a non-host component (${displayId}); ` +
-        'this TUI will not register its questionnaire and model questions may be answered by it',
-    )
-    questionSeatNotice = t('question-provider-occupied', { id: displayId })
-  }
-
   // Child-process stderr guard (issue #17): MCP servers spawned with an
   // inherited stderr (the MCP SDK's stdio default) write straight to the
   // terminal device from the child process, bypassing the renderer's own
@@ -612,11 +570,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   toastStore?.setSink(delivery => {
     notifyChannel(delivery.text, { color: delivery.color, timeoutMs: delivery.timeoutMs })
   })
-  if (questionAnswererRegistration.kind === 'waterfall') {
-    // Ownership follows the mutable channel; registration cleanup belongs to
-    // this Cordis fiber.
-    questionAnswererRegistration.register(channel)
-  }
+  registerQuestionAnswerer(ctx, channel, questionStore)
   // Fullscreen layout decision: the settings user layer (edited through the
   // /settings screen) overrides cordis.yml when set. The settings injection
   // below resolves it synchronously when the host settings service is up —
@@ -640,88 +594,10 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
     resolveSettingsReady = () => resolve()
     setTimeout(resolve, 300)
   })
-  // Old hosts register a settings.yaml scope. 0.1.7 projects the plugin's
-  // volatile Config fields instead; both paths apply edits without remounting.
+  // Apply volatile Config edits without remounting the agent.
   ctx.inject(['settings'], (settingsCtx) => {
     // Loader targets the Config owner's fiber, not the injected child fiber.
-    const scope = createSettingsScope<SettingsValue>(configOwner, settingsCtx.settings,
-      tuiSettingsNs,
-      Schema.object({
-        diffLayout: Schema.union(['auto', 'split', 'unified']).default('auto'),
-        thinkingFold: Schema.union(['preview', 'full']).default('preview'),
-        toolBackground: Schema.union(['none', 'subtle', 'strong']).default('none'),
-        scrollGutter: Schema.union(['timeline', 'scrollbar', 'hidden']).default('timeline'),
-        // Preset names AND custom `NxM` specs (the settings field's parse
-        // gate keeps junk out of the user layer; the transform normalizes
-        // whatever survives — cordis.yml junk included).
-        pageMargin: Schema.transform(
-          Schema.string().default('normal'),
-          value => normalizePageMargin(value),
-        ),
-        // No default on purpose (same rule as `fullscreen` below): a schema
-        // default here would come back from scope.get()/watch() and shadow
-        // an explicit cordis.yml `foldTerminalCommand: true` while the
-        // settings user layer is unset — applyDisplay's
-        // `?? config.foldTerminalCommand ?? false` already supplies the
-        // default and keeps cordis.yml decisive.
-        foldTerminalCommand: Schema.boolean(),
-        promptSessionLabel: Schema.boolean().default(false),
-        // No schema default (same rule as foldTerminalCommand): applyDisplay
-        // resolves `?? config.expandEditor ?? true` so cordis.yml stays
-        // decisive while the user layer is unset.
-        expandEditor: Schema.boolean(),
-        // Same no-default rule: applyDisplay resolves `?? config.smoothStreaming ?? true`.
-        smoothStreaming: Schema.boolean(),
-        // Same no-default rule: applyDisplay resolves `?? config.mermaidDiagrams ?? true`.
-        mermaidDiagrams: Schema.boolean(),
-        // No default on purpose: unset keeps the boot chain decisive
-        // (applyEffortDefault hands `undefined` to channel.setDefaultEffort,
-        // which resolves cordis.yml `effort` → effort.json → adapter default).
-        effortDefault: Schema.string(),
-        statusBar: Schema.object({
-          compact: Schema.boolean().default(DEFAULT_STATUS_BAR.compact),
-          model: Schema.boolean().default(DEFAULT_STATUS_BAR.model),
-          thinking: Schema.boolean().default(DEFAULT_STATUS_BAR.thinking),
-          cwd: Schema.boolean().default(DEFAULT_STATUS_BAR.cwd),
-          contextUsage: Schema.boolean().default(DEFAULT_STATUS_BAR.contextUsage),
-          cache: Schema.boolean().default(DEFAULT_STATUS_BAR.cache),
-          tokens: Schema.boolean().default(DEFAULT_STATUS_BAR.tokens),
-          tps: Schema.boolean().default(DEFAULT_STATUS_BAR.tps),
-          gitBranch: Schema.boolean().default(DEFAULT_STATUS_BAR.gitBranch),
-          sessionTitle: Schema.boolean().default(DEFAULT_STATUS_BAR.sessionTitle),
-          sessionId: Schema.boolean().default(DEFAULT_STATUS_BAR.sessionId),
-          goal: Schema.boolean().default(DEFAULT_STATUS_BAR.goal),
-          mode: Schema.boolean().default(DEFAULT_STATUS_BAR.mode),
-          contextBar: Schema.boolean().default(DEFAULT_STATUS_BAR.contextBar),
-          activity: Schema.boolean().default(DEFAULT_STATUS_BAR.activity),
-          trajectory: Schema.boolean().default(DEFAULT_STATUS_BAR.trajectory),
-          shortcutHint: Schema.boolean().default(DEFAULT_STATUS_BAR.shortcutHint),
-        }).default({ ...DEFAULT_STATUS_BAR }),
-        // Header pixel whale art; on unless settings.yaml says otherwise.
-        whale: Schema.boolean().default(true),
-        // Idle whale behaviors after the intro settles; on by default —
-        // the idle-wakeup gate stays: an explicit `false` keeps the settled
-        // header timer-free.
-        whaleIdle: Schema.boolean().default(true),
-        // Minimal mode: strips the header splash, emoji glyphs, and
-        // decorative colors; code highlight and tool colors stay.
-        minimal: Schema.boolean().default(false),
-        // No default on purpose: an unset `lang` keeps the field showing
-        // the effective language (see the section's format below) and lets
-        // cordis.yml / lang.json keep their precedence.
-        lang: Schema.union(['zh', 'en']),
-        // Same no-default rule: unset keeps cordis.yml's `fullscreen`
-        // decisive; set overrides it from the next boot on.
-        fullscreen: Schema.boolean(),
-        // Unset inherits cordis.yml; a saved choice takes effect after restart.
-        terminalImages: Schema.boolean(),
-        // Built-in action-shortcut overrides, one optional combo string per
-        // action (see the keymap utility). Unset keeps the default binding
-        // and the section's format() shows the effective combos.
-        shortcuts: Schema.object(
-          Object.fromEntries(SHORTCUT_ACTIONS.map(action => [action.id, Schema.string().required(false)])),
-        ).required(false),
-      }),
+    const scope = createSettingsScope<SettingsValue>(configOwner,
       () => {
         const current = configValues<Config>(runtimeConfig)
         return { ...current, lang: isLang(current.lang) ? current.lang : undefined }
@@ -802,19 +678,16 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
       applyMermaidDiagrams(value.mermaidDiagrams ?? config.mermaidDiagrams)
       channel.setStatusBar(normalizeStatusBar(value.statusBar ?? config.statusBar))
     }
-    // Legacy user scopes layer over cordis.yml. Modern Config is already
-    // resolved: an unset action must not revive its startup override.
+    // Config is already resolved: an unset action must not revive its startup override.
     // Applied live so the very next keypress matches the new combos.
     const applyShortcuts = (value: SettingsValue): void => {
       const userLayer = value.shortcuts ?? {}
-      const configLayer = scope.legacy ? config.shortcuts ?? {} : {}
       const merged: Partial<Record<ShortcutActionId, string>> = {}
       for (const action of SHORTCUT_ACTIONS) {
         const user = userLayer[action.id]
-        const pinned = configLayer[action.id]
         const chosen = typeof user === 'string' && user.trim() !== ''
           ? user
-          : (typeof pinned === 'string' && pinned.trim() !== '' ? pinned : undefined)
+          : undefined
         if (chosen !== undefined) merged[action.id] = chosen
       }
       setKeymapOverrides(merged)
@@ -843,30 +716,8 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
       applyShortcuts(next)
       applyRendererSettings(next)
     }
-    // One-time fullscreen factory-default migration (companion to the
-    // schema + cordis.patch.yml flip false→true): a `fullscreen: false`
-    // pinned in the settings user layer BEFORE the flip keeps overriding
-    // the new default on every boot. The first boot past this code clears
-    // that stale explicit choice; the migrations.json marker makes it
-    // strictly once, so a `false` re-pinned afterwards always stands. The
-    // boot decision cannot wait for the async doc write — the stale value
-    // is shadowed out of the first apply below (destructuring omission,
-    // not an explicit undefined), and the later watch commit (fullscreen
-    // back to undefined) leaves the fullscreen decision unchanged.
     const bootSettings = scope.get()
-    // The old migration applies only to the separate user layer. A modern
-    // profile's explicit inline Config must never be mistaken for that layer.
-    const fullscreenMigration = scope.legacy
-      ? planFullscreenFactoryMigration(bootSettings.fullscreen, readAppliedMigrations())
-      : 'done'
-    void commitFullscreenFactoryMigration(fullscreenMigration, {
-      unset: () => settingsCtx.settings.mutate(tuiSettingsNs, [{ op: 'unset', path: ['fullscreen'] }]),
-    })
-    if (fullscreenMigration === 'unset') {
-      notifyChannel(t('settings-fullscreen-migrated'), { color: 'warning' })
-    }
-    const { fullscreen: staleFullscreen, ...migratedSettings } = bootSettings
-    apply(fullscreenMigration === 'unset' ? migratedSettings : bootSettings)
+    apply(bootSettings)
     let lastTerminalImages = bootSettings.terminalImages ?? config.terminalImages ?? true
     settingsCtx.effect(() => scope.watch(next => {
       apply(next)
@@ -1018,7 +869,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
             { value: 'en', label: 'English', descriptions: { zh: '英文' } },
           ],
           format(value: unknown): string {
-            // Unset in settings.yaml: show the effective UI language
+            // Unset in profile configuration: show the effective UI language
             // (env / cordis.yml / lang.json resolution) instead of a
             // blank "unset" that hides the current choice.
             return value === undefined || value === null ? getLang() : String(value)
@@ -1035,7 +886,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '开启：接管整个终端（同 vim/less），应用内鼠标；关闭：终端原生滚动选择；整屏页两种模式都有鼠标。重启生效。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: show what THIS session booted with
+            // Unset in profile configuration: show what THIS session booted with
             // (the cordis.yml resolution) instead of a misleading false.
             return value === undefined || value === null ? String(bootedFullscreen) : String(value)
           },
@@ -1142,7 +993,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '终端卡（Bash/PowerShell）：多行命令头部折叠为首行 + 计数；Ctrl+O 或点击卡片展开。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: show the effective resolution (cordis.yml
+            // Unset in profile configuration: show the effective resolution (cordis.yml
             // → off) instead of a blank — same rule as `fullscreen`'s field.
             return String(typeof value === 'boolean' ? value : config.foldTerminalCommand === true)
           },
@@ -1163,7 +1014,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '开启：输入行尾 ⛶ 按钮与全屏编辑快捷键（默认 Ctrl+Shift+E）把草稿展开成整屏编辑器（Enter 换行、Ctrl+Enter 发送）。关闭：两个入口都不显示。默认开启。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: the effective default is on.
+            // Unset in profile configuration: the effective default is on.
             return String(typeof value === 'boolean' ? value : config.expandEditor !== false)
           },
         },
@@ -1175,7 +1026,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '把实时回复、展开的思考与工具卡正文按 ~30fps 匀速揭示，不再随供应商突发一跳一跳；一次性到达的非流式回复也会平滑打出。回放/历史内容始终完整直出。默认开启。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: the effective default is on.
+            // Unset in profile configuration: the effective default is on.
             return String(typeof value === 'boolean' ? value : config.smoothStreaming !== false)
           },
         },
@@ -1187,7 +1038,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '把回复中的 ```mermaid 代码块画成字符图（flowchart、sequence、state、class、ER、pie、mindmap、timeline、gitGraph）。比终端宽或类型不支持的图保留源码。立即生效。默认开启。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: the effective default is on.
+            // Unset in profile configuration: the effective default is on.
             return String(typeof value === 'boolean' ? value : config.mermaidDiagrams !== false)
           },
         },
@@ -1199,7 +1050,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
           hintDescriptions: { zh: '开启：打开/恢复会话时自动把最近活动总结成一行灰字显示在会话底部（可悬停/点击查看或应用建议标题）；关闭：手动使用 /recap。' },
           kind: 'boolean',
           format(value: unknown): string {
-            // Unset in settings.yaml: the default is on.
+            // Unset in profile configuration: the default is on.
             return value === undefined || value === null ? 'true' : String(value)
           },
         },
@@ -1218,7 +1069,7 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
             { value: 'max', label: 'Max', descriptions: { zh: '最高' } },
           ],
           format(value: unknown): string {
-            // Unset in settings.yaml: show what a boot would actually start
+            // Unset in profile configuration: show what a boot would actually start
             // on (the cordis effort pin → the persisted /effort choice)
             // instead of a misleading blank.
             if (value === undefined || value === null || value === 'auto') {
@@ -1468,10 +1319,6 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   notifyStderr = (text, options) => notifyChannel(text, options)
   // The question-seat alert was raised before the channel existed; flush it
   // now so it lands as an in-UI notice, not only in the log file.
-  if (questionSeatNotice !== undefined) {
-    notifyChannel(questionSeatNotice, { color: 'error' })
-    questionSeatNotice = undefined
-  }
   for (const [text, options] of stderrBacklog.splice(0)) {
     notifyStderr(text, options)
   }
@@ -1891,10 +1738,10 @@ async function resolveAgent(
     // between would otherwise drop the claim this boot just committed.
     const reservation = reserved.reservation
     try {
-      // Compat boundary: register vouched-for legacy event types before the
+      // Register current TUI-owned event types before the
       // strict read path (issue #153) — same seam as the /resume picker,
       // here for the launch-time --resume flow. In-process only.
-      ensureLegacySessionEventTypes()
+      registerTuiSessionEventTypes()
       // The resumed session keeps the preset its log records (last
       // `agent-preset/selected` wins over the creation header), never the
       // caller's current preference.

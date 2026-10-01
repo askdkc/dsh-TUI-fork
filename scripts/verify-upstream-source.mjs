@@ -1,7 +1,7 @@
 /**
  * Type-check the TUI directly against the source-authoritative newest
  * DeepSeek Harness prerelease. CI pins the checkout SHA; local runs may point
- * DSH_HARNESS_SOURCE_ROOT at a checkout or use ../deepseek-harness.
+ * DSH_HARNESS_SOURCE_ROOT at a checkout or use .upstream/deepseek-harness.
  */
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, parse, resolve } from 'node:path'
@@ -11,9 +11,9 @@ import { fileURLToPath } from 'node:url'
 import { rcompare, valid } from 'semver'
 import ts from 'typescript'
 
-const EXPECTED_UPSTREAM_VERSION = process.env.DSH_HARNESS_EXPECTED_VERSION ?? '0.2.0-rc.2'
+const EXPECTED_UPSTREAM_VERSION = '0.2.0-rc.2'
 const tuiRoot = resolve(import.meta.dirname, '..')
-const sourceRoot = resolve(process.env.DSH_HARNESS_SOURCE_ROOT ?? join(tuiRoot, '../deepseek-harness'))
+const sourceRoot = resolve(process.env.DSH_HARNESS_SOURCE_ROOT ?? join(tuiRoot, '.upstream/deepseek-harness'))
 const sourceManifestPath = join(sourceRoot, 'package.json')
 if (!existsSync(sourceManifestPath)) {
   console.error(`upstream source checkout missing: ${sourceRoot}`)
@@ -85,10 +85,8 @@ sourcePaths['@deepseek-ai/dsh-session-persistence-jsonl'] = [
 // version, never by directory name: pnpm shortens a store name past
 // `virtual-store-dir-max-length` to `<name>_<hash>` (60 chars on Windows,
 // 120 elsewhere), leaving no version in the name at all, and a lexicographic
-// sort ranks 0.1.7-rc.2 above 0.1.7-rc.10. The alpha lanes check OLDER
-// upstream checkouts against the versions this workspace actually installs,
-// and the format types are shape-stable across those lines, so the newest
-// installed declaration is the right pin.
+// sort can misorder numeric prerelease suffixes. Select the declaration
+// matching the current validated host rather than an older installed copy.
 {
   const store = join(tuiRoot, 'node_modules/.pnpm')
   const candidates = []
@@ -100,7 +98,7 @@ sourcePaths['@deepseek-ai/dsh-session-persistence-jsonl'] = [
       if (!existsSync(manifest) || !existsSync(declaration)) continue
       try {
         const version = valid(JSON.parse(readFileSync(manifest, 'utf8')).version)
-        if (version !== null) candidates.push({ version, declaration })
+        if (version === EXPECTED_UPSTREAM_VERSION) candidates.push({ version, declaration })
       } catch {
         // Unreadable manifest: not a candidate; the pin simply stays unset.
       }
@@ -140,7 +138,7 @@ const projects = [
   { label: 'dsh-auth', config: join(tuiRoot, 'dsh-auth/tsconfig.json') },
 ]
 for (const project of projects) {
-  const tempRoot = mkdtempSync(join(tmpdir(), `dsh-tui-alpha-tsc-${project.label}-`))
+  const tempRoot = mkdtempSync(join(tmpdir(), `dsh-tui-upstream-tsc-${project.label}-`))
   const generatedConfig = join(tempRoot, 'tsconfig.json')
   writeFileSync(generatedConfig, `${JSON.stringify({
     extends: project.config,

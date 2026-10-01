@@ -292,12 +292,8 @@ const check1 = (name: string, ok: boolean, detail?: string) => {
   check1('per-owner checkpoint present', ownerCheckpoint !== -1)
   check1('per-owner checkpoint runs BEFORE service.execute',
     invoker.indexOf('service.execute', ownerCheckpoint) > ownerCheckpoint)
-  check1('composer-images invocation is version-gated (0.1.0-rc.8 threshold + 4-param shape present)',
-    invoker.includes('supportsImages(')
-    && invoker.includes("installedMeetsVersion('@deepseek-ai/dsh-commands', '0.1.0-rc.8')")
-    && invoker.includes('ImagesExecute'))
-  check1('command discovery mirrors the upstream input admission flag (0.1.5 `attachments`, legacy `images` fallback)',
-    /acceptsImages:[^\n]*\battachments\b[^\n]*\bimages\b/.test(skills))
+  check1('command discovery uses current attachment admission',
+    /acceptsImages:[^\n]*\battachments\b/.test(skills))
   check1('draft-aware command outcome is additive',
     invoker.includes('Promise<ExternalCommandOutcome | undefined>')
       && channel.includes('runExternalCommandOutcome'))

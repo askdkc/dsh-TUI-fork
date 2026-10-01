@@ -62,7 +62,7 @@ export function createSkillCatalog(
         // `images` became `attachments` upstream (composer attachment
         // admission); read both so older cohorts keep their image commands.
         const input = descriptor.input as { hint?: string; attachments?: boolean; images?: boolean } | undefined
-        merged.push({ name: descriptor.name, description: descriptor.description, ...(descriptions === undefined ? {} : { descriptions }), tag: input?.hint, external: true, acceptsImages: input?.attachments ?? input?.images === true, ...(registrations.has(descriptor.name) ? { skill: true } : {}) })
+        merged.push({ name: descriptor.name, description: descriptor.description, ...(descriptions === undefined ? {} : { descriptions }), tag: input?.hint, external: true, acceptsImages: input?.attachments === true, ...(registrations.has(descriptor.name) ? { skill: true } : {}) })
       }
     }
     if (!deps.owner.current() || target !== deps.agent()) return

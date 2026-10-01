@@ -36,30 +36,20 @@ const listingVersions = new WeakMap<SessionSource, number>()
 /** Large append batches use bounded windows, then background title recovery. */
 const FOREGROUND_SUFFIX_BYTES = 2 * 1024 * 1024
 
-/**
- * The slice of `ctx.sessionPersistence` this module uses.
- *
- * Structural and fully optional: the service is resolved from a running
- * context whose packages may be a version apart from ours, and a listing that
- * degrades is worth more than one that throws.
- */
+/** Current persistence snapshots and optional artifact location for JSONL backends. */
 export interface SessionSource {
-  /** Headers plus per-log change tokens — the contract built for this. */
-  listSnapshots?: (signal?: AbortSignal) => Promise<readonly unknown[]>
-  /** Headers alone, for a backend or version without snapshots. */
-  list?: (signal?: AbortSignal) => Promise<readonly unknown[]>
-  /** Absolute artifact path for one header; absent for storeless backends. */
+  list(options?: { signal?: AbortSignal }): Promise<readonly unknown[]>
   locate?: (meta: unknown) => unknown
 }
 
-/** A header paired with the backend's change token, when it offered one. */
+/** A header paired with the backend's authoritative change token. */
 interface Listed {
   readonly header: RawSessionHeader
   readonly raw: unknown
-  readonly revision: string | undefined
+  readonly revision: string
 }
 
-/** Pull `{ header, revision }` out of one `listSnapshots()` element. */
+/** Pull `{ header, revision }` out of one `list()` element. */
 function readSnapshot(value: unknown): Listed | undefined {
   if (value === null || typeof value !== 'object') return undefined
   const record = value as Record<string, unknown>
@@ -67,59 +57,16 @@ function readSnapshot(value: unknown): Listed | undefined {
   const header = readHeader(raw)
   if (header === undefined) return undefined
   const revision = record['revision']
-  return { header, raw, revision: typeof revision === 'string' ? revision : undefined }
+  return typeof revision === 'string' ? { header, raw, revision } : undefined
 }
 
-/**
- * Enumerate stored sessions.
- *
- * Prefers `listSnapshots()` because its revision is the backend's own answer
- * to "has this log changed", and falls back to `list()` when the resolved
- * service predates it — in which case the change token is derived from the
- * file's own size and mtime further down. Both are honest change tokens for an
- * append-only log; only the authority differs.
- *
- * `list()` itself is read dual-shape: 0.1.5 folded snapshots INTO it (each
- * element is `{ header, revision, sizeBytes }`), while every older backend
- * returns bare headers — so each element is tried as a snapshot first and
- * then as a bare header.
- */
+/** Enumerate current snapshots with the backend's authoritative revision. */
 export async function enumerateSessions(source: SessionSource, signal?: AbortSignal): Promise<Listed[]> {
-  if (typeof source.listSnapshots === 'function') {
-    const snapshots = await source.listSnapshots(signal)
-    return snapshots.map(readSnapshot).filter((entry): entry is Listed => entry !== undefined)
-  }
-  if (typeof source.list === 'function') {
-    const headers = await source.list(signal)
-    return headers
-      .map((raw): Listed | undefined => readSnapshot(raw) ?? bareListed(raw))
-      .filter((entry): entry is Listed => entry !== undefined)
-  }
-  return []
+  const snapshots = await source.list({ signal })
+  return snapshots.map(readSnapshot).filter((entry): entry is Listed => entry !== undefined)
 }
 
-/** Pull a bare header out of one pre-0.1.5 `list()` element. */
-function bareListed(raw: unknown): Listed | undefined {
-  const header = readHeader(raw)
-  return header === undefined ? undefined : { header, raw, revision: undefined }
-}
-
-/**
- * Absolute artifact path for one session.
- *
- * The backend's own `locate()` is authoritative and is asked first — but
- * since 0.1.5 it answers the CURRENT generation's path without touching the
- * filesystem, which does not exist for a session still stored as an older
- * generation; resolve older generations inside that same directory. Only
- * backends without a location fall back to scanning session roots, as the
- * compat layer has always done (generation-aware there) and is deliberately
- * independent of the backend's workspace-key scheme — so a runtime whose
- * persistence service predates `locate`, whose key sanitization changes, or
- * whose current-generation path has not materialized yet still resolves.
- *
- * A backend that stores no per-session artifact (SQLite) answers neither, and
- * its sessions are summarized from their headers alone.
- */
+/** Backend artifact location; file discovery also supports optional current embedders. */
 function locate(source: SessionSource, raw: unknown, sessionId: string): string | undefined {
   if (typeof source.locate === 'function') {
     let location: unknown
@@ -208,70 +155,57 @@ export async function listSummaries(
     let facts: ReturnType<typeof fileFacts>
     let derived = cached?.derived
     let path: string | undefined
-    if (revision !== undefined && derived?.revision === revision && derived.modifiedAt === undefined) {
-      // Schema v3 held the same derived facts but not mtime. Upgrade that
-      // record with one metadata read rather than re-decoding its log.
-      path = locate(source, raw, header.id)
-      facts = path === undefined ? undefined : fileFacts(path)
-      derived = { ...derived, modifiedAt: facts?.modifiedAt ?? 0 }
-      changed = true
-    }
     // The backend's opaque revision is authoritative. A hit does not even
     // resolve a path; incomplete titles are handled by the recovery queue.
-    if (revision === undefined || derived === undefined || derived.revision !== revision) {
+    if (derived === undefined || derived.revision !== revision) {
       path = locate(source, raw, header.id)
       facts = path === undefined ? undefined : fileFacts(path)
-      // Older persistence implementations provide no revision. Their one
-      // metadata read per entry remains necessary to detect changes.
-      const token = revision ?? (facts === undefined ? undefined : `${facts.bytes}:${facts.modifiedAt}`)
-      if (token === undefined || derived?.revision !== token) {
-        derived = undefined
-        if (cached?.derived !== undefined) changed = true
-        if (path !== undefined && token !== undefined) {
-          const previous = cached?.derived
-          const appendGrowth = (
-            facts !== undefined && previous?.identity !== undefined &&
-            previous.identity === facts.identity && previous.anchor !== undefined &&
-            facts.bytes > previous.bytes &&
-            await sessionTitleAnchor(path, previous.bytes, signal) === previous.anchor
-          )
-          if (appendGrowth && facts !== undefined && previous !== undefined && facts.bytes - previous.bytes <= FOREGROUND_SUFFIX_BYTES) {
-            const suffix = await digestAppendedSuffix(path, previous.bytes, facts.bytes, signal)
-            if (suffix.complete) {
-              derived = {
-                revision: token,
-                bytes: facts.bytes,
-                modifiedAt: facts.modifiedAt,
-                identity: facts.identity,
-                anchor: await sessionTitleAnchor(path, facts.bytes, signal),
-                title: suffix.title?.text ?? previous.title,
-                titleSource: suffix.title?.source ?? previous.titleSource,
-                titleComplete: suffix.title !== undefined || previous.titleComplete,
-                hasPrompt: previous.hasPrompt || suffix.hasHumanPrompt,
-                model: suffix.model ?? previous.model,
-                label: suffix.label ?? previous.label,
-              }
-            }
-          }
-          if (derived === undefined) {
-            const digest = digestSession(path, header.cwd ?? '')
-            const carried = appendGrowth && digest.titleComplete !== true ? previous : undefined
+      derived = undefined
+      if (cached?.derived !== undefined) changed = true
+      if (path !== undefined) {
+        const previous = cached?.derived
+        const appendGrowth = (
+          facts !== undefined && previous?.identity !== undefined &&
+          previous.identity === facts.identity && previous.anchor !== undefined &&
+          facts.bytes > previous.bytes &&
+          await sessionTitleAnchor(path, previous.bytes, signal) === previous.anchor
+        )
+        if (appendGrowth && facts !== undefined && previous !== undefined && facts.bytes - previous.bytes <= FOREGROUND_SUFFIX_BYTES) {
+          const suffix = await digestAppendedSuffix(path, previous.bytes, facts.bytes, signal)
+          if (suffix.complete) {
             derived = {
-              revision: token,
-              bytes: facts?.bytes ?? 0,
-              modifiedAt: facts?.modifiedAt,
-              identity: facts?.identity,
-              anchor: facts === undefined ? undefined : await sessionTitleAnchor(path, facts.bytes, signal),
-              title: carried?.title ?? digest.title?.text ?? '',
-              titleSource: carried?.titleSource ?? digest.title?.source ?? 'fallback',
-              titleComplete: digest.titleComplete === true,
-              hasPrompt: digest.hasPrompt,
-              model: digest.model ?? carried?.model,
-              label: digest.label ?? carried?.label,
+              revision,
+              bytes: facts.bytes,
+              modifiedAt: facts.modifiedAt,
+              identity: facts.identity,
+              anchor: await sessionTitleAnchor(path, facts.bytes, signal),
+              title: suffix.title?.text ?? previous.title,
+              titleSource: suffix.title?.source ?? previous.titleSource,
+              titleComplete: suffix.title !== undefined || previous.titleComplete,
+              hasPrompt: previous.hasPrompt || suffix.hasHumanPrompt,
+              model: suffix.model ?? previous.model,
+              label: suffix.label ?? previous.label,
             }
           }
-          changed = true
         }
+        if (derived === undefined) {
+          const digest = digestSession(path, header.cwd ?? '')
+          const carried = appendGrowth && digest.titleComplete !== true ? previous : undefined
+          derived = {
+            revision,
+            bytes: facts?.bytes ?? 0,
+            modifiedAt: facts?.modifiedAt,
+            identity: facts?.identity,
+            anchor: facts === undefined ? undefined : await sessionTitleAnchor(path, facts.bytes, signal),
+            title: carried?.title ?? digest.title?.text ?? '',
+            titleSource: carried?.titleSource ?? digest.title?.source ?? 'fallback',
+            titleComplete: digest.titleComplete === true,
+            hasPrompt: digest.hasPrompt,
+            model: digest.model ?? carried?.model,
+            label: digest.label ?? carried?.label,
+          }
+        }
+        changed = true
       }
     }
     if (

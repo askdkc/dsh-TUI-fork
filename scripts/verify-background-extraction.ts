@@ -48,7 +48,7 @@ assert.match(subagents, /markChannelReadDirty/u, 'subagent rows retain read-view
 const fakeAgent = (id = 'main') => ({
   id,
   status: 'idle',
-  session: { id, events: [], header: { createdAt: 0 } },
+  session: { id, events: [], header: { createdAt: 0 } , snapshotEvents() { return this.events }},
   followup() {}, steer() {}, cancel() {}, inbox: { remove: () => true }, ctx: { on: () => () => undefined },
 })
 

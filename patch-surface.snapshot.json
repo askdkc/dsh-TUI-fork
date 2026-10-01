@@ -4,7 +4,6 @@
     "dsh-tui-storage-json",
     "dsh-tui-storage-domain",
     "dsh-tui-workspace",
-    "dsh-tui-code-runtime",
     "dsh-tui-subagent-model-selection-settings",
     "dsh-tui-workspaces",
     "dsh-tui-command-trees",
@@ -12,7 +11,6 @@
     "dsh-tui-scenes",
     "dsh-tui-plugin-host",
     "dsh-tui-extensions",
-    "dsh-tui-agent-presets",
     "dsh-tui-agent-preset-registry",
     "dsh-tui-cordis-host-runner",
     "dsh-tui-auth",
@@ -30,79 +28,6 @@
     "session-persistence-jsonl"
   ],
   "webAppComparisons": {
-    "0.1.1-rc.2": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [
-        "hmr"
-      ],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-alpha.1": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-alpha.2": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-alpha.3": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-alpha.4": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-alpha.5": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.2-rc.1": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.5-alpha.2": {
-      "disablesBeyondWebApp": [
-        "tool-str-replace-editor"
-      ],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.5-rc.1": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.7-rc.1": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [
-        "tool-plugin-manager",
-        "workflow-ptc"
-      ],
-      "insertsSharedWithWebApp": []
-    },
-    "0.1.7-rc.2": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [
-        "tool-plugin-manager",
-        "workflow-ptc"
-      ],
-      "insertsSharedWithWebApp": []
-    },
-    "0.2.0-rc.1": {
-      "disablesBeyondWebApp": [],
-      "webAppDisablesBeyondTui": [
-        "tool-plugin-manager",
-        "workflow-ptc"
-      ],
-      "insertsSharedWithWebApp": []
-    },
     "0.2.0-rc.2": {
       "disablesBeyondWebApp": [],
       "webAppDisablesBeyondTui": [

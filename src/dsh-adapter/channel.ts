@@ -72,11 +72,11 @@ import { createPermissionModeRoster } from './channel/mode-roster.js'
 import { createPermissionModeActions } from './channel/mode-permission-actions.js'
 import { expandMentions, mentionAttachments, mentionFs } from './channel/mentions.js'
 import { sessionCwdMatches } from './channel/paths.js'
-import { legacyPermissionPresetSnapshot, permissionPresetSnapshotFromService, unavailablePermissionPresetSnapshot } from './channel/permissions.js'
+import { permissionPresetSnapshotFromService, unavailablePermissionPresetSnapshot } from './channel/permissions.js'
 import { createPreferences } from './channel/preferences.js'
 import { createSettingsHosts } from './channel/settings-host.js'
 import { createChannelOwner, registerChannelOwner } from './channel/owner.js'
-import { ARGS_PREVIEW_LIMIT, foldBack, harnessToolResultView, LOCAL_OUTPUT_LIMIT, prepareReplayEvents, preview, RESULT_PREVIEW_LIMIT, toolErrorText } from './channel/transcript.js'
+import { ARGS_PREVIEW_LIMIT, foldBack, harnessToolResultView, LOCAL_OUTPUT_LIMIT, preview, RESULT_PREVIEW_LIMIT, toolErrorText } from './channel/transcript.js'
 import type { AgentViewRow, Channel, ChannelGoal, ChannelImageBlock, ChannelState, ChatRow, CredentialStatus, EffortOption, JobControl, LoadedContextEntry, LoadedContextFile, LoadedContextSkill, LoadedContextTool, MentionFs, NotificationItem, PendingMessage, PresetOption, ResumeResult, StagedImageInput, SubagentControl, SubagentRow, TodoPanelItem, ToolCallView, ToolResultView, ToolsRegistryLike } from './channel/types.js'
 import { estimateTokens, isTokenDelta, tokenDeltaChars, usageOutputTokens } from './channel/usage.js'
 import { getHostCommandTrees } from './command-trees.js'
@@ -530,7 +530,7 @@ function createChannelWithOwner(
       } catch {
         return unavailablePermissionPresetSnapshot()
       }
-      if (service === undefined) return legacyPermissionPresetSnapshot(state.mode.sandbox)
+      if (service === undefined) return unavailablePermissionPresetSnapshot()
       return permissionPresetSnapshotFromService(service, binding.agent.session)
     },
     settingsSections(): readonly TuiSettingsSection[] {

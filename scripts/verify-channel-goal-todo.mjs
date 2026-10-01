@@ -113,7 +113,7 @@ const seed = [
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 's1', seq: 4, events: seed },
+  session: { id: 's1', seq: 4, events: seed , snapshotEvents() { return this.events }},
   // bindAgent 挂 installModelSelection 需要 agent.ctx 提供"可订阅、返回
   // 解除函数"的最小面（0.3.6 Shift+Tab 推理等级）。
   ctx: { on: () => () => {} },
@@ -310,7 +310,7 @@ if (sessionHandler === undefined) {
   const goalAgent = {
     id: 'a2',
     status: 'idle',
-    session: { id: 's2', seq: 3, events: seed },
+    session: { id: 's2', seq: 3, events: seed , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
   }
   const goalChannel = createChannel(ctx, goalAgent, {

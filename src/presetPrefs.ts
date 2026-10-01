@@ -14,12 +14,10 @@ import { DATA_DIR } from './utils/paths.js'
 
 const PREFS_DIR = DATA_DIR
 
-/** Ids a preset directory may use (dsh-agent-presets' own boundary). */
+/** Validate registry IDs without rewriting user-defined names. */
 const PRESET_ID = /^[a-z0-9][a-z0-9-]*$/
 
-/** Parse the value exactly as stored. Preset aliases are roster-dependent:
- * legacy rc.2 ships `code`, while the 0.1.2 line ships `ptc`, so this file
- * cannot safely canonicalize either name before the active roster has been queried. */
+/** Parse the exact stored registry ID. */
 export function parsePresetPref(text: string): string | undefined {
   try {
     const parsed: unknown = JSON.parse(text)

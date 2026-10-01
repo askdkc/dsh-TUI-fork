@@ -153,7 +153,7 @@ const fakeCtx = {
 const fakeAgent = {
   id: 'a1',
   status: 'idle' as const,
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: { on: () => () => {} },
 }
 const channel = createChannel(fakeCtx as never, fakeAgent as never, {

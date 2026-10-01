@@ -26,7 +26,7 @@ const oldAgent = {
   session: {
     id: 'old', events: [] as never[], requestHeader: () => undefined,
     deriveMessages: () => [], append: () => undefined,
-  },
+   snapshotEvents() { return this.events }},
 }
 const newAgent = { ...oldAgent, id: 'new', session: { ...oldAgent.session, id: 'new' } }
 let agent = oldAgent
@@ -114,7 +114,7 @@ const recapGate = deferred<void>()
 let recapAgent = { ...oldAgent, session: {
   ...oldAgent.session,
   events: [{ type: 'user/message', data: { content: [{ type: 'text', text: 'recap source' }] } }] as never[],
-} }
+ snapshotEvents() { return this.events }} }
 let recapGeneration = 1
 const recapOwner = createChannelOwner()
 const recapBinding = {
@@ -134,7 +134,7 @@ const recapMetadata = createSessionMetadataActions({ get: (name: string) => name
 })
 const recap = recapMetadata.recapRecent({ onText: text => recapVisible.push(text) })
 await tick()
-recapAgent = { ...newAgent, session: { ...newAgent.session, events: [] as never[] } }
+recapAgent = { ...newAgent, session: { ...newAgent.session, events: [] as never[] , snapshotEvents() { return this.events }} }
 recapGeneration += 1
 recapGate.resolve()
 assert.deepEqual(await recap, { summary: null }, 'late recap cannot return against replacement session')

@@ -1,52 +1,9 @@
 /**
- * Session-log compatibility helpers.
- *
- * Title lookup tolerates event types unknown to the current harness. Offline
- * rename and delete support the `/resume` picker when no live Agent owns the
- * selected persisted session. The resume seam registers vouched-for legacy
- * event types into every reachable KNOWN_SESSION_EVENT_TYPES copy so the
- * strict read path stops rejecting whole sessions over them (issue #153).
- *
- * Registration background: plugins like dsh-working-activity (< the publish
- * cut) appended `activity/status` through `session.append`, but rc.6's
- * append exposes no `ignorable` flag and the type is absent from
- * KNOWN_SESSION_EVENT_TYPES — so resume's seed validation rejects the WHOLE
- * session ("unknown to this harness and not marked ignorable"). Upstream's
- * catalog header defers a registration surface "until such a consumer
- * exists"; the working-activity plugin became that consumer at #119 and
- * registers its type at load. Logs written BEFORE that cut, resumed in a
- * process where the plugin's registration never ran (plugin unmounted, or
- * a bare cordis.yml), still hit the rejection — this module is the consumer
- * for exactly that residue.
- *
- * Why registration and NOT rewriting the log to mark events `ignorable`
- * (the #107 approach, restored then replaced after review): the store is
- * shared with dsh web (#24) and possibly a second TUI instance (#153), and
- * a whole-file tmp+rename swap (a) loses frames an already-open appender
- * lands on the replaced inode, (b) drops the backend's 0600 artifact mode,
- * (c) re-encodes frames without the writer's checksum flag, and (d) dies on
- * torn tails the backend itself can recover. Registration touches nothing
- * on disk and degrades to exactly the pre-patch behavior when no copy
- * resolves.
- *
- * Whitelist discipline: ONLY `activity/status` — the type the plugin
- * provably wrote as ephemeral UI frames. Anything else unknown stays
- * unknown: upstream's fail-closed ("likely written by a newer harness") is
- * a feature — silently skipping a REQUIRED future event would reconstruct
- * a wrong session. Retires the day upstream's shared catalog adopts the
- * type or ships a real registration API (the add() calls become no-ops).
- *
- * The second half of this module is the bounded, tolerant, read-only log
- * reader behind the session tree (channel.buildSessionTree): 64 KiB chunked
- * I/O, lazy per-frame zstd decode over an RFC 8878 structural frame walk (a
- * torn final frame — crash mid-flush — is dropped as uncommitted, never
- * fatal), packed-row expansion, an event budget plus a scanned-envelope
- * budget so ignorable-heavy logs cannot multiply the cost of opening the
- * panel, and an inherited-prefix skip so a fork's event budget pays only for
- * its OWN events. It never writes; both stock encodings are read.
- *
- * @module dsh-cli/compat/sessionLog
+ * Bounded reads and offline metadata edits for current session logs.
+ * TUI-owned informational event types are registered before strict reads.
+ * Unsupported older storage formats are left untouched and reported as failed reads.
  */
+import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createRequire } from 'node:module'
 import {
@@ -64,21 +21,8 @@ import { dirname, join, sep } from 'node:path'
 import { zstdCompressSync, zstdDecompressSync } from 'node:zlib'
 import { homeDir } from '../../utils/paths.js'
 
-/**
- * Legacy third-party session-event types the TUI vouches for as ephemeral
- * UI frames — safe for the strict read path to accept and skip. Exported
- * for the regression verifier; grow it only with proof the type was always
- * inert (never load-bearing for session reconstruction).
- *
- * 0.1.5 note: the vouch is not only for OLD logs. `session/color` is written
- * by the TUI itself on every host generation (session-metadata.ts), and
- * 0.1.5's `validateStoredEvents` refuses unknown non-ignorable types at load
- * — without this registration a single color pick makes that session
- * permanently unresumable (probed: SessionFormatUnsupportedError without the
- * vouch, clean load with it). The type stays inert for reconstruction either
- * way: it only re-tints the row.
- */
-export const LEGACY_SESSION_EVENT_TYPES: readonly string[] = ['activity/status', 'session/color']
+/** Informational event vocabulary written by this TUI on the current host. */
+export const TUI_SESSION_EVENT_TYPES: readonly string[] = ['session/color']
 
 /** Zstd frame magic number, little-endian (0xFD2FB528). */
 const ZSTD_MAGIC = 0xfd2fb528
@@ -118,7 +62,7 @@ function isSafeSessionId(sessionId: string): boolean {
  * dsh-session-format's `CANONICAL_LOG_FILENAME` (that package is not a
  * blessed import, so the rule is re-derived here): version zero keeps the
  * original `session.jsonl`; every later generation carries a lowercase
- * numeric `.vN` component (0.1.5 writes `session.v3.jsonl`). Noncanonical,
+ * numeric `.vN` component. Noncanonical,
  * uppercase, leading-zero, and `.v0` names never identify committed
  * generations. A `.zstd` suffix marks the compressed encoding.
  */
@@ -203,211 +147,24 @@ export function findSessionLogFile(sessionId: string): string | undefined {
  * Bounded, tolerant, read-only log reader behind the session tree
  * (channel.buildSessionTree): 64 KiB chunked I/O, lazy per-frame zstd decode
  * over an RFC 8878 structural frame walk (a torn final frame — crash
- * mid-flush — is dropped as uncommitted, never fatal), packed-row expansion,
+ * mid-flush — is dropped as uncommitted, never fatal), event envelopes,
  * an event budget plus a scanned-envelope budget so ignorable-heavy logs
  * cannot multiply the cost of opening the panel, and an inherited-prefix
  * skip so a fork's event budget pays only for its OWN events. It never
  * writes; both stock encodings are read.
 \* ------------------------------------------------------------------------- */
 
-/**
- * decodeStorageRecord comes in LAZILY through the module's own tree: this
- * module must stay importable against ANY reachable dsh-session copy —
- * ensureLegacySessionEventTypes walks foreign/minimal copies whose only
- * contract is exposing KNOWN_SESSION_EVENT_TYPES, so no static runtime import
- * of the package is allowed here. The log readers only run where the
- * plugin's own real dsh-session is installed.
- *
- * Dual-generation: dsh-session 0.1.5 (Session format v3) REMOVED the export —
- * V3 nests compact assistant streams inside `assistant/message.stream`, so
- * the storage-row vocabulary exists only in pre-V3 artifacts. When the
- * upstream export resolves it is used verbatim (old hosts keep byte-identical
- * behavior); otherwise the local structural port below decodes the three
- * released packed-row tags with exactly the removed decoder's validate-then-
- * expand semantics, and every other value passes through unvalidated.
- */
-type StorageDecoder = (value: unknown) => SessionEvent[]
-let cachedDecoder: StorageDecoder | undefined
-function decodeStorageRecord(value: unknown): SessionEvent[] {
-  if (cachedDecoder === undefined) {
-    cachedDecoder = loadUpstreamDecoder() ?? decodeStorageRecordLocal
-  }
-  return cachedDecoder(value)
-}
-
-function loadUpstreamDecoder(): StorageDecoder | undefined {
-  try {
-    const req = createRequire(import.meta.url)
-    const mod = req('@deepseek-ai/dsh-session') as { decodeStorageRecord?: unknown }
-    return typeof mod.decodeStorageRecord === 'function'
-      ? mod.decodeStorageRecord as StorageDecoder
-      : undefined
-  } catch {
-    // No resolvable dsh-session copy from this tree — the local decoder is
-    // fully self-contained, so reads still work.
-    return undefined
-  }
-}
-
-/* ------------------------------------------------------------------------- *\
- * Local port of the removed dsh-session chunk-rows decoder (0.1.2-rc.1 and
- * earlier, lib/types/chunk-rows.js). Storage rows are a durable-encoding
- * vocabulary, NOT session events: the packChunks writer folded each run of
- * same-block delta chunks into ONE `text-chunks`/`reasoning-chunks`/
- * `tool-call-chunks` line. Row-tagged values validate and expand (a malformed
- * row throws — it is corrupt storage, and treating it as an event would
- * silently drop a whole run); every other value passes through as a single
- * event, unvalidated.
-\* ------------------------------------------------------------------------- */
-
 function isRecordValue(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-/** Exact-key check: `value` has every key in `keys` and nothing else. */
-function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  return Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k))
-}
-
-/** The uniform malformed-row diagnostic. */
-function malformedRow(tag: string, why: string): never {
-  throw new Error(`malformed ${tag} storage row: ${why}`)
-}
-
-interface ChunkRowData {
-  turn: number
-  step: number
-  index: number
-  dt: number[]
-  id?: string
-  name?: string
-  texts?: string[]
-  args?: string[]
-}
-
-interface ChunkRow {
-  type: string
-  seq0: number
-  time0: number
-  data: ChunkRowData
-}
-
-/** Validate the shared run-data fields and the payload/dt arity; returns the member payload. */
-function validateRunData(tag: string, data: ChunkRowData, payloadKey: 'texts' | 'args'): string[] {
-  if (typeof data.turn !== 'number' || typeof data.step !== 'number' || typeof data.index !== 'number') {
-    malformedRow(tag, 'turn/step/index must be numbers')
+/** Current storage keeps complete event envelopes, never top-level packed chunks. */
+function decodeStorageRecord(value: unknown): SessionEvent[] {
+  if (!isRecordValue(value)) throw new Error('session log record is not an object')
+  if (['text-chunks', 'reasoning-chunks', 'tool-call-chunks', 'assistant/chunk'].includes(String(value['type']))) {
+    throw new Error('unsupported legacy session log; convert it with the current DSH format catalog')
   }
-  const payload: unknown = data[payloadKey]
-  if (!Array.isArray(payload) || payload.length === 0 || payload.some(entry => typeof entry !== 'string')) {
-    malformedRow(tag, `${payloadKey} must be a non-empty string array`)
-  }
-  const dt: unknown = data.dt
-  if (!Array.isArray(dt) || dt.some(gap => !Number.isSafeInteger(gap))) {
-    malformedRow(tag, 'dt must be an array of safe integers')
-  }
-  if (dt.length !== payload.length - 1) {
-    malformedRow(tag, `dt length ${dt.length} does not match ${payload.length} members`)
-  }
-  return payload as string[]
-}
-
-/** Validate a row-tagged parsed value's envelope and data, throwing on any malformation. */
-function validateChunkRow(value: Record<string, unknown>, tag: string): ChunkRow {
-  if (!hasExactKeys(value, ['type', 'seq0', 'time0', 'data'])) {
-    malformedRow(tag, 'envelope must be exactly {type, seq0, time0, data}')
-  }
-  if (!Number.isSafeInteger(value['seq0']) || (value['seq0'] as number) < 0) {
-    malformedRow(tag, 'seq0 must be a non-negative safe integer')
-  }
-  if (!Number.isSafeInteger(value['time0'])) {
-    malformedRow(tag, 'time0 must be a safe integer')
-  }
-  const data: unknown = value['data']
-  if (!isRecordValue(data)) malformedRow(tag, 'data must be an object')
-  const row = data as Record<string, unknown>
-  let payload: string[]
-  if (tag === 'tool-call-chunks') {
-    const withName = hasExactKeys(row, ['turn', 'step', 'index', 'id', 'name', 'dt', 'args'])
-    if (!withName && !hasExactKeys(row, ['turn', 'step', 'index', 'id', 'dt', 'args'])) {
-      malformedRow(tag, 'data must be exactly {turn, step, index, id, name?, dt, args}')
-    }
-    if (typeof row['id'] !== 'string' || (withName && typeof row['name'] !== 'string')) {
-      malformedRow(tag, 'id (and name when present) must be strings')
-    }
-    payload = validateRunData(tag, row as unknown as ChunkRowData, 'args')
-  } else {
-    if (!hasExactKeys(row, ['turn', 'step', 'index', 'dt', 'texts'])) {
-      malformedRow(tag, 'data must be exactly {turn, step, index, dt, texts}')
-    }
-    payload = validateRunData(tag, row as unknown as ChunkRowData, 'texts')
-  }
-  // Reconstruction bounds. The encoder only packs runs whose member seqs and
-  // times are all safe integers, so a running value that leaves safe range is
-  // outside any encoder's image: float arithmetic would round it to a
-  // different number than exact arithmetic, a silent corruption. Within safe
-  // range every step is exact, so the first departure is always caught.
-  const seq0 = value['seq0'] as number
-  if (!Number.isSafeInteger(seq0 + payload.length - 1)) {
-    malformedRow(tag, 'member seqs must stay safe integers')
-  }
-  let time = value['time0'] as number
-  for (const gap of row['dt'] as number[]) {
-    time += gap
-    if (!Number.isSafeInteger(time)) {
-      malformedRow(tag, 'member times must stay safe integers')
-    }
-  }
-  return { type: tag, seq0, time0: value['time0'] as number, data: row as unknown as ChunkRowData }
-}
-
-/** Expand a validated row back into its exact original events, in order. */
-function expandChunkRow(row: ChunkRow): SessionEvent[] {
-  const members = row.type === 'tool-call-chunks' ? row.data.args! : row.data.texts!
-  const events: SessionEvent[] = []
-  let time = row.time0
-  for (let k = 0; k < members.length; k++) {
-    if (k > 0) time += row.data.dt[k - 1]!
-    let chunk: Record<string, unknown>
-    switch (row.type) {
-      case 'text-chunks':
-        chunk = { type: 'text-delta', index: row.data.index, text: members[k] }
-        break
-      case 'reasoning-chunks':
-        chunk = { type: 'reasoning-delta', index: row.data.index, text: members[k] }
-        break
-      default:
-        chunk = {
-          type: 'tool-call-delta',
-          index: row.data.index,
-          id: row.data.id,
-          ...(row.data.name !== undefined ? { name: row.data.name } : {}),
-          argumentsDelta: members[k],
-        }
-        break
-    }
-    // assistant/chunk is gone from the 0.1.5 SessionEvent union; the events
-    // are reconstructed structurally for the legacy-log replay path.
-    events.push({
-      type: 'assistant/chunk',
-      seq: row.seq0 + k,
-      time,
-      data: { turn: row.data.turn, step: row.data.step, chunk },
-    } as unknown as SessionEvent)
-  }
-  return events
-}
-
-/**
- * Structural twin of the removed upstream `decodeStorageRecord`: packed
- * chunk rows expand, everything else passes through as one event.
- */
-function decodeStorageRecordLocal(value: unknown): SessionEvent[] {
-  if (!isRecordValue(value)) return [value as SessionEvent]
-  const tag = value['type']
-  if (tag !== 'text-chunks' && tag !== 'reasoning-chunks' && tag !== 'tool-call-chunks') {
-    return [value as SessionEvent]
-  }
-  return expandChunkRow(validateChunkRow(value, tag))
+  return [value as SessionEvent]
 }
 
 /** I/O slice for streamed log reads. */
@@ -626,7 +383,7 @@ function* zstdFrames(chunks: Iterable<Buffer>): Generator<Buffer, void, undefine
  * streaming UTF-8 decoder keeps multi-byte characters intact across read
  * chunks. An unterminated FINAL line is a torn write (a crash mid-append):
  * the backend's own reader ignores uncommitted records, and so does this
- * one — the tree must never show events persistence.load() would not
+ * one — the tree must never show events a strict persistence read would not
  * acknowledge.
  * @param chunks - Raw file bytes, in order.
  * @yields Each non-empty newline-terminated line's text, in log order.
@@ -734,32 +491,14 @@ function sniffLogFile(path: string): SessionLogFile | undefined {
   }
 }
 
-/**
- * Resolve a `persistence.locate()` hint to a readable log. The hint may name
- * the physical artifact directly or the backend's LOGICAL name for it (the
- * jsonl backend's raw-artifact filename carries no encoding suffix), so the
- * compressed twin is probed as well. Since 0.1.5 the hint names the CURRENT
- * generation (`session.vN.jsonl[.zstd]`) without touching the filesystem —
- * for a session never opened since its format was superseded that file does
- * not exist yet, and the authoritative artifact is an older-generation
- * sibling in the same directory. Encoding is sniffed from content, never
- * inferred from the extension.
- * @param hint - Absolute path from SessionPersistence.locate().
- * @returns The readable log, or undefined when nothing materialized there.
- */
+/** Resolve the exact backend artifact or its compressed twin. */
 export function resolveLocatedPath(hint: string): SessionLogFile | undefined {
   const direct = existsSync(hint) ? sniffLogFile(hint) : undefined
   if (direct !== undefined) return direct
   const twin = `${hint}.zstd`
   if (existsSync(twin)) return { path: twin, compressed: true }
-  // Generation fallback: only when the hint itself is a canonical
-  // generation name — a foreign backend's logical name must not steer a
-  // directory scan. The scan stays inside the backend's own session
-  // directory, so locate's authority over root and workspace key is kept.
-  const base = hint.slice(hint.lastIndexOf(sep) + 1)
-  const withoutSuffix = base.endsWith('.zstd') ? base.slice(0, -'.zstd'.length) : base
-  if (!GENERATION_LOG_NAME.test(withoutSuffix)) return undefined
-  return selectGenerationLog(dirname(hint), false)
+  return undefined
+
 }
 
 /** Outcome of reading an EXISTING log through the bounded reader. */
@@ -808,6 +547,7 @@ function readEvents(
     for (const record of logRecords(fd, file.compressed)) {
       if (scanned === 0 && isRecordValue(record) && record['type'] === 'session' && Number.isSafeInteger(record['version'])) {
         formatVersion = record['version'] as number
+        if (formatVersion !== SESSION_FORMAT_VERSION) throw new Error('unsupported session log version')
       }
       for (const event of decodeStorageRecord(record)) {
         // The SCAN budget bounds the real cost drivers — I/O, decompression,
@@ -889,8 +629,7 @@ export function readSessionEventsFromFile(
  * cost-bounded. Built for the session tree (buildSessionTree), whose browse
  * must satisfy three constraints the strict backend read cannot:
  *
- *  - READ-ONLY: the strict backend read (`persistence.inspect` on pre-0.1.5
- *    hosts, the validated `handle.read` path since) rejects logs carrying
+ *  - READ-ONLY: the strict handle.read path rejects logs carrying
  *    third-party event types (working-activity's `activity/status`), and
  *    the resume seam's answer (in-process type registration, issue #153)
  *    must not be inverted here: opening a picker never rewrites a history
@@ -908,41 +647,7 @@ export function readSessionEventsFromFile(
  *    is the atomic unit (see logRecords) — the budget bounds work ACROSS
  *    frames, never inside one giant flush.
  *
- * Packed rows are expanded with the backend's own `decodeStorageRecord`:
- * the packChunks writer folds each run of same-block delta chunks into ONE
- * `text-chunks`/`reasoning-chunks`/`tool-call-chunks` line (the default —
- * the finding that motivated this reader's third revision), so a line is a
- * storage record, not an event, and seq-less rows must not be dropped as if
- * they were headers. The budget counts EXPANDED events, matching the tree's
- * per-event cost. Malformed packed rows throw inside decodeStorageRecord —
- * corrupt storage degrades to `undefined`, never to silently dropped runs.
- *
- * Torn-tail semantics mirror the backend's own reader: a plain log's
- * unterminated final line (crash mid-append) is uncommitted data and
- * ignored, while an unterminated record INSIDE a complete zstd frame is
- * corruption and fails the read.
- *
- * Envelopes with `ignorable: true` are skipped (the read path's own skip
- * signal) and the seq-less header row is metadata, not an event. Skipped
- * envelopes still count against the SCAN budget (maxScanned): skipping is
- * not free — the I/O, decompress and JSON.parse for them have already been
- * paid — so an ignorable-heavy log cannot bypass the cost bound by keeping
- * its collectible count low. Never throws; returns undefined ONLY when the
- * log is absent — an existing-but-undecodable log returns `failed: true`
- * so the caller degrades to a placeholder instead of escalating to an
- * unbounded strict re-read.
- * @param sessionId - Session whose log should be read.
- * @param maxEvents - Stop before collecting more than this many events
- *   (default: unbounded). 0 collects nothing and reports complete: false
- *   whenever the log holds any collectible event.
- * @param maxScanned - Stop after INSPECTING this many envelopes, collected
- *   or skipped (default: 4× maxEvents + 4096; unbounded when maxEvents is).
- * @param skipBelowSeq - Inherited-prefix cutoff (session-tree dedup):
- *   seq'd events below it are skipped without spending the event budget —
- *   they still count against maxScanned. `session/title` events are always
- *   collected (branch-head labels need them; they never become entries).
- * @returns The read outcome — events, completeness, real scan cost, and a
- *   `failed` marker for safety-cap/corruption bailouts.
+ * Current event envelopes are read with bounded scan and allocation costs.
  */
 export function readSessionEventsFromLog(
   sessionId: string,
@@ -955,16 +660,7 @@ export function readSessionEventsFromLog(
   return readEvents(file, maxEvents, maxScanned, skipBelowSeq)
 }
 
-function seedLengthOfPhysicalHeader(record: unknown): number | undefined {
-  if (record === null || typeof record !== 'object' || Array.isArray(record)) return undefined
-  const rec = record as Record<string, unknown>
-  if (rec['type'] !== 'session') return undefined
-  const seed = rec['seedLength']
-  if (typeof seed === 'number' && Number.isSafeInteger(seed) && seed >= 0 && !Object.is(seed, -0)) return seed
-  return undefined
-}
-
-/** The header's `isSeeded` flag (V2/V3 headers carry it instead of `seedLength`). */
+/** The current header's isSeeded flag. */
 function isSeededPhysicalHeader(record: unknown): boolean {
   if (record === null || typeof record !== 'object' || Array.isArray(record)) return false
   const rec = record as Record<string, unknown>
@@ -997,15 +693,7 @@ function inheritedMarkerCut(record: unknown): number | undefined {
  */
 const INHERITED_CUT_SCAN_LIMIT = 2_000_000
 
-/**
- * Read the exact inherited-prefix length from a log. Pre-V2 physical headers
- * carry it as `seedLength` on the first line; V2/V3 headers only have
- * `isSeeded`, and the cut is the seq of the `session/end-seed` marker event
- * stamped with `inherited: true` — scanned for, bounded, only when the
- * header says the session is seeded. Logical list headers never carry the
- * cut on any generation. Never guesses from snapshot length, and an
- * unseeded or marker-less log reports undefined (no cut to report).
- */
+/** Read the exact current inherited cut from a bounded end-seed marker scan. */
 export function readPhysicalHeaderSeedLength(path: string): number | undefined {
   const file = resolveLocatedPath(path)
   if (file === undefined) return undefined
@@ -1019,8 +707,7 @@ export function readPhysicalHeaderSeedLength(path: string): number | undefined {
     for (const record of logRecords(fd, file.compressed)) {
       if (first) {
         first = false
-        const seed = seedLengthOfPhysicalHeader(record)
-        if (seed !== undefined) return seed
+        if (!isRecordValue(record) || record['version'] !== SESSION_FORMAT_VERSION) return undefined
         if (!isSeededPhysicalHeader(record)) return undefined
         seeded = true
         continue
@@ -1065,7 +752,7 @@ function decodeEvents(buf: Buffer): Record<string, unknown>[] {
     if (buf.readUInt32LE(i) === ZSTD_MAGIC) offsets.push(i)
   }
   if (offsets.length === 0) throw new Error('no zstd frame found')
-  return offsets.flatMap((start, i) => {
+  const events = offsets.flatMap((start, i) => {
     const end = i + 1 < offsets.length ? offsets[i + 1]! : buf.length
     const text = zstdDecompressSync(buf.subarray(start, end)).toString('utf8')
     return text
@@ -1079,27 +766,16 @@ function decodeEvents(buf: Buffer): Record<string, unknown>[] {
         return parsed as Record<string, unknown>
       })
   })
+  const header = events[0]
+  if (header?.['type'] === 'session' && header['version'] !== SESSION_FORMAT_VERSION) {
+    throw new Error('unsupported session log version')
+  }
+  return events
+
 }
 
-/**
- * Register every {@link LEGACY_SESSION_EVENT_TYPES} type as known in EVERY
- * reachable KNOWN_SESSION_EVENT_TYPES copy, ahead of the strict read path
- * (`agents.resume` seed validation, `persistence.load`). Idempotent; never
- * throws.
- *
- * Why a walk instead of a single import: a runtime can load dsh-session
- * more than once (CLI tree vs profile tree, version overlap during
- * upgrades, pnpm peer-context splits), and the strict validator — which
- * lives in the dsh-session-persistence package — consults only ITS OWN
- * tree's copy. Registering through one import leaves the other trees'
- * copies untouched. So from EACH base anchor (this module = the dsh-tui
- * tree, the process entry point = the launcher/CLI tree) the walk
- * registers the tree's own dsh-session AND steps one edge further:
- * resolve the validator package from that same tree, then register the
- * dsh-session copy the validator's entry resolves. A branch that cannot
- * be resolved simply is not there; resolved module paths are deduped.
- */
-export function ensureLegacySessionEventTypes(): void {
+/** Register current TUI-owned types in the profile and host validator copies. */
+export function registerTuiSessionEventTypes(): void {
   const roots = [import.meta.url, process.argv[1]].filter(
     (anchor): anchor is string => typeof anchor === 'string' && anchor.length > 0,
   )
@@ -1119,7 +795,7 @@ export function ensureLegacySessionEventTypes(): void {
       if (!registeredCopies.has(copy)) {
         registeredCopies.add(copy)
         const mod = req(copy) as { KNOWN_SESSION_EVENT_TYPES?: Set<string> }
-        for (const type of LEGACY_SESSION_EVENT_TYPES) {
+        for (const type of TUI_SESSION_EVENT_TYPES) {
           mod.KNOWN_SESSION_EVENT_TYPES?.add(type)
         }
       }
@@ -1138,8 +814,8 @@ export function ensureLegacySessionEventTypes(): void {
 /**
  * Read a session's display title from its persisted log, tolerantly.
  *
- * Why not `persistence.load()`: the backend validates every event against
- * KNOWN_SESSION_EVENT_TYPES and throws the WHOLE load when a third-party
+ * Why not a strict persistence read: the backend validates every event against
+ * KNOWN_SESSION_EVENT_TYPES and rejects the entire read when a third-party
  * plugin wrote an unmarked unknown type. A picker label is
  * read-only UI state: decoding frames directly here keeps titles working
  * for logs the strict path refuses, now and for future plugin event types.

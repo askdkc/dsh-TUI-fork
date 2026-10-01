@@ -6,8 +6,7 @@
  * `SessionEventMap` declares a dozen-odd core event types. Everything else in
  * the `KNOWN_SESSION_EVENT_TYPES` vocabulary arrives through *module
  * augmentation* from the plugin that owns it — `llm/retry` from the LLM
- * layer, `hook/*` from the hook runner, `tool/code-dispatch*` (pre-0.1.5) /
- * `tool/ptc-dispatch*` (0.1.5) from the code/PTC runtime. Those declaration
+ * layer, `hook/*` from the hook runner, `tool/ptc-dispatch*` (0.1.5) from the code/PTC runtime. Those declaration
  * packages are not all in this bundle's dependency
  * graph, so `event.type === 'llm/retry'` does not even type-check here: the
  * literal is not a member of the union TypeScript can see.
@@ -28,7 +27,7 @@
  * here, so a future harness that starts emitting it is picked up for free.
  */
 
-import * as dshLlm from '@deepseek-ai/dsh-llm'
+import { expandAssistantStream } from '@deepseek-ai/dsh-llm'
 import type { AssistantStreamRecord, TimedStreamChunk } from '@deepseek-ai/dsh-llm'
 
 import type { RawTrajEvent } from '../../adapter/ports/channel-view.js'
@@ -124,12 +123,10 @@ export function readRetryStarted(data: unknown): string | undefined {
 }
 
 /**
- * A `tool/code-dispatch*` / `tool/ptc-dispatch*` payload — the code runner's
+ * A `tool/ptc-dispatch*` payload — the code runner's
  * nested tool calls, and the only source of SUBTOOL rows.
  *
- * The dispatch bracket was renamed with the runtime: pre-0.1.5 logs carry
- * `tool/code-dispatch-start` ↔ `tool/code-dispatch`, 0.1.5 logs carry
- * `tool/ptc-dispatch-start` ↔ `tool/ptc-dispatch`, paired by `subCallId` in
+ * The dispatch bracket is `tool/ptc-dispatch-start` ↔ `tool/ptc-dispatch`, paired by `subCallId` in
  * both generations; `rootCallId`/`parentCallId` give the enclosing
  * model-issued call. The payload shape is identical across the rename, so
  * this one guard serves both. `subCallId` is treated as an OPAQUE pairing
@@ -149,7 +146,7 @@ export interface DispatchPayload {
   readonly isError?: boolean
 }
 
-/** Narrow a `tool/code-dispatch*` / `tool/ptc-dispatch*` payload. */
+/** Narrow a `tool/ptc-dispatch*` payload. */
 export function readDispatch(data: unknown): DispatchPayload | undefined {
   if (!isRecord(data)) return undefined
   const subCallId = str(data, 'subCallId')
@@ -179,29 +176,13 @@ export function readDispatch(data: unknown): DispatchPayload | undefined {
   }
 }
 
-/**
- * Expand the compact `stream` of a V3 `assistant/message` / `assistant/attempt`
- * into timed chunks, or `undefined` when the event carries no usable stream.
- *
- * V3 logs replace per-token `assistant/chunk` events with one compact
- * `AssistantStreamRecord[]` embedded in the settlement event. Upstream's
- * `expandAssistantStream` is the validating read path for that record list —
- * and it landed with the record type itself (0.1.5), so the binding is
- * feature-detected through the namespace rather than named-imported: a
- * pre-0.1.5 host lacks the export, and a named import would fail the whole
- * module at link time instead of degrading this one read. The same
- * never-throw contract as every guard here applies on both axes: a missing
- * expander or a malformed record (the expander throws `TypeError`) yields
- * `undefined`, and the fold simply contributes no stream timing.
- */
+/** Expand a settlement's compact stream. Malformed records contribute no timing. */
 export function readAssistantStream(data: unknown): readonly TimedStreamChunk[] | undefined {
   if (!isRecord(data)) return undefined
   const stream = data.stream
   if (!Array.isArray(stream) || stream.length === 0) return undefined
-  const expand = (dshLlm as Record<string, unknown>).expandAssistantStream
-  if (typeof expand !== 'function') return undefined
   try {
-    return (expand as (records: readonly AssistantStreamRecord[]) => readonly TimedStreamChunk[])(stream)
+    return expandAssistantStream(stream as AssistantStreamRecord[])
   } catch {
     return undefined
   }

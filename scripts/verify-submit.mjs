@@ -57,7 +57,7 @@ let inboxRemoveResult = true
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: stubAgentCtx,
   followup(message) {
     followupCalls.push(message)
@@ -127,7 +127,7 @@ let resolveIdle
 const interruptAgent = {
   id: 'a1',
   status: 'running',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: stubAgentCtx,
   cancel(cause, options) {
     interruptCalls.push({ cause, options })
@@ -159,7 +159,7 @@ const idlePromise2 = new Promise(resolve => { resolveIdle2 = resolve })
 const interruptAgent2 = {
   id: 'a1',
   status: 'running',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: stubAgentCtx,
   cancel() {},
   whenIdle() {
@@ -190,7 +190,7 @@ const convergenceFollowups = []
 const convergenceAgent = {
   id: 'a1',
   status: 'running',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: stubAgentCtx,
   cancel() {},
   whenIdle() {
@@ -214,7 +214,7 @@ const fallbackCalls = []
 const fallbackAgent = {
   id: 'a1',
   status: 'running',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: stubAgentCtx,
   cancel() {},
   followup(message) {

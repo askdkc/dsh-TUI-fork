@@ -47,13 +47,8 @@ const { appendSessionTitle, userTitleData } = await import('../lib/types/dsh-ada
 
 /**
  * Read every stored event of one session through the backend's strict path.
- * `load()` is the pre-0.1.5 API; 0.1.5 replaced it with open() + read().
  */
 async function readAllEvents(persistence, id) {
-  if (typeof persistence.load === 'function') {
-    const loaded = await persistence.load(id)
-    return loaded.events
-  }
   const handle = await persistence.open(id, 'read')
   try {
     return (await handle.read()).events

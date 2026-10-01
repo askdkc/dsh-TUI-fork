@@ -1,7 +1,7 @@
 /**
- * V3/V4 message projection through a real Channel: live/replay, call-ID pairing,
+ * V4 message projection through a real Channel: live/replay, call-ID pairing,
  * presenters, errors, folding, goal/todo cards, export, subagents and compact checkpoints.
- * Run after compile: node scripts/verify-message-compat.mjs
+ * Run after compile: node scripts/verify-message-projection.mjs
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -21,14 +21,12 @@ function result(api, callId, text, isError = false) {
   const content = [{ type: 'text', text }]
   return {
     id: `result-${callId}`, role: 'tool', source: { kind: 'tool', callId },
-    ...(api === 'v4'
-      ? { toolCallId: callId, content, isError }
-      : { content: [{ type: 'tool-result', toolCallId: callId, content, isError }] }),
+    toolCallId: callId, content, isError,
   }
 }
 
 try {
-  for (const api of ['v3', 'v4']) {
+  for (const api of ['v4']) {
     for (const mode of ['live', 'replay']) {
       const raw = [
         { type: 'tool/call', data: { callId: 'one', name: 'read_file', arguments: '{"path":"a"}' } },
@@ -40,7 +38,7 @@ try {
         { type: 'tool/result', data: { message: result(api, 'three', 'detail', true), error: { name: 'ToolError', code: 'DENIED' } } },
         { type: 'user/message', data: {
           id: 'compact', role: 'user', content: [{ type: 'text', text: 'Durable summary' }],
-          source: api === 'v4' ? { kind: 'compact-checkpoint', compactionId: 'compact-1' } : { kind: 'plugin', plugin: 'compact' },
+          source: { kind: 'compact-checkpoint', compactionId: 'compact-1' },
         } },
       ]
       const events = raw.map((event, seq) => ({ ...event, seq, time: 1000 + seq }))
@@ -87,7 +85,7 @@ try {
 
         // Cross the real channel's retained-row limit, then restore through
         // loadOlder. Failure semantics and success-only presenters must agree
-        // with the initial projection for both message formats and entry paths.
+        // with the initial projection for both entry paths.
         const expectedPresentations = [...presented]
         for (let index = 0; index < 605; index++) {
           const event = { seq: log.length, time: 2000 + index, type: 'user/message', data: {
@@ -125,5 +123,5 @@ try {
     assert.match(todos.content[1].text, /Verify/)
     assert.equal(toolErrorText({ data: { message: result(api, 'e', 'explanation', true) } }), 'explanation')
   }
-  console.log('PASS: V3/V4 messages in live/replay/folded projections, export, subagents and compact checkpoints')
+  console.log('PASS: V4 messages in live/replay/folded projections, export, subagents and compact checkpoints')
 } finally { rmSync(home, { recursive: true, force: true }) }

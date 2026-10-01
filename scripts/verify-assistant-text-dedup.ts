@@ -17,7 +17,7 @@ function check(name: string, ok: boolean, extra = ''): void {
 
 const root = new Context()
 let scope: ReturnType<typeof createScope>
-const session = { id: 'assistant-dedup-session', seq: 0, events: [], header: {} }
+const session = { id: 'assistant-dedup-session', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }}
 const agent = {
   id: 'assistant-dedup-agent',
   status: 'idle',
@@ -41,30 +41,17 @@ const emit = (event: object): void => {
   root.emit('session/event', session as never, event as never)
 }
 
-emit({
-  type: 'assistant/chunk',
-  seq: 1,
-  time: 1,
-  data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: '前两个成功了，glob' } },
-})
-emit({
-  type: 'assistant/chunk',
-  seq: 2,
-  time: 2,
-  data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: 'glob 那个超时了' } },
-})
-// Exact redelivery of the same durable event.
-emit({
-  type: 'assistant/chunk',
-  seq: 2,
-  time: 2,
-  data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: 'glob 那个超时了' } },
-})
+const stream = (frame: object): void => root.emit('agent/assistant-stream', { agent, frame } as never)
+stream({ type: 'start', revision: 1, time: 0, attemptId: 'a1', turn: 1, step: 1 })
+stream({ type: 'chunk', revision: 2, time: 1, attemptId: 'a1', chunk: { type: 'text-delta', text: '前两个成功了，glob' } })
+const second = { type: 'chunk', revision: 3, time: 2, attemptId: 'a1', chunk: { type: 'text-delta', text: ' 那个超时了' } }
+stream(second)
+stream(second) // Exact frame redelivery must be discarded by revision.
 
 const expected = '前两个成功了，glob 那个超时了'
 let assistantRows = channel.rows.filter(row => row.kind === 'assistant')
-check('overlapping/repeated deltas keep one assistant row', assistantRows.length === 1, `rows=${assistantRows.length}`)
-check('overlapping delta prefix appears once', assistantRows[0]?.text === expected, assistantRows[0]?.text ?? '<missing>')
+check('repeated deltas keep one assistant row', assistantRows.length === 1, `rows=${assistantRows.length}`)
+check('redelivered frame prefix appears once', assistantRows[0]?.text === expected, assistantRows[0]?.text ?? '<missing>')
 
 const sealed = {
   type: 'assistant/message',

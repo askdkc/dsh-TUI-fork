@@ -222,7 +222,7 @@ const png = new Uint8Array(await sharp({
   const makeAgent = (id: string) => ({
     id,
     status: 'idle',
-    session: { id, seq: 0, events: [] },
+    session: { id, seq: 0, events: [] , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
     followup(message: unknown) { deliveredMessages.push(message) },
     steer() {},

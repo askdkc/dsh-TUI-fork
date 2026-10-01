@@ -6,7 +6,6 @@
  * a second copy from this package's optional dependency puts two libvips
  * dylibs into one process; on macOS the Objective-C runtime reports the
  * duplicate classes on stderr, and that text lands on the alternate screen
- * (0.1.2-rc.1 ships sharp 0.35.4 while this package pins 0.35.3).
  *
  * Resolve `sharp` from the host tree first, fall back to our own optional
  * copy, and cache the outcome so the process holds one instance. A missing

@@ -147,14 +147,9 @@ export function createBindingEvents(ctx: Context, deps: {
         deps.subagents.onParentEvent?.(event)
         deps.modeActions.onSessionEvent(subject, event)
         deps.projector.renderEvent(event)
-        if (event.type === 'assistant/chunk') deps.state.emitStream()
-        else deps.state.emit()
+        deps.state.emit()
       })
-      // 0.1.5 live streaming: per-token chunks are transient attempt frames
-      // on this agent-scoped channel; the durable settlement still arrives
-      // through `session/event` above. Pre-0.1.5 hosts never emit it — the
-      // subscription simply stays silent there and chunks keep arriving as
-      // `assistant/chunk` session events.
+      // Transient streaming and durable settlement have separate channels.
       on('agent/assistant-stream', ({ agent: subject, frame }) => {
         if (!current()) return
         if (subject !== capture.agent) {

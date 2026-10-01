@@ -22,17 +22,13 @@ import type { ChannelOwner } from './owner.js'
 export function createSessionTreeReader(ctx: Context, binding: { readonly agent: Agent }, cwd: () => string, notify: ChannelUi['notify'], owner: ChannelOwner) {
 async function readTree(): Promise<SessionTreeData | null> {
       const persistence = ctx.get('sessionPersistence') as
-        | (SessionSource & SessionReader & {
-          // Optional at runtime: fakes and third-party backends may not
-          // implement the full coordinator surface.
-          inspect?(id: SessionId, signal?: AbortSignal): Promise<{ events: readonly SessionEvent[] }>
-        })
+        | (SessionSource & SessionReader)
         | undefined
       if (!persistence) {
         notify(t('tree-unavailable'), { color: 'error' })
         return null
       }
-      // Pin the live session snapshot NOW: every await below (list/inspect)
+      // Pin the live session snapshot NOW: every await below (list/read)
       // is a window in which a fire-and-forget switch (/new, /resume,
       // /model) can swap `agent`. Reading agent.session piecemeal would
       // stitch the NEW session's events under the OLD session's id — a
@@ -300,14 +296,14 @@ async function readTree(): Promise<SessionTreeData | null> {
               }
             }
           } catch {
-            // Best effort — a locate hiccup falls through to inspect.
+            // Best effort — a locate hiccup falls through to a read handle.
           }
         }
-        // Alpha.4 deliberately omits the inherited cut from logical list
+        // The current contract omits the inherited cut from logical list
         // headers. Resolve it only for the SELECTED family node currently
-        // being read: JSONL keeps the exact physical `seedLength`; non-file
-        // backends expose the cut on inspect below. Never scan every listed
-        // session and never infer it from an end-seed marker or log length.
+        // being read: JSONL records the exact end-seed marker; non-file
+        // backends expose inheritedEventCount on a read handle. Never scan
+        // unrelated listed sessions or infer the cut from log length.
         let inheritedCut = parentId === undefined ? undefined : readInheritedCut(entry?.raw)
         if (parentId !== undefined && inheritedCut === undefined) {
           inheritedCut = locatedPath !== undefined
@@ -360,9 +356,9 @@ async function readTree(): Promise<SessionTreeData | null> {
         //     names a path, ONLY that file is read: falling back to a
         //     same-id copy under the stock root could surface a STALE log
         //     from another backend configuration. A locate miss or an ABSENT
-        //     file falls through to inspect, never to the stock scan.
+        //     file falls through to a read handle, never to the stock scan.
         //  2. Stock root scan — only for backends WITHOUT locate (fakes,
-        //     older custom implementations).
+        //     optional current embedders).
         //  3. inspect — the backend's strict read (non-file backends), with
         //     the same budget enforced on what we keep — and ONLY when the
         //     file read found NOTHING (undefined). A read that failed on a
@@ -372,7 +368,6 @@ async function readTree(): Promise<SessionTreeData | null> {
         //     bound (64 MiB frames, decode bombs) — degrade to a placeholder
         //     instead.
         let events: readonly SessionEvent[] | undefined
-        let physicalVersion: number | undefined
         let complete = true
         let failed = false
         // First seq the chosen source actually covers: the file readers start
@@ -385,7 +380,6 @@ async function readTree(): Promise<SessionTreeData | null> {
           if (locatedPath !== undefined) {
             const viaPath = readSessionEventsFromFile(locatedPath, remaining, scanAllowance, skipBelow)
             if (viaPath !== undefined) {
-              physicalVersion = viaPath.formatVersion
               scanBudget -= viaPath.scanned
               if (viaPath.failed === true) failed = true
               else {
@@ -398,7 +392,6 @@ async function readTree(): Promise<SessionTreeData | null> {
         } else if (!hasLocate) {
           const read = readSessionEventsFromLog(id, remaining, scanAllowance, skipBelow)
           if (read !== undefined) {
-            physicalVersion = read.formatVersion
             scanBudget -= read.scanned
             if (read.failed === true) failed = true
             else {
@@ -408,17 +401,7 @@ async function readTree(): Promise<SessionTreeData | null> {
             }
           }
         }
-        // Raw historical files use pre-migration seq coordinates. Normalize
-        // only a fully budget-checked file through the same read handle used
-        // by rewind/fork. Failed or truncated reads never escalate to a full
-        // backend parse, and cannot lend old coordinates to a V3 child.
-        const needsMigration = typeof persistence.open === 'function'
-          && physicalVersion !== liveSession.header.version
-        if (needsMigration && !complete) {
-          failed = true
-          truncated = true
-        }
-        if (!failed && typeof persistence.open === 'function' && (events === undefined || needsMigration)) {
+        if (!failed && events === undefined) {
           try {
             const inspection = await readPersistedSession(persistence, SessionId(id))
             if (inspection.meta.version !== liveSession.header.version) throw new Error('session tree generation mismatch')
@@ -433,45 +416,6 @@ async function readTree(): Promise<SessionTreeData | null> {
             readFrom = skipBelow
           } catch {
             failed = true
-          }
-        }
-        if (needsMigration && failed) {
-          // Preserve the branch as a non-actionable placeholder. Its original
-          // inherited cut is not comparable to normalized family coordinates.
-          inheritedCut = undefined
-          parentCovered = -1
-          facts = { ...facts, seedLength: undefined }
-        }
-        if (!failed && events === undefined && typeof persistence.inspect === 'function') {
-          try {
-            const inspection = await persistence.inspect(SessionId(id))
-            const inspectedCut = readInheritedCut(inspection)
-            if (parentId !== undefined && inheritedCut === undefined && inspectedCut !== undefined) {
-              inheritedCut = inspectedCut
-              parentCovered = structuralParentCovered
-              skipBelow = parentId !== undefined
-                ? Math.min(inheritedCut, parentCovered + 1)
-                : 0
-              facts = { ...facts, seedLength: inheritedCut }
-            }
-            // inspect parses the WHOLE log up front: charge the full length
-            // to the scan budget (may overdraw; the next iterations skip).
-            scanBudget -= inspection.events.length
-            // Non-file backends hand back the self-contained log from seq 0:
-            // the inherited-prefix skip the file readers got must apply here
-            // too, or a long prefix would fill the slice and the branch's OWN
-            // events — the only ones nobody else displays — would be cut.
-            const all = skipBelow > 0
-              ? inspection.events.filter(event => event.seq >= skipBelow || event.type === 'session/title')
-              : inspection.events
-            readFrom = skipBelow
-            events = all
-            if (events.length > remaining) {
-              events = events.slice(0, remaining)
-              complete = false
-            }
-          } catch {
-            events = undefined
           }
         }
         if (failed || events === undefined) {

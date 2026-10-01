@@ -123,7 +123,7 @@ async function mount(fullscreen: boolean) {
         agent: { id: 'fold-probe', session: { events: [{
           type: 'tool/call', seq: 1, time: 0,
           data: { turn: 0, step: 0, callId, name: 'Bash', arguments: '{"command":"APPROVAL-COMMAND"}' },
-        }] } },
+        }] , snapshotEvents() { return this.events }} },
         toolName: 'Bash', callId, reason: 'APPROVAL-REASON', signal: approvalAbort.signal,
       } as Parameters<InstanceType<typeof ApprovalStore>['park']>[0]))
     },

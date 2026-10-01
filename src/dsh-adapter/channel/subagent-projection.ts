@@ -82,13 +82,8 @@ export function createSubagentProjection(
     if (id === undefined) id = backfillSessionLink(session)
     if (id === undefined) return false
     store.onSessionEvent(id, event)
-    if (event.type === 'assistant/chunk') {
-      streamDirty = true
-      getState().emitStream()
-    } else {
-      syncNow()
-      getState().emit()
-    }
+    syncNow()
+    getState().emit()
     return true
   }
   // 0.1.5 live stream frames for child agents: the payload carries the Agent

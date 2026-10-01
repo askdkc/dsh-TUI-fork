@@ -225,7 +225,7 @@ let cancelCalls = 0
 const agent = {
   id: 'help-routing-agent',
   status: 'idle',
-  session: { id: 'help-routing-session', seq: 0, events: [], header: {} },
+  session: { id: 'help-routing-session', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }},
   ctx: { on: () => () => {} },
   followup() {},
   steer() {},

@@ -90,7 +90,6 @@ export function createRewindToAction(
       handle = await deps.binding.prepare(adoption, () => agents.create(liveSessionCreateOptions({
         sessionId: childId,
         seed,
-        runtimeSession: deps.binding.agent.session,
         inheritedCount: seed.length,
         cwd: state.cwd,
         parentSession: deps.binding.agent.session.id,

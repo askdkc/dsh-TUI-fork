@@ -19,7 +19,7 @@
  *   4. the rename touched MRU, pulling the row to the top;
  *   5. last-used.json actually recorded the touch.
  *
- * The persistence stub deliberately offers only `list` — no `listSnapshots`
+ * The persistence stub offers current revision-bearing `list` snapshots
  * and no `locate` — so this also covers the degraded path: change tokens
  * derived from the file itself, and log paths resolved by the compat scan.
  *
@@ -27,7 +27,7 @@
  * Exits non-zero on any assertion failure (CI gate).
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, statSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { zstdCompressSync } from 'node:zlib'
@@ -54,7 +54,7 @@ const headers = ids.map((id, i) => ({ id, cwd: CWD, createdAt: 1000 + i }))
 for (const [i, id] of ids.entries()) {
   const dir = join(root, '--work-space--', id)
   mkdirSync(dir, { recursive: true })
-  const header = { type: 'session', version: 0, id, createdAt: 1000 + i, cwd: CWD, delegationDepth: 0 }
+  const header = { type: 'session', version: 4, id, createdAt: 1000 + i, cwd: CWD, delegationDepth: 0 }
   const message = { type: 'user/message', seq: 0, time: 1, data: { content: [{ type: 'text', text: `question ${id}` }] } }
   const title = { type: 'session/title', seq: 1, time: 2, data: { title: `old-${id}` } }
   const frames = [[header], [message, title]]
@@ -68,7 +68,7 @@ const ctx = {
   on() { return () => {} },
   get(name) {
     if (name === 'sessionPersistence') {
-      return { list: async () => headers, load: async () => ({ events: [] }) }
+      return { list: async () => headers.map(header => ({ header, revision: `${statSync(join(root, '--work-space--', header.id, 'session.jsonl.zstd')).size}` })) }
     }
     return undefined
   },
@@ -77,7 +77,7 @@ const ctx = {
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 'live-session', seq: 0, events: [] },
+  session: { id: 'live-session', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: { on: () => () => {} },
 }
 const channel = createChannel(ctx, agent, { model: 'm', cwd: CWD, provider: 'p', activity: false })

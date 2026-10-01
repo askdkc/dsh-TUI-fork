@@ -35,7 +35,7 @@ const requestListeners: Listener[] = []
 const makeAgent = (id: string) => ({
   id,
   status: 'idle' as const,
-  session: { id: `s-${id}`, events: [] as any[] },
+  session: { id: `s-${id}`, events: [] as any[] , snapshotEvents() { return this.events }},
   ctx: {
     on(name: string, listener: Listener) {
       const list = name === 'system-prompt/assemble' ? assemblyListeners : requestListeners
@@ -78,7 +78,7 @@ binding.switchTo(agentB as never, undefined, () => events.bind())
 binding.switchTo(agentA as never, undefined, () => events.bind())
 selection.assembled = { provider: 'new', model: 'new-model' }
 oldStatus({ agent: agentA, status: 'disposed' })
-oldSession(agentA.session, { type: 'assistant/chunk' })
+oldSession(agentA.session, { type: 'plugin/noise' })
 oldChild({ id: 'retained', provider: 'p' })
 assemblyGate.resolve({ variables: {} })
 await oldAssemblyResult
@@ -89,7 +89,7 @@ assert.deepEqual(selection.assembled, { provider: 'new', model: 'new-model' }, '
 
 owner.dispose()
 oldStatus({ agent: agentA, status: 'disposed' })
-oldSession(agentA.session, { type: 'assistant/chunk' })
+oldSession(agentA.session, { type: 'plugin/noise' })
 oldChild({ id: 'postdispose', provider: 'p' })
 assert.equal(projected, 0, 'post-dispose retained session callback is inert')
 assert.equal(childStarts, 0, 'post-dispose retained child callback is inert')

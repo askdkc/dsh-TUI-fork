@@ -16,7 +16,7 @@ import {
   reserveNewSession,
   type MountReservation,
 } from '../../sessionMounts.js'
-import { ensureLegacySessionEventTypes } from '../compat/index.js'
+import { registerTuiSessionEventTypes } from '../compat/index.js'
 import { snapshotLiveSessionEvents } from '../compat/liveSession.js'
 import { composePreset, resolvePersistedPreset, resolvePersistedRoute } from '../presets.js'
 import { attachSessionToWorkspace } from '../workspace.js'
@@ -179,7 +179,7 @@ export function createSessionResumeActions(
         deps.notify(t('resume-unavailable'), { color: 'error' })
         return { ok: false, reason: 'unavailable' }
       }
-      ensureLegacySessionEventTypes()
+      registerTuiSessionEventTypes()
       const composed = await composePreset(ctx, await resolvePersistedPreset(ctx, SessionId(sessionId)))
       const explicitRoute = explicitModelRoute({ provider: options.configuredProvider, model: options.configuredModel })
       const persistedRoute = await resolvePersistedRoute(ctx, SessionId(sessionId))

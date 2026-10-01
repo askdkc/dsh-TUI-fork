@@ -64,7 +64,7 @@ interface FakeAgent {
 }
 
 function makeAgent(id: string, sessionId: string): FakeAgent {
-  const session = { id: sessionId, seq: 0, events: [], header: {} }
+  const session = { id: sessionId, seq: 0, events: [], header: {} , snapshotEvents() { return this.events }}
   return {
     id,
     status: 'idle',

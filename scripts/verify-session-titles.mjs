@@ -45,7 +45,7 @@ const writeSession = (sessionId, frames) => {
   )
 }
 
-const headerOf = (id) => ({ type: 'session', version: 0, id, createdAt: 1, cwd: 'D:\\work', delegationDepth: 0, agentPreset: 'standard' })
+const headerOf = (id) => ({ type: 'session', version: 4, id, createdAt: 1, cwd: 'D:\\work', delegationDepth: 0, agentPreset: 'standard' })
 const userMessage = (seq, text) => ({ type: 'user/message', seq, time: seq, data: { content: [{ type: 'text', text }] } })
 
 // Session A: unknown unmarked type (activity/status) + TWO title events —

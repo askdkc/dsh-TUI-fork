@@ -125,7 +125,7 @@ function makeEnv({ withApproval = true, noopApproval = false, deferredPlan = fal
           publishing = false
         }
       },
-    },
+     snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
   }
   const commitPlan = () => {

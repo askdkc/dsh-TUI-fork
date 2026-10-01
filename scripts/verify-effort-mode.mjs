@@ -108,7 +108,7 @@ function makeEnv({ withCommands = true, withApproval = true } = {}) {
         events.push(event)
         handlers.get('session/event')?.(agent.session, event)
       },
-    },
+     snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
   }
   return { ctx, agent, commands, approvalPolicies, appended, events }

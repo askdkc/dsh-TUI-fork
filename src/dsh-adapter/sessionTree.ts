@@ -131,62 +131,6 @@ function firstTextOf(content: readonly Block[] | undefined): string {
 }
 
 /**
- * Coalesce runs of same-type assistant/chunk deltas into single synthetic
- * events for REPLAY only. A streamed pre-V3 turn logs one event per token
- * (~100k events in long sessions); replaying them one at a time costs
- * per-chunk string growth on every row (quadratic in the turn's length).
- * Merging is outcome-identical: ensureStreaming/ensureReasoning only read
- * chunk.type and the concatenated text, and the row's seq comes from the
- * run's FIRST chunk (the fork boundary rewindToNode derives from it). Parts
- * join once — no quadratic concat. Live events never go through this.
- *
- * Pre-V3 durable logs only: 0.1.5 removed `assistant/chunk` from the event
- * union (V3 embeds the compacted stream in `assistant/message.stream`), so
- * the merger works on the widened structural shape — runtime payloads from
- * raw pre-V3 logs remain typed as SessionEvent by the reader.
- *
- * (Moved from channel.ts: the transcript replay and the tree extraction
- * share it.)
- */
-export function coalesceReplayEvents(events: readonly SessionEvent[]): SessionEvent[] {
-  type LegacyChunkData = { turn: number; step: number; chunk: { type: string; text?: string } }
-  const legacyChunkDataOf = (event: SessionEvent): LegacyChunkData | undefined => {
-    if ((event as { type: string }).type !== 'assistant/chunk') return undefined
-    const data = (event as unknown as { data: LegacyChunkData }).data
-    if (data.chunk?.type !== 'text-delta' && data.chunk?.type !== 'reasoning-delta') return undefined
-    return data
-  }
-  const out: SessionEvent[] = []
-  let run: { event: SessionEvent; data: LegacyChunkData; parts: string[] } | null = null
-  const flush = (): void => {
-    if (run === null) return
-    out.push({
-      ...run.event,
-      data: { ...run.data, chunk: { ...run.data.chunk, text: run.parts.join('') } },
-    } as unknown as SessionEvent)
-    run = null
-  }
-  for (const event of events) {
-    const data = legacyChunkDataOf(event)
-    if (data !== undefined) {
-      if (run !== null && run.data.chunk.type === data.chunk.type) {
-        // oxlint-disable-next-line typescript/no-unnecessary-condition -- durable replay data may lack text
-        run.parts.push(data.chunk.text ?? '')
-        continue
-      }
-      flush()
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- durable replay data may lack text
-      run = { event, data, parts: [data.chunk.text ?? ''] }
-      continue
-    }
-    flush()
-    out.push(event)
-  }
-  flush()
-  return out
-}
-
-/**
  * Fork boundary for rewinding to the entry at `seq`: the seq just before its
  * enclosing turn/start (DSH logs `turn/start → user/message → … → turn/end`,
  * so a message's own seq sits inside an open turn and fork would reject it).
@@ -394,45 +338,13 @@ export function extractEntries(sessionId: string, events: readonly SessionEvent[
     entries.push({ ...entry, sessionId, ...(inFirstTurn ? { firstTurn: true } : {}) })
     return entries.length - 1
   }
-  /** Steps with a settled assistant/message (chunk-run tentatives drop). */
-  const seenSteps = new Set<string>()
-  /** stepKey → entry indices of chunk-synthesized assistant texts. One step
-   *  can yield SEVERAL runs when a non-chunk event interleaves the deltas
-   *  (coalescing flushes at the boundary) — track them all, or earlier runs
-   *  survive as ghost duplicates of the settled message. */
-  const tentatives = new Map<string, number[]>()
   /** callId → entry index of an unsettled tool card. */
   const openTools = new Map<string, number>()
-  /** Turns whose turn/end said aborted/interrupted. */
-  const abortedTurns = new Set<number>()
 
-  for (const event of coalesceReplayEvents(events)) {
+  for (const event of events) {
     if (event.type === 'turn/start') {
       turnsSeen += 1
       inFirstTurn = markFirstTurn && turnsSeen === 1
-      continue
-    }
-    // Pre-V3 durable logs only: per-token chunk events predate the 0.1.5
-    // union (V3 embeds the stream in assistant/message.stream), so they are
-    // handled structurally outside the typed switch.
-    if ((event as { type: string }).type === 'assistant/chunk') {
-      const data = (event as unknown as { data: { turn: number; step: number; chunk: { type: string; text?: string } } }).data
-      if (data.chunk.type === 'text-delta') {
-        const text = data.chunk.text ?? ''
-        if (text.trim()) {
-          const key = `${data.turn}:${data.step}`
-          const index = push({
-            seq: event.seq,
-            kind: 'assistant',
-            text: preview(text),
-            searchText: `assistant ${text}`,
-            time: event.time,
-          })
-          const group = tentatives.get(key)
-          if (group === undefined) tentatives.set(key, [index])
-          else group.push(index)
-        }
-      }
       continue
     }
     switch (event.type) {
@@ -463,8 +375,6 @@ export function extractEntries(sessionId: string, events: readonly SessionEvent[
         break
       }
       case 'assistant/message': {
-        const { turn, step } = event.data
-        seenSteps.add(`${turn}:${step}`)
         const text = textOf(event.data.message.content as readonly Block[])
         // pi hides assistant messages with only tool calls (no text).
         if (text) {
@@ -506,7 +416,6 @@ export function extractEntries(sessionId: string, events: readonly SessionEvent[
       case 'turn/end': {
         const reason = event.data.reason
         if (reason.kind === 'aborted' || reason.kind === 'interrupted') {
-          abortedTurns.add(event.data.turn)
           push({ seq: event.seq, kind: 'interrupt', text: 'interrupted', searchText: 'interrupt interrupted', time: event.time })
         } else if (reason.kind !== 'completed') {
           const detail = reason.kind === 'error' ? reason.error.message : ''
@@ -530,22 +439,7 @@ export function extractEntries(sessionId: string, events: readonly SessionEvent[
     }
   }
 
-  // Chunk-synthesized assistant entries lose to a settled assistant/message
-  // for the same step; survivors of an aborted turn get the marker.
-  const drop = new Set<number>()
-  for (const [key, indices] of tentatives) {
-    if (seenSteps.has(key)) {
-      for (const index of indices) drop.add(index)
-      continue
-    }
-    const turn = Number(key.slice(0, key.indexOf(':')))
-    if (abortedTurns.has(turn)) {
-      for (const index of indices) {
-        entries[index] = { ...entries[index]!, label: 'aborted' }
-      }
-    }
-  }
-  return drop.size === 0 ? entries : entries.filter((_, index) => !drop.has(index))
+  return entries
 }
 
 /** A session's title event, if it ever got one (manual /rename or auto). */

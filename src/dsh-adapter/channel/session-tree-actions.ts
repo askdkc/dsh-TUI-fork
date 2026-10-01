@@ -59,7 +59,7 @@ export function createTreeRewindAction(
     } else {
       forkFromLive = false
       const persistence = ctx.get('sessionPersistence') as SessionReader | undefined
-      if (!persistence || (typeof persistence.open !== 'function' && typeof persistence.load !== 'function')) {
+      if (!persistence || typeof persistence.open !== 'function') {
         deps.notify(t('rewind-no-persistence'), { color: 'error' })
         return null
       }
@@ -113,7 +113,6 @@ export function createTreeRewindAction(
       handle = await deps.binding.prepare(adoption, () => agents.create(liveSessionCreateOptions({
         sessionId: childId,
         seed,
-        runtimeSession: entrySession,
         inheritedCount,
         cwd: sourceCwd,
         parentSession: SessionId(sessionId),

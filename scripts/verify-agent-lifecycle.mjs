@@ -1,7 +1,7 @@
 /**
- * Real 0.1.7 Agent/Session/JSONL lifecycle through the TUI channel. Only the
+ * Real current Agent/Session/JSONL lifecycle through the TUI channel. Only the
  * model transport is scripted; no network, credentials, or user state.
- * Run after build: node scripts/verify-agent-lifecycle-compat.mjs
+ * Run after build: node scripts/verify-agent-lifecycle.mjs
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'

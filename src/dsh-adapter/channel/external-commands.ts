@@ -1,7 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { CommandExecution, CommandRuntime } from '@deepseek-ai/dsh-commands'
-import { installedMeetsVersion } from '../contract.js'
 import { commandOwner } from '../command-attribution.js'
 import { assertCapabilityShadowPolicy } from '../../adapter/kernel/runtime.js'
 import { t } from '../../i18n.js'
@@ -10,15 +9,10 @@ import type { ChannelImageBlock, ComposerImageRef, ExternalCommandOutcome, Menti
 
 type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
 type RegistryImage = { type: 'image'; mediaType: ImageMediaType; data: string; name?: string }
-type LegacyExecute = (agent: Agent, line: string, signal: AbortSignal) => Promise<CommandExecution | undefined>
-type ImagesExecute = (agent: Agent, line: string, images: readonly RegistryImage[], signal: AbortSignal) => Promise<CommandExecution | undefined>
-/** One composer image accompanying a registry-command line: structural
- *  mirror of rc.8's `EncodedImageAttachment`. Kept local so older installs
- *  never resolve rc.8-only types. */
+/** Encoded composer images accompanying a registry command. */
 type RegistryCommandImageBatch =
-  | { readonly kind: 'legacy' }
   | { readonly kind: 'ready'; readonly images: readonly RegistryImage[] }
-  | { readonly kind: 'error'; readonly reason: 'runtime' | 'missing' | 'limits'; readonly tokens: readonly string[] }
+  | { readonly kind: 'error'; readonly reason: 'missing' | 'limits'; readonly tokens: readonly string[] }
 
 /** Plugin-command invocation has one owner: this module owns gates, image
  *  encoding and the settled draft-consumption outcome. */
@@ -36,15 +30,6 @@ export function createExternalCommandInvoker(
     notify(text: string, options?: { color?: 'success' | 'error' | 'warning'; timeoutMs?: number }): void
   },
 ) {
-  /** Whether the installed command service takes composer images: version
-   *  gate (composer images arrived on 0.1.0-rc.8 and every later family —
-   *  0.1.1 included — keeps the 4-param shape) with a structural fallback,
-   *  so a failed manifest probe (bundlers, exotic loaders) still lands on
-   *  the 4-param rc.8 shape at runtime. */
-  const supportsImages = (service: CommandRuntime): boolean =>
-    installedMeetsVersion('@deepseek-ai/dsh-commands', '0.1.0-rc.8')
-      || (typeof (service.execute as { length?: number }).length === 'number' && (service.execute as { length: number }).length >= 4)
-
   const authorize = (definition: unknown, name: string): string | undefined => {
     // Derive identity from the effective definition, never the display name:
     // scoped same-name handlers can have different verified owners.
@@ -63,20 +48,16 @@ export function createExternalCommandInvoker(
     return undefined
   }
 
-  /** Encode the staged `@`-mention images the user pasted for THIS command
-   *  line into rc.8's `EncodedImageAttachment` payloads; `kind: 'legacy'`
-   *  means the installed dsh-commands line predates composer images
-   *  (rc.7/rc.6), so the caller uses the legacy 3-arg invoke. Matches the
+  /** Encode staged images referenced by this command. Matches the
    *  submit pipeline's token rule (expandComposerMentions): a staged image
    *  attaches only when the line references its token. The composer
    *  preflights `input.images`, but this adapter still forwards every
-   *  supplied image: rc.8 owns admission, so non-UI callers cannot
+   *  supplied image: the host owns admission, so non-UI callers cannot
    *  accidentally bypass the registry contract. Preparation is atomic:
    *  limits are checked from durable metadata before any read/base64 work,
    *  and one missing or unreadable image prevents the handler from running
    *  with a silently truncated batch. */
   const registryCommandImages = async (
-    service: CommandRuntime,
     line: string,
     imageRefs: readonly ComposerImageRef[],
     staged: ReadonlyMap<string, ChannelImageBlock['attachment']>,
@@ -89,11 +70,6 @@ export function createExternalCommandInvoker(
     const stale = firstStaleComposerToken(line, ordered)
     if (stale !== undefined) {
       deps.notify(t('input-image-token-stale', { token: stale }), { color: 'warning', timeoutMs: 5000 })
-    }
-    if (!supportsImages(service)) {
-      return ordered.size > 0
-        ? { kind: 'error', reason: 'runtime', tokens: [...ordered.keys()] }
-        : { kind: 'legacy' }
     }
     if (ordered.size === 0) return { kind: 'ready', images: [] }
     const store = deps.attachments() as
@@ -148,8 +124,6 @@ export function createExternalCommandInvoker(
     return {
       kind: 'ready',
       images: loaded.map(({ attachment, data }) => ({
-        // Older image-only runtimes ignore the discriminator; 0.1.5 uses it
-        // to distinguish encoded images from stored file attachments.
         type: 'image',
         mediaType: attachment.mediaType as ImageMediaType,
         data: Buffer.from(data).toString('base64'),
@@ -179,16 +153,13 @@ export function createExternalCommandInvoker(
       const signal = new AbortController().signal
       const line = `/${name}${rawInput}`
       const batch = await registryCommandImages(
-        service,
         line,
         deps.composer.includeLegacyImageRefs(line, imageRefs),
         stagedSnapshot,
         signal,
       )
       if (batch.kind === 'error') {
-        const text = batch.reason === 'runtime'
-          ? t('command-images-runtime-unsupported', { name })
-          : batch.reason === 'limits'
+        const text = batch.reason === 'limits'
             ? t('command-images-limit', { name })
             : t('command-images-missing', { name, paths: batch.tokens.join(' ') })
         return { kind: 'error', text, consumeDraft: false }
@@ -208,11 +179,7 @@ export function createExternalCommandInvoker(
       // preparation/identity guards and immediately before execute.
       const denied = authorize(definition, name)
       if (denied !== undefined) return { kind: 'error', text: denied, consumeDraft: false }
-      // rc.8 moved the signal to the 4th parameter and added composer
-      // images; older lines (rc.7/rc.6) take (agent, line, signal).
-      const execution = batch.kind === 'legacy'
-        ? await (service.execute as unknown as LegacyExecute)(commandAgent, line, signal)
-        : await (service.execute as unknown as ImagesExecute)(commandAgent, line, batch.images, signal)
+      const execution = await service.execute(commandAgent, line, batch.images, signal)
       // The handler itself may park. Its durable lifecycle belongs to the
       // old agent, but its toast/consume acknowledgment must never land on a
       // replacement session after /new, resume, rewind, or model switch.
@@ -226,7 +193,7 @@ export function createExternalCommandInvoker(
             // Upstream composers retain image-bearing handler failures so
             // the user can fix the grammar without rebuilding attachments;
             // imageless handler errors remain consumed durable outcomes.
-            consumeDraft: batch.kind === 'ready' ? batch.images.length === 0 : true,
+            consumeDraft: batch.images.length === 0,
           }
     } catch (error) {
       return {

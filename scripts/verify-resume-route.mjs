@@ -37,10 +37,10 @@ const header = (provider, model) => ({
   data: { header: { config: { provider, model } } },
 })
 
-const ctxOf = (load) => ({
+const ctxOf = (read) => ({
   get(key) {
-    return key === 'sessionPersistence' && load !== undefined
-      ? { load }
+    return key === 'sessionPersistence' && read !== undefined
+      ? { async open() { return { header: {}, read, async close() {} } } }
       : undefined
   },
 })

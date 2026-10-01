@@ -46,38 +46,6 @@ export function freezePermissionPresetSnapshot(snapshot: PermissionPresetSnapsho
   })
 }
 
-export function legacyPermissionPresetOptions(): readonly PermissionPresetOption[] {
-  return [
-    {
-      value: 'read-only',
-      name: t('permission-preset-readonly'),
-      description: t('permission-preset-readonly-desc'),
-    },
-    {
-      value: 'workspace-write',
-      name: t('permission-preset-workspace-write'),
-      description: t('permission-preset-workspace-write-desc'),
-    },
-    {
-      value: 'danger-full-access',
-      name: t('permission-preset-full-access'),
-      description: t('permission-preset-full-access-desc'),
-    },
-  ]
-}
-
-export function legacyPermissionPresetSnapshot(sandbox: SessionModeSpec['sandbox']): PermissionPresetSnapshot {
-  const options = legacyPermissionPresetOptions()
-  const currentOption = sandbox === undefined ? undefined : options.find(option => option.value === sandbox)
-  return freezePermissionPresetSnapshot({
-    availability: 'legacy',
-    options,
-    ...(currentOption === undefined
-      ? {}
-      : { current: { ...currentOption, kind: 'preset' as const } }),
-  })
-}
-
 export function unavailablePermissionPresetSnapshot(): PermissionPresetSnapshot {
   return freezePermissionPresetSnapshot({ availability: 'unavailable', options: [] })
 }
@@ -128,10 +96,7 @@ export function permissionBundlesFromService(service: unknown): readonly Permiss
   return bundles
 }
 
-/** The registry's current readback for one subject. Real harness registries
- *  resolve `current(session)` through their session-projections seam; earlier
- *  contract versions folded a raw event log. Try the subject as given, then
- *  the event-log shape it may carry. */
+/** Read the current registry's Session-based projection. */
 export function permissionPresetSnapshotFromService(
   service: unknown,
   subject: unknown,
@@ -165,22 +130,7 @@ export function permissionPresetSnapshotFromService(
       options.push({ ...option })
     }
 
-    let currentValue: unknown
-    try {
-      currentValue = current(subject)
-    } catch {
-      currentValue = undefined
-    }
-    if (typeof currentValue !== 'string') {
-      // Second chance for the other contract shape: a subject that carries an
-      // event log, or a raw log handed in directly.
-      const fallback = (subject as { events?: unknown } | null)?.events ?? subject
-      try {
-        currentValue = current(fallback)
-      } catch {
-        if (typeof currentValue !== 'string') return unavailablePermissionPresetSnapshot()
-      }
-    }
+    const currentValue = current(subject)
     if (typeof currentValue !== 'string' || (currentValue !== PERMISSION_PRESET_CUSTOM && !seen.has(currentValue))) {
       return unavailablePermissionPresetSnapshot()
     }

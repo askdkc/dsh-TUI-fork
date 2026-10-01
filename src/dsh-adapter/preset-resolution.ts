@@ -1,12 +1,4 @@
-/**
- * Agent-preset resolution across upstream prerelease lines.
- *
- * Legacy rc.2 exports `resolveSessionPreset` and ships `code`; the 0.1.2 line
- * replaces the helper with a projection definition and renames that preset to `ptc`.
- * Keeping both compatibility decisions here prevents composition and channel
- * code from acquiring prerelease-specific branches.
- */
-
+/** Current DSH agent-preset roster and durable selection. */
 import type { Context } from '@deepseek-ai/cordis'
 
 /** One roster entry, as returned by `agentPresets.list()`/`resolve()`. */
@@ -48,33 +40,4 @@ export function resolveRecordedPreset(session: {
     if (typeof selected === 'string') return selected
   }
   return session.header.agentPreset
-}
-
-/**
- * Resolve an exact roster id first, then bridge the official rename in either
- * direction. A successful list is required before aliasing so roster I/O or
- * a broken exact preset can never be mistaken for an unknown id.
- */
-export async function resolveCompatiblePreset(
-  presets: AgentPresetsLike,
-  requested?: string,
-): Promise<AgentPresetInfo> {
-  const fallback = requested === 'code' ? 'ptc' : requested === 'ptc' ? 'code' : undefined
-  if (fallback === undefined) return presets.resolve(requested)
-
-  const roster = await presets.list()
-  if (roster.some(preset => preset.id === requested)) return presets.resolve(requested)
-  if (roster.some(preset => preset.id === fallback)) return presets.resolve(fallback)
-  return presets.resolve(requested)
-}
-
-/**
- * The i18n dictionary id a roster preset's localized display text resolves
- * under. The 0.1.2 line renamed the official PTC preset `code` → `ptc`, but
- * the dictionary keys still use the legacy `code` id (`preset-name-code` /
- * `preset-desc-code`), so the `/preset` picker's display lookup must bridge
- * the roster id back. User-authored ids pass through untouched.
- */
-export function presetDisplayId(id: string): string {
-  return id === 'ptc' ? 'code' : id
 }

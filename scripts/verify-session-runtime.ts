@@ -1,5 +1,5 @@
-/** V3+ adapter regressions against real Session, JSONL and CommandRuntime APIs.
- * Run: node --import tsx/esm scripts/verify-session-v3.ts
+/** Current-host adapter regressions against real Session, JSONL and CommandRuntime APIs.
+ * Run: node --import tsx/esm scripts/verify-session-runtime.ts
  * All files and preferences are isolated under a disposable temporary root.
  */
 import assert from 'node:assert/strict'
@@ -84,12 +84,12 @@ try {
     p.start()
     const deltas = ['ha', 'ha', ' ', ' ', 'echo', 'echo again', '\n', '\n']
     for (const delta of deltas) p.chunk(kind, delta)
-    assert.equal(p.state.rows[0]?.text, deltas.join(''), 'distinct V3 frames preserve repeated tokens and whitespace')
+    assert.equal(p.state.rows[0]?.text, deltas.join(''), 'distinct current frames preserve repeated tokens and whitespace')
     const duplicate = { type: 'chunk', attemptId: 'attempt', revision: 20, index: 10, time: 2000,
       chunk: { type: kind, text: 'tail', index: 0 } } as never
     p.projector.renderStreamFrame(duplicate)
     p.projector.renderStreamFrame(duplicate)
-    assert.equal(p.state.rows[0]?.text, deltas.join('') + 'tail', 'duplicate V3 frames deduplicate by revision, not text')
+    assert.equal(p.state.rows[0]?.text, deltas.join('') + 'tail', 'duplicate current frames deduplicate by revision, not text')
   }
   for (const thinkingFold of ['preview', 'full'] as const) {
     const s = session(`anchors-${thinkingFold}`)
@@ -116,7 +116,7 @@ try {
     p.chunk('reasoning-delta', 'provisional thinking')
     p.chunk('text-delta', 'provisional text')
     p.projector.renderEvent(answer(s, ''))
-    assert.equal(p.state.rows.length, 0, 'V3 settlement removes provisional content omitted from the canonical message')
+    assert.equal(p.state.rows.length, 0, 'current settlement removes provisional content omitted from the canonical message')
   }
   for (const abandonment of [false, true]) {
     const s = session(`failure-${abandonment}`)
@@ -162,7 +162,7 @@ try {
       ['reasoning', 'complete thinking', event.seq], ['assistant', 'complete answer after attach', event.seq],
     ])
   }
-  console.log('PASS V3 anchors, failed attempts, reattachment and canonical settlement')
+  console.log('PASS current anchors, failed attempts, reattachment and canonical settlement')
 
   {
     const s = session('child-stream')
@@ -203,7 +203,7 @@ try {
     store.onStreamFrame(id, { type: 'chunk', attemptId: 'new', revision: 1, index: 0, time: 1, chunk: { type: 'text-delta', text: 'new session', index: 0 } } as never)
     assert.deepEqual(store.get(id)?.output, ['new session'], 'child reset clears attempt revisions')
   }
-  console.log('PASS child V3 failed attempts, canonical settlement, redelivery and lifecycle cleanup')
+  console.log('PASS child current failed attempts, canonical settlement, redelivery and lifecycle cleanup')
 
   const ctx = new Context()
   const plugin = ctx.plugin(JsonlSessionPersistence, { root: join(root, 'jsonl'), compression: 'none' })
@@ -251,10 +251,8 @@ try {
       else assert.equal((await read).meta.agentPreset, 'liangshen')
     }
     assert.equal(closed, 2, 'handles close on success and failure')
-    assert.equal((await readPersistedSession({ load: async () => ({ meta: parent.header, events: parent.snapshotEvents() }) }, parent.id)).meta.id, parent.id)
-    for (const raw of [parent.header, { header: parent.header, revision: 'r', sizeBytes: 1 }]) {
-      assert.equal((await enumerateSessions({ list: async () => [raw] }))[0]?.header.id, parent.id)
-    }
+    assert.equal((await enumerateSessions({ list: async () => [{ header: parent.header, revision: 'r' }] }))[0]?.header.id, parent.id)
+    assert.deepEqual(await enumerateSessions({ list: async () => [parent.header] }), [], 'old bare-header listing is unsupported')
 
     // Exercise the foreign-session tree action against the real handle backend.
     let prepared = false
@@ -272,20 +270,16 @@ try {
   } finally { await plugin.dispose() }
 
   {
-    const dir = join(root, 'custom', 'ws', 'legacy')
+    const dir = join(root, 'custom', 'ws', 'located')
     mkdirSync(dir, { recursive: true })
-    const path = join(dir, 'session.jsonl')
-    writeFileSync(path, JSON.stringify({ type: 'session', version: 0, id: 'legacy', createdAt: 1 }) + '\n')
-    const source = { list: async () => [{ header: { id: 'legacy', version: 0, createdAt: 1 } }],
-      locate: () => ({ path: join(dir, 'session.v3.jsonl') }) }
-    assert.equal(await locateSession(source, 'legacy'), path, 'generation fallback stays inside custom locate directory')
-    source.locate = () => ({ path: join(root, 'missing', 'session.v3.jsonl') })
-    const alternate = join(process.env.DSH_TUI_SESSION_ROOT!, 'ws', 'legacy')
-    mkdirSync(alternate, { recursive: true })
-    writeFileSync(join(alternate, 'session.jsonl.zstd'), 'not authoritative')
-    assert.equal(await locateSession(source, 'legacy'), undefined, 'missing authoritative path never falls through to duplicate IDs')
+    const path = join(dir, 'session.v4.jsonl')
+    writeFileSync(path, JSON.stringify({ type: 'session', version: 4, id: 'located', createdAt: 1 }) + '\n')
+    const source = { list: async () => [{ header: { id: 'located', version: 4, createdAt: 1 }, revision: 'r' }], locate: () => ({ path }) }
+    assert.equal(await locateSession(source, 'located'), path, 'backend current path is authoritative')
+    source.locate = () => ({ path: join(root, 'missing', 'session.v4.jsonl') })
+    assert.equal(await locateSession(source, 'located'), undefined, 'missing authoritative path never falls through to another root')
   }
-  console.log('PASS handle reads, session tree, repeated forks, custom roots and legacy list shapes')
+  console.log('PASS handle reads, current session tree, repeated forks and custom roots')
 
   {
     const s = session('system')

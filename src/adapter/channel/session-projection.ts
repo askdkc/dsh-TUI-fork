@@ -68,9 +68,6 @@ export const KNOWN_DSH_EVENT_TYPES = new Set<string>([
   'step/start',
   'step/end',
   'user/message',
-  // Retired by 0.1.5 (stream timing moved into the settlement events) but
-  // still present in pre-V3 logs this projection must keep replaying.
-  'assistant/chunk',
   'assistant/message',
   // 0.1.5: abandoned attempt (failed/retried/cancelled, no surface message).
   'assistant/attempt',
@@ -144,10 +141,6 @@ export const KNOWN_DSH_EVENT_TYPES = new Set<string>([
   'tool-workflow/agent-end',
   'tool-workflow/run-start',
   'tool-workflow/run-end',
-  // The code runner's dispatch bracket was renamed in 0.1.5; old logs still
-  // carry the `code-` spellings, so both generations stay recognized.
-  'tool/code-dispatch',
-  'tool/code-dispatch-start',
   'tool/ptc-dispatch',
   'tool/ptc-dispatch-start',
   'web/deepseek-search-llm-request',

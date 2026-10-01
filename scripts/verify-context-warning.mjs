@@ -34,7 +34,7 @@ function makeAgent(id, sessionId, events = []) {
       seq: events.at(-1)?.seq ?? 0,
       events,
       header: { cwd: '/tmp/context-warning' },
-    },
+     snapshotEvents() { return this.events }},
     followup() {},
     steer() {},
     inbox: { remove: () => true },

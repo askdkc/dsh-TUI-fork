@@ -5,7 +5,7 @@
  * Run after pnpm build: node scripts/verify-permission-modes.mjs
  *
  * Covers:
- *   1. snapshot freeze + receiver-safe registry + legacy/unavailable states
+ *   1. snapshot freeze + receiver-safe registry + unavailable states
  *   2. runtime presets appended to the Shift+Tab cycle in stable order with
  *      canonical exclusions; switches use the official command
  *   3. async confirmation within the grace window
@@ -206,7 +206,7 @@ function makeEnv({ modes, names, bundles, history = [], permission = {}, withCom
           publishing = false
         }
       },
-    },
+     snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
   }
   return { ctx, agent, registry, behavior, modes, commands, warnings, appended, events, reentrancy: () => reentrantAppends }
@@ -239,8 +239,8 @@ const AUTO_SEED = [
   const env = makeEnv({ noService: true })
   const channel = createChannel(env.ctx, env.agent, baseOptions)
   const snapshot = channel.permissionPresets()
-  check('missing service keeps the legacy roster', snapshot.availability === 'legacy')
-  check('legacy roster = the three canonical presets', snapshot.options.map(o => o.value).join(',') === 'read-only,workspace-write,danger-full-access')
+  check('missing service is unavailable', snapshot.availability === 'unavailable')
+  check('missing service offers no fabricated presets', snapshot.options.length === 0)
 }
 
 // ---- 2. dynamic presets join the Shift+Tab cycle via /permission ----------

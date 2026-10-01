@@ -33,26 +33,29 @@ for (const preset of ['standard', 'ptc', 'cordis', 'liangshen', undefined]) {
 const alreadyTwoTools = { ...assembly, tools: [bash, editor] }
 assert.equal(filterMinimalPresetTools(alreadyTwoTools, 'minimal'), alreadyTwoTools)
 
-const legacyHeaderSession = {
-  header: { agentPreset: 'code' },
+const headerSession = {
+  header: { agentPreset: 'ptc' },
   events: [],
+  snapshotEvents() { return this.events },
 }
-const legacyEventSession = {
+const eventSession = {
   header: { agentPreset: 'standard' },
-  events: [{ type: 'agent-preset/selected', data: { agentPreset: 'code' } }],
+  events: [{ type: 'agent-preset/selected', data: { agentPreset: 'ptc' } }],
+  snapshotEvents() { return this.events },
 }
 const malformedLatestEventSession = {
   header: { agentPreset: 'standard' },
   events: [
-    { type: 'agent-preset/selected', data: { agentPreset: 'code' } },
+    { type: 'agent-preset/selected', data: { agentPreset: 'ptc' } },
     { type: 'agent-preset/selected', data: null },
   ],
+  snapshotEvents() { return this.events },
 }
-assert.equal(runningPresetOf(legacyHeaderSession), 'code')
-assert.equal(runningPresetOf(legacyEventSession), 'code')
-assert.equal(runningPresetOf(malformedLatestEventSession), 'code')
-assert.equal(legacyHeaderSession.header.agentPreset, 'code')
-assert.equal(legacyEventSession.events[0].data.agentPreset, 'code')
+assert.equal(runningPresetOf(headerSession), 'ptc')
+assert.equal(runningPresetOf(eventSession), 'ptc')
+assert.equal(runningPresetOf(malformedLatestEventSession), 'ptc')
+assert.equal(headerSession.header.agentPreset, 'ptc')
+assert.equal(eventSession.events[0].data.agentPreset, 'ptc')
 
 function presetContext(available, broken = new Set()) {
   const attempts = []
@@ -82,34 +85,28 @@ function presetContext(available, broken = new Set()) {
   }
 }
 
-const alphaRoster = presetContext(new Set(['standard', 'ptc']))
-const alphaComposition = await composePreset(alphaRoster.ctx, 'code')
-assert.deepEqual(alphaRoster.attempts, ['ptc'])
-assert.equal(alphaComposition.agentPreset, 'ptc')
-assert.equal(legacyHeaderSession.header.agentPreset, 'code')
-
-const rcRoster = presetContext(new Set(['standard', 'code']))
-const rcComposition = await composePreset(rcRoster.ctx, 'code')
-assert.deepEqual(rcRoster.attempts, ['code'])
-assert.equal(rcComposition.agentPreset, 'code')
-
-const rcNewName = presetContext(new Set(['standard', 'code']))
-const rcFallback = await composePreset(rcNewName.ctx, 'ptc')
-assert.deepEqual(rcNewName.attempts, ['code'])
-assert.equal(rcFallback.agentPreset, 'code')
-
-const brokenExact = presetContext(new Set(['standard', 'code', 'ptc']), new Set(['code']))
-const brokenComposition = await composePreset(brokenExact.ctx, 'code')
-assert.deepEqual(brokenExact.attempts, ['code'])
-assert.deepEqual(brokenComposition, {})
-
+const currentRoster = presetContext(new Set(['standard', 'ptc']))
+const currentComposition = await composePreset(currentRoster.ctx, 'ptc')
+assert.deepEqual(currentRoster.attempts, ['ptc'])
+assert.equal(currentComposition.agentPreset, 'ptc')
+const missingOldName = presetContext(new Set(['standard', 'ptc']))
+assert.deepEqual(await composePreset(missingOldName.ctx, 'code'), {})
+assert.deepEqual(missingOldName.attempts, ['code'], 'unsupported old names never alias')
+const brokenExact = presetContext(new Set(['standard', 'ptc']), new Set(['ptc']))
+assert.deepEqual(await composePreset(brokenExact.ctx, 'ptc'), {})
+assert.deepEqual(brokenExact.attempts, ['ptc'])
+let closed = false
 const persistedPreset = await resolvePersistedPreset({
-  get(name) {
-    if (name !== 'sessionPersistence') return undefined
-    return { async load() { return { meta: legacyHeaderSession.header, events: legacyHeaderSession.events } } }
+  get() {
+    return { async open() { return {
+      header: headerSession.header,
+      async read() { return { events: headerSession.events } },
+      async close() { closed = true },
+    } } }
   },
-}, 'legacy-session')
-assert.equal(persistedPreset, 'code')
+}, 'current-session')
+assert.equal(persistedPreset, 'ptc')
+assert.equal(closed, true)
 
 let directResolveId
 const directChannel = createChannel({
@@ -130,18 +127,18 @@ const directChannel = createChannel({
   },
   logger: { warn() {} },
 }, {
-  id: 'preset-alias-agent',
+  id: 'preset-current-agent',
   status: 'idle',
   session: {
-    id: 'preset-alias-session',
+    id: 'preset-current-session',
     seq: 1,
     events: [{
       type: 'agent-preset/selected',
       seq: 1,
       time: 1,
-      data: { agentPreset: 'code' },
+      data: { agentPreset: 'ptc' },
     }],
-  },
+   snapshotEvents() { return this.events }},
   ctx: { on() { return () => {} } },
   followup() {},
   steer() {},
@@ -158,9 +155,9 @@ assert.equal(directChannel.rows.some(row => row.text.includes('code')), false)
 assert.equal(await directChannel.switchPreset('ptc'), true)
 assert.equal(directResolveId, 'ptc')
 
-// Display localization: the 0.1.2 roster id `ptc` must resolve the en
-// dictionary surface keyed under the legacy `code` id (preset-name-code /
-// preset-desc-code), never the Chinese roster copy — same bug as issue #8.
+// Display localization: the roster id `ptc` must resolve the en
+// dictionary surface keyed under the current `ptc` id (preset-name-ptc /
+// preset-desc-ptc), never the Chinese roster copy — same bug as issue #8.
 setLang('en')
 const displayChannel = createChannel({
   on() { return () => {} },
@@ -184,7 +181,7 @@ const displayChannel = createChannel({
 }, {
   id: 'preset-display-agent',
   status: 'idle',
-  session: { id: 'preset-display-session', seq: 1, events: [] },
+  session: { id: 'preset-display-session', seq: 1, events: [] , snapshotEvents() { return this.events }},
   ctx: { on() { return () => {} } },
   followup() {},
   steer() {},
@@ -244,7 +241,7 @@ async function loadedContextWith(tools, complete = true) {
   const agent = {
     id: 'a1',
     status: 'idle',
-    session: { id: 's1', seq: 0, events: [] },
+    session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
     followup() {},
     steer() {},

@@ -4,7 +4,7 @@
  * Deriving a session's title costs a bounded read; doing it for every session
  * on every picker open costs that read times the history. The persistence
  * service already hands out the exact token needed to avoid it:
- * `listSnapshots()` returns, per session, an opaque revision that changes
+ * `list()` returns, per session, an opaque revision that changes
  * whenever the stored log changes. An entry whose revision still matches is
  * reused verbatim; anything else is re-derived. Steady state is therefore zero
  * log reads, and a session edited by another client (the store is shared with
@@ -33,9 +33,7 @@ import { DATA_DIR } from '../../utils/paths.js'
 import type { TitleSource } from './types.js'
 
 /**
- * Bumped for cached mtime. Version 3 derivations remain readable and receive
- * that field on their next listing; version 2 could cache incomplete reads as
- * empty, so only its branch notes survive.
+ * Only the current cache schema is read; older caches are re-derived.
  */
 const SCHEMA_VERSION = 4
 
@@ -95,11 +93,11 @@ function readTitleSource(value: unknown): TitleSource | undefined {
 }
 
 /** Narrow one persisted entry; an unrecognizable record is simply absent. */
-function readEntry(value: unknown, derivedValid: boolean): IndexEntry | undefined {
+function readEntry(value: unknown): IndexEntry | undefined {
   if (value === null || typeof value !== 'object') return undefined
   const record = value as Record<string, unknown>
   const branch = typeof record['branch'] === 'string' ? record['branch'] : undefined
-  const raw = derivedValid ? record['derived'] : undefined
+  const raw = record['derived']
   if (raw === null || typeof raw !== 'object') return { derived: undefined, branch }
   const derived = raw as Record<string, unknown>
   const revision = derived['revision']
@@ -145,8 +143,7 @@ function readEntry(value: unknown, derivedValid: boolean): IndexEntry | undefine
 
 /**
  * Load the cache.
- * @returns The parsed index; version 3 derivations are upgraded lazily and
- *   version 2 retains branch notes only.
+ * @returns The parsed index; older schemas are discarded and rebuilt.
  */
 export function readIndex(): SessionIndex {
   const stamp = indexStamp()
@@ -166,7 +163,7 @@ export function readIndex(): SessionIndex {
     return new Map(index)
   }
   const file = parsed as Record<string, unknown>
-  if (file['version'] !== SCHEMA_VERSION && file['version'] !== 3 && file['version'] !== 2) {
+  if (file['version'] !== SCHEMA_VERSION) {
     loadedStamp = stamp
     loadedIndex = index
     return new Map(index)
@@ -178,7 +175,7 @@ export function readIndex(): SessionIndex {
     return new Map(index)
   }
   for (const [id, value] of Object.entries(entries as Record<string, unknown>)) {
-    const entry = readEntry(value, file['version'] === SCHEMA_VERSION || file['version'] === 3)
+    const entry = readEntry(value)
     if (entry !== undefined) index.set(id, entry)
   }
   loadedStamp = stamp

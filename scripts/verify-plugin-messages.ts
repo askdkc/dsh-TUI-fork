@@ -182,7 +182,7 @@ await subscribeAs('alpha')
 // ── B. sequence 单调含 gap ────────────────────────────────────────────────
 {
   const before = (received.get('alpha') ?? []).length
-  publish(broker, session('sess-1'), { type: 'assistant/chunk', seq: 3, time: 0, data: {} })
+  publish(broker, session('sess-1'), { type: 'plugin/noise', seq: 3, time: 0, data: {} })
   publish(broker, session('sess-1'), { type: 'turn/start', seq: 4, time: 0, data: {} })
   publish(broker, session('sess-1'), userEvent(5, 'after gap'))
   publish(broker, session('sess-1'), assistantEvent(9, 'further'))

@@ -105,7 +105,7 @@ const fakeApprovalReq = (callId: string, command: string) => ({
         time: 0,
         data: { turn: 0, step: 0, callId, name: 'Bash', arguments: JSON.stringify({ command }) },
       }],
-    },
+     snapshotEvents() { return this.events }},
   },
   toolName: 'Bash',
   callId,

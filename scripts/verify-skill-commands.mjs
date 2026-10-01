@@ -75,7 +75,7 @@ const ctx = {
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   // bindAgent 挂 installModelSelection 需要 agent.ctx 提供"可订阅、返回
   // 解除函数"的最小面（0.3.6 Shift+Tab 推理等级）。
   ctx: { on: () => () => {} },
@@ -590,7 +590,7 @@ fire('skills/change')
   const staleAgentA = {
     id: 'stale-a',
     status: 'idle',
-    session: { id: 'stale-s1', seq: 0, events: [], header: { cwd: '/tmp' } },
+    session: { id: 'stale-s1', seq: 0, events: [], header: { cwd: '/tmp' } , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
     followups: [],
     followup(message) { this.followups.push(message) },
@@ -598,7 +598,7 @@ fire('skills/change')
   const staleAgentB = {
     id: 'stale-b',
     status: 'idle',
-    session: { id: 'stale-s2', seq: 0, events: [], header: { cwd: '/tmp' } },
+    session: { id: 'stale-s2', seq: 0, events: [], header: { cwd: '/tmp' } , snapshotEvents() { return this.events }},
     ctx: { on: () => () => {} },
     followups: [],
     followup(message) { this.followups.push(message) },

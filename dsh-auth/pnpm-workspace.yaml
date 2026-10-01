@@ -4,10 +4,7 @@ allowBuilds:
   '@google/genai': false
   protobufjs: false
 
-# Dev-tree resolution pin: same dist-tag hazard as the parent repo —
-# pnpm prefers the registry latest tag for prerelease ranges, so the
-# whole @deepseek-ai closure is forced to the 0.2.0-rc.2 line here.
-# Mirror of the parent repo override block.
+# Develop against the single validated DSH release. Published peers use the same baseline.
 overrides:
   '@deepseek-ai/dsh-agent': 0.2.0-rc.2
   '@deepseek-ai/dsh-agent-instructions': 0.2.0-rc.2

@@ -53,7 +53,7 @@ function makeAgent(events = []) {
       id: 'tps-session',
       seq: events.at(-1)?.seq ?? 0,
       events,
-    },
+     snapshotEvents() { return this.events }},
     followup() {},
     steer() {},
   }
@@ -69,7 +69,12 @@ const { ctx, handlers } = makeContext()
 const agent = makeAgent()
 const channel = createChannel(ctx, agent, options)
 let seq = 0
+let streamRevision = 0
 function emit(type, time, data) {
+  if (type === 'stream') {
+    handlers.get('agent/assistant-stream')?.({ agent, frame: { type: 'chunk', attemptId: `${data.turn}:${data.step}`, revision: ++streamRevision, time, chunk: data.chunk } })
+    return
+  }
   const event = { type, seq: ++seq, time, data }
   agent.session.seq = seq
   agent.session.events.push(event)
@@ -95,7 +100,7 @@ const B = 1_700_000_000_000
 // Turn 1: 100 tokens / 1s, then a 51s non-decode gap, then 300 / 3s.
 emit('turn/start', B, { turn: 1 })
 emit('step/start', B + 100, { turn: 1, step: 1 })
-emit('assistant/chunk', B + 1_000, {
+emit('stream', B + 1_000, {
   turn: 1,
   step: 1,
   chunk: { type: 'reasoning-delta', index: 0, text: 'thinking' },
@@ -107,7 +112,7 @@ emit('step/end', B + 2_100, { turn: 1, step: 1 })
 
 // The timestamp jump represents tool execution and the next request's TTFT.
 emit('step/start', B + 52_000, { turn: 1, step: 2 })
-emit('assistant/chunk', B + 53_000, {
+emit('stream', B + 53_000, {
   turn: 1,
   step: 2,
   chunk: {
@@ -129,12 +134,12 @@ check('sample timestamp comes from event.time', channel.tpsSamples[0]?.at === fi
 // then exact provider usage settles 300 tokens over a 2s decode span.
 emit('turn/start', B + 100_000, { turn: 2 })
 emit('step/start', B + 100_100, { turn: 2, step: 1 })
-emit('assistant/chunk', B + 101_000, {
+emit('stream', B + 101_000, {
   turn: 2,
   step: 1,
   chunk: { type: 'reasoning-delta', index: 0, text: 'r'.repeat(400) },
 })
-emit('assistant/chunk', B + 102_000, {
+emit('stream', B + 102_000, {
   turn: 2,
   step: 1,
   chunk: { type: 'tool-call-delta', index: 1, id: 'call-2', argumentsDelta: 'a'.repeat(400) },
@@ -148,12 +153,12 @@ check('second turn adds exactly one sample', channel.tpsSamples.length === 2 && 
 // Turn 3: a retry-like pause does not move the first-token boundary.
 emit('turn/start', B + 200_000, { turn: 3 })
 emit('step/start', B + 200_100, { turn: 3, step: 1 })
-emit('assistant/chunk', B + 201_000, {
+emit('stream', B + 201_000, {
   turn: 3,
   step: 1,
   chunk: { type: 'text-delta', index: 0, text: 'first attempt' },
 })
-emit('assistant/chunk', B + 204_000, {
+emit('stream', B + 204_000, {
   turn: 3,
   step: 1,
   chunk: { type: 'text-delta', index: 0, text: 'successful attempt' },
@@ -165,12 +170,12 @@ check('retry-like delay remains in the step decode span', near(channel.tps, 25),
 // Turn 4: providers without usage retain the existing chars/4 fallback.
 emit('turn/start', B + 300_000, { turn: 4 })
 emit('step/start', B + 300_100, { turn: 4, step: 1 })
-emit('assistant/chunk', B + 301_000, {
+emit('stream', B + 301_000, {
   turn: 4,
   step: 1,
   chunk: { type: 'text-delta', index: 0, text: 'x'.repeat(200) },
 })
-emit('assistant/chunk', B + 302_000, {
+emit('stream', B + 302_000, {
   turn: 4,
   step: 1,
   chunk: { type: 'text-delta', index: 0, text: 'y'.repeat(200) },
@@ -183,22 +188,22 @@ check('one sample is retained per completed turn', channel.tpsSamples.length ===
 // Turn 5: empty deltas do not start the decode clock, but a tool name does.
 emit('turn/start', B + 400_000, { turn: 5 })
 emit('step/start', B + 400_100, { turn: 5, step: 1 })
-emit('assistant/chunk', B + 401_000, {
+emit('stream', B + 401_000, {
   turn: 5,
   step: 1,
   chunk: { type: 'text-delta', index: 0, text: '' },
 })
-emit('assistant/chunk', B + 402_000, {
+emit('stream', B + 402_000, {
   turn: 5,
   step: 1,
   chunk: { type: 'reasoning-delta', index: 0, text: '' },
 })
-emit('assistant/chunk', B + 403_000, {
+emit('stream', B + 403_000, {
   turn: 5,
   step: 1,
   chunk: { type: 'tool-call-delta', index: 0, id: 'call-5', argumentsDelta: '' },
 })
-emit('assistant/chunk', B + 404_000, {
+emit('stream', B + 404_000, {
   turn: 5,
   step: 1,
   chunk: { type: 'tool-call-delta', index: 0, id: 'call-5', name: 'bash', argumentsDelta: '' },

@@ -8,7 +8,7 @@ import type { InputConvergence } from './input-actions.js'
 import type { BackgroundJobStore } from '../jobs.js'
 import type { TuiRendererHost } from '../renderers.js'
 import { isSubagentToolName, parseJobOutputId, toolCommandOf, BACKGROUND_START_ACK, todoPanelItems } from './projection-helpers.js'
-import { ARGS_PREVIEW_LIMIT, harnessToolResultView, LOCAL_OUTPUT_LIMIT, prepareReplayEvents, preview, RESULT_PREVIEW_LIMIT, toolErrorText } from './transcript.js'
+import { ARGS_PREVIEW_LIMIT, harnessToolResultView, LOCAL_OUTPUT_LIMIT, preview, RESULT_PREVIEW_LIMIT, toolErrorText } from './transcript.js'
 import { estimateTokens, isTokenDelta, tokenDeltaChars, usageOutputTokens } from './usage.js'
 import { transcriptImagesOf, type TranscriptImage } from '../transcript-images.js'
 import { isCompactionCheckpointSource, toolResultPayload } from '../compat/messages.js'
@@ -76,14 +76,12 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
    * row for the same durable sequence number.
    */
   const handledAssistantMessages = new Set<number>()
-  const handledAssistantChunks = new Set<number>()
   /** One Agent runs one request at a time. Durable step boundaries also let
    *  a freshly attached projector accept chunks whose start it missed. */
   let openStep: { turn: number; step: number } | undefined
   let activeAttempt: { attemptId: string; turn: number; step: number } | undefined
   let lastStreamRevision = -1
   const assistantRowsByStep = new Map<string, ChatRow>()
-  const lastTextDelta = new Map<ChatRow, string>()
   const stepKey = (turn: number, step: number): string => `${turn}:${step}`
   const touchRow = (row: ChatRow): void => { markChannelReadDirty(row); markChannelReadDirty(state.rows) }
   const appendRow = (row: ChatRow): void => { state.rows.push(row); markChannelReadDirty(state.rows) }
@@ -98,7 +96,6 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
     if (lastReasoningRow?.row === row) lastReasoningRow = undefined
     const sealedIndex = sealedReasoning.indexOf(row)
     if (sealedIndex !== -1) sealedReasoning.splice(sealedIndex, 1)
-    lastTextDelta.delete(row)
   }
 
   const discardAttempt = (turn: number, step: number): void => {
@@ -125,30 +122,9 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
   const transcriptImages = (content: readonly ContentBlock[] | undefined): readonly TranscriptImage[] =>
     transcriptImagesOf(content, deps.attachments)
 
-  /** V3 deltas are ordered by frame revision and must stay byte-exact.
-   * Legacy reconnect/proxy events may instead repeat a cumulative prefix. */
-  const appendTextDelta = (row: ChatRow, delta: string, legacy: boolean): void => {
+  /** Live frame deltas are ordered by revision and remain byte-exact. */
+  const appendTextDelta = (row: ChatRow, delta: string): void => {
     if (delta === '') return
-    if (!legacy) {
-      row.text += delta
-      touchRow(row)
-      return
-    }
-    if (lastTextDelta.get(row) === delta) return
-    lastTextDelta.set(row, delta)
-    if (delta.startsWith(row.text)) {
-      row.text = delta
-      touchRow(row)
-      return
-    }
-    const maxOverlap = Math.min(row.text.length, delta.length, 4096)
-    for (let size = maxOverlap; size > 0; size--) {
-      if (row.text.endsWith(delta.slice(0, size))) {
-        row.text += delta.slice(size)
-        touchRow(row)
-        return
-      }
-    }
     row.text += delta
     touchRow(row)
   }
@@ -382,26 +358,20 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
     // idempotency ledger before replay so an old session cannot suppress a
     // legitimate message in the new transcript.
     handledAssistantMessages.clear()
-    handledAssistantChunks.clear()
     openStep = undefined
     activeAttempt = undefined
     lastStreamRevision = -1
     assistantRowsByStep.clear()
-    lastTextDelta.clear()
     replaying = true
     try {
-      for (const event of prepareReplayEvents(events)) renderEvent(event)
+      for (const event of events) renderEvent(event)
     } finally {
       replaying = false
     }
   }
 
-  /**
-   * One live stream delta, from a 0.1.5 `agent/assistant-stream` chunk frame
-   * or a legacy `assistant/chunk` session event (pre-0.1.5 hosts and raw
-   * pre-V3 logs). `seq` exists only on the durable-event path.
-   */
-  const renderStreamChunk = (turn: number, step: number, chunk: StreamChunk, time: number, seq?: number): void => {
+  /** One delta from the current transient assistant stream. */
+  const renderStreamChunk = (turn: number, step: number, chunk: StreamChunk, time: number): void => {
     if (chunk.type === 'text-delta') {
       if (chunk.text) {
         // Fold the thinking preview while it is still in the live
@@ -409,19 +379,19 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
         // transcript and pushes the block into scrollback.
         foldLiveReasoning('first text token')
         const key = stepKey(turn, step)
-        const row = assistantRowsByStep.get(key) ?? ensureStreaming(seq)
+        const row = assistantRowsByStep.get(key) ?? ensureStreaming()
         assistantRowsByStep.set(key, row)
         streaming = row
         row.streaming = true
         touchRow(row)
         const before = row.text.length
-        appendTextDelta(row, chunk.text, seq !== undefined)
+        appendTextDelta(row, chunk.text)
         state.responseChars += Math.max(0, row.text.length - before)
       }
     } else if (chunk.type === 'reasoning-delta') {
       if (chunk.text) {
-        const row = ensureReasoning(seq, turn, step)
-        appendTextDelta(row, chunk.text, seq !== undefined)
+        const row = ensureReasoning(undefined, turn, step)
+        appendTextDelta(row, chunk.text)
       }
     }
     const tps = tpsStep
@@ -486,7 +456,7 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
     }
     switch (event.type) {
       case 'user/message': {
-        // Both legacy and V4 checkpoints render as a folded summary rather
+        // Checkpoints render as a folded summary rather
         // than disappearing with the other injected context.
         if (isCompactionCheckpointSource(event.data.source)) {
           const summary = textOf(event.data.content)
@@ -588,7 +558,7 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
         if (handledAssistantMessages.has(event.seq)) break
         handledAssistantMessages.add(event.seq)
         // V3 embeds its complete attempt stream; older settlements may omit
-        // reasoning that is still durably recorded in assistant/chunk events.
+        // reasoning recorded in the settlement stream.
         const canonical = Array.isArray((event.data as { stream?: unknown }).stream)
         const text = textOf(event.data.message.content)
         const images = transcriptImages(event.data.message.content)
@@ -956,16 +926,11 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
       case 'request/header': {
         // Reasoning effort readout (status line): the header carries the
         // conversation's call config (provider/model/effort/sampling). The
-        // system prompt moved out of the header at V3 (see system/message);
-        // pre-V3 logs still carry it, admitted structurally below.
+        // system prompt is projected from system/message.
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- durable session data may lack header config
         const effort = event.data.header.config?.reasoningEffort
         if (typeof effort === 'string') {
           state.reasoningEffort = effort
-        }
-        const legacySystem = (event.data.header as { system?: unknown }).system
-        if (typeof legacySystem === 'string') {
-          state.contextSegments.system = estimateTokens(legacySystem)
         }
         break
       }
@@ -973,19 +938,7 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
         state.sessionTitle = event.data.title
         break
       default:
-        // Pre-0.1.5 live streams and raw pre-V3 logs carry per-token chunks
-        // as durable session events; 0.1.5 moved live chunks to transient
-        // `agent/assistant-stream` frames (renderStreamFrame) and compacts the
-        // durable record into `assistant/message.stream`. Match by name so the
-        // current union (which no longer lists the type) stays compile-clean.
-        if ((event as { type: string }).type === 'assistant/chunk') {
-          if (handledAssistantChunks.has(event.seq)) break
-          handledAssistantChunks.add(event.seq)
-          const data = (event as unknown as { data: { turn: number; step: number; chunk: StreamChunk } }).data
-          renderStreamChunk(data.turn, data.step, data.chunk, (event as { time: number }).time, event.seq)
-          break
-        }
-        // dsh-tool-todo owns this optional module augmentation in alpha.2.
+        // dsh-tool-todo owns this optional module augmentation in its own plugin.
         // Match by name so the TUI remains loadable without that plugin.
         if ((event as { type: string }).type === 'todo/write') {
           const todos = todoPanelItems((event as unknown as { data?: unknown }).data)
@@ -999,12 +952,7 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
         if ((event as { type: string }).type === 'agent-preset/selected') {
           const data = event.data as unknown as { agentPreset?: string }
           const recordedPreset = typeof data.agentPreset === 'string' ? data.agentPreset : undefined
-          const renamedOfficialPreset =
-            (recordedPreset === 'code' && state.agentPreset === 'ptc') ||
-            (recordedPreset === 'ptc' && state.agentPreset === 'code')
-          const preset = renamedOfficialPreset && state.agentPreset !== undefined
-            ? state.agentPreset
-            : recordedPreset ?? 'unknown'
+          const preset = recordedPreset ?? 'unknown'
           appendRow({
             id: deps.rowIds.value,
             kind: 'notice',
@@ -1058,12 +1006,10 @@ export function createChannelProjection(state: ProjectionState, deps: Projection
     lastReasoningRow = undefined
     toolCards.clear()
     handledAssistantMessages.clear()
-    handledAssistantChunks.clear()
     openStep = undefined
     activeAttempt = undefined
     lastStreamRevision = -1
     assistantRowsByStep.clear()
-    lastTextDelta.clear()
     tpsTurn = undefined
     tpsStep = undefined
     tpsTurnDecodeMs = 0

@@ -178,7 +178,7 @@ console.log('--- B: hotspots ---')
   const initial = {
     id: 'agent-a', status: 'idle', options: {},
     ctx: { on: () => () => {} },
-    session: { id: 'sess-a', seq: 0, events: [], header: {} },
+    session: { id: 'sess-a', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }},
     followup() {}, steer() {}, inbox: { remove: () => true }, cancel() {}, whenIdle: () => Promise.resolve(),
   }
   const channel = createChannel(ctx as never, initial as never, {

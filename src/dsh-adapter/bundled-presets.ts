@@ -7,20 +7,8 @@ import { pathToFileURL } from 'node:url'
 import { parse } from 'yaml'
 import { packagedPresetRoot } from './packaged-presets.js'
 
-interface DeclarativePresets {
-  register(definition: PresetDefinition): Promise<() => Promise<void>>
-}
-
 interface PresetLoader {
   entries(): Iterable<{ disabled: boolean; options: { name?: string; config?: unknown } }>
-}
-
-function declarativePresets(ctx: Context): DeclarativePresets | undefined {
-  const service: unknown = ctx.get('agentPresets')
-  return service !== null && typeof service === 'object'
-    && 'register' in service && typeof service.register === 'function'
-    ? service as DeclarativePresets
-    : undefined
 }
 
 /** Preserve the Loader's expressions; only the owning plugin may evaluate them. */
@@ -38,21 +26,15 @@ function readPresetPatch(path: string): PresetDefinition {
   throw new Error(`dsh-tui: invalid upstream preset declaration: ${path}`)
 }
 
-/**
- * 0.1.7 removed directory discovery. Consume the official bundle definitions
- * through its registry, without copying or reimplementing their tool sets.
- * Web/profile declarations own their seats even while still activating.
- * Returns false on the legacy directory-backed roster or while absent. An
- * absent service is watched through Cordis so a late registry is not missed.
- */
-export async function registerBundledPresets(ctx: Context): Promise<boolean> {
+/** Register shipped definitions with the current registry. Profile declarations
+ * own their seats even while activating; wait for a late registry through Cordis. */
+export async function registerBundledPresets(ctx: Context): Promise<void> {
   if (ctx.get('agentPresets') === undefined) {
     ctx.inject(['agentPresets'], async (ready) => {
       await registerBundledPresets(ready)
     })
-    return false
+    return
   }
-  if (declarativePresets(ctx) === undefined) return false
   const declared = new Set<string>()
   const loader = ctx.get('loader') as PresetLoader | undefined
   for (const entry of loader?.entries() ?? []) {
@@ -67,13 +49,13 @@ export async function registerBundledPresets(ctx: Context): Promise<boolean> {
     if (declared.has(id)) continue
     const path = require.resolve(`@deepseek-ai/dsh-web-app/presets/${id}.patch.yml`)
     const owner = ctx.extend({ baseUrl: pathToFileURL(path).href })
-    const dispose = await declarativePresets(owner)!.register(readPresetPatch(path))
+    const dispose = await owner.get('agentPresets')!.register(readPresetPatch(path))
     ctx.effect(() => dispose)
   }
   if (!declared.has('liangshen')) {
     const root = join(packagedPresetRoot(), 'liangshen')
     const metadata: Pick<PresetDefinition, 'name' | 'description' | 'order'> = parse(readFileSync(join(root, 'preset.yml'), 'utf8'))
-    const dispose = await declarativePresets(ctx)!.register({
+    const dispose = await ctx.get('agentPresets')!.register({
       id: 'liangshen',
       name: metadata.name,
       description: metadata.description,
@@ -86,5 +68,4 @@ export async function registerBundledPresets(ctx: Context): Promise<boolean> {
     })
     ctx.effect(() => dispose)
   }
-  return true
 }

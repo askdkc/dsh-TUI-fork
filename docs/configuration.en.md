@@ -28,9 +28,8 @@ only for a genuinely new service.
 
 ## TUI configuration
 
-On DSH 0.1.7, `/settings` writes plugin Config fields to the active profile's
-`cordis.patch.yml`. Older hosts still use `~/.dsh/settings.yaml`; that file is
-not the new settings entry point. Language and layout preferences update live;
+`/settings` writes plugin Config fields to the active profile's
+`cordis.patch.yml`. Language and layout preferences update live;
 fullscreen and image previews require `/restart`.
 
 A complete common override looks like this:
@@ -133,13 +132,12 @@ Do not insert a second row and do not separately run
 ## Agent presets
 
 Each session composes its model-visible tools and prompt through the official
-preset registry: `@deepseek-ai/dsh-agent-preset-registry` on 0.1.7, or
-`@deepseek-ai/dsh-agent-presets` on older hosts:
+preset registry, `@deepseek-ai/dsh-agent-preset-registry`:
 
 | ID | Name | Capability |
 | --- | --- | --- |
 | `standard` | Standard (default) | Editing, shell, search, skills, planning, goals, subagents, and workflows |
-| `ptc` (0.1.2) / `code` (legacy 0.1.1) | PTC | Standard plus the PTC SDK presentation for composing operations in TypeScript; both names resolve compatibly across versions |
+| `ptc` | PTC | Standard plus the PTC SDK presentation for composing operations in TypeScript |
 | `minimal` | Minimal | Persistent Bash and `str_replace_editor` only, without compaction |
 | `cordis` | Creation | Standard plus runtime inspection and plugin-experimentation tools |
 | `liangshen` | Liangshen mode | Minimal's two-tool surface first for root and delegated agents, the full catalog after the first tool call, and a fresh anchor after compaction |
@@ -148,11 +146,10 @@ preset registry: `@deepseek-ai/dsh-agent-preset-registry` on 0.1.7, or
 
 - `/preset` opens the picker.
 - `/preset <id>` selects directly; `/preset status` reports the current state.
-- Picker names and descriptions come from registry declarations (from
-  `preset.yml` on older hosts).
+- Picker names and descriptions come from registry declarations.
 - Under the `en` UI language (`/lang en`), the built-in presets show localized
   English names and descriptions.
-- Built-in presets: `standard` / `minimal` / `ptc` (legacy `code`) / `cordis` / `liangshen`;
+- Built-in presets: `standard` / `minimal` / `ptc` / `cordis` / `liangshen`;
   custom presets are shown as-is.
 - A blank session can switch in place. Once a conversation has started, the
   official blank-only rule stores the choice as the new default for `/new` or
@@ -163,17 +160,13 @@ preset registry: `@deepseek-ai/dsh-agent-preset-registry` on 0.1.7, or
 - The default is stored in `~/.dsh-tui/agent-preset.json`.
 - Precedence: explicit `config.preset` or `DSH_TUI_PRESET`, then persisted
   preference, then the roster default `standard`.
-- A legacy `code` preference resolves to `ptc` when the active roster no
-  longer provides `code`, then migrates after that successful resolution;
-  rc rosters keep their real `code` id, and session logs are never rewritten.
 - Resuming a session restores the preset recorded in that session's log and
   does not overwrite it with the current default.
 
 ### Liangshen mode
 
-- Liangshen mode ships with dsh-tui. On 0.1.7 it registers with the official
+- Liangshen mode ships with dsh-tui. It registers with the official
   registry; an existing profile declaration with the same id takes precedence.
-  Older hosts install it into the user preset root, preserving unmanaged directories.
 - The first-round `bash` on Windows runs an auto-discovered Git Bash, trying
   in order:
   - The installation tree of a `git.exe` found on PATH (covers installer,
@@ -187,10 +180,8 @@ preset registry: `@deepseek-ai/dsh-agent-preset-registry` on 0.1.7, or
 
 ### Custom presets
 
-On 0.1.7, declare `@deepseek-ai/dsh-agent-preset` through a profile/bundle with
-`id`, `name`, and `plugins` in its config. Migrate old directory presets to
-bundles using the upstream workflow; TUI no longer scans directories itself.
-Older hosts still discover `$DSH_HOME/.agent-presets/<name>/agent.cordis.yml`.
+Declare `@deepseek-ai/dsh-agent-preset` through a profile/bundle with
+`id`, `name`, and `plugins` in its config.
 
 Since 0.3, model-side tools, planning, compaction, and delegation are owned by
 the preset. Profile mode no longer uses the old `DSH_TUI_COMPACT_RATIO`,
@@ -284,7 +275,7 @@ Where it writes:
 
 | Artifact | Location |
 | --- | --- |
-| Provider profile | `llm-pi-ai.providers.<route>` in the active profile config on 0.1.7, or `~/.dsh/settings.yaml` on older hosts; the route registers on write and unregisters on delete |
+| Provider profile | `llm-pi-ai.providers.<route>` in the active profile config; the route registers on write and unregisters on delete |
 | API key | `~/.dsh/.credentials.yaml` (mode 0600), referenced as `<ROUTE>_API_KEY` |
 
 With the bundled dsh-auth plugin mounted, the add branch offers **provider

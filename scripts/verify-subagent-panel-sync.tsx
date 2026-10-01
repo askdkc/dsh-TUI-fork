@@ -63,7 +63,7 @@ function makeHarness(seedEvents: unknown[] = [], warmRegistry?: (registry: Map<s
   // (switching to a session that already runs in this process) fold the log
   // with the registry already holding that session's live children.
   warmRegistry?.(registry)
-  const parentSession = { id: 'parent-session', seq: 0, events: [...seedEvents], header: {} }
+  const parentSession = { id: 'parent-session', seq: 0, events: [...seedEvents], header: {} , snapshotEvents() { return this.events }}
   const parent = {
     id: 'parent-agent',
     status: 'idle',
@@ -79,10 +79,14 @@ function makeHarness(seedEvents: unknown[] = [], warmRegistry?: (registry: Map<s
   })
   const emit = (name: string, ...args: unknown[]) =>
     (ctx as unknown as { emit(event: string, ...a: unknown[]): void }).emit(name, ...args)
+  let revision = 0
   return {
     registry, channel, emit,
     parentEvent: (event: unknown) => emit('session/event', parentSession, event),
-    childEvent: (child: FakeChild, event: unknown) => emit('session/event', child.session, event),
+    childEvent: (child: FakeChild, event: any) => {
+      if (event.type === 'stream') emit('agent/assistant-stream', { agent: child, frame: { type: 'chunk', attemptId: 'child-attempt', revision: ++revision, time: Date.now(), chunk: event.data.chunk } })
+      else emit('session/event', child.session, event)
+    },
     row: (agentId: string) => channel.rows.find(r => r.kind === 'subagent' && r.subagent?.agentId === agentId)?.subagent,
     panel: (agentId: string) => channel.subagents.find(s => s.agentId === agentId),
   }
@@ -94,7 +98,7 @@ const catalog = (childId: string, label: string, at: number) =>
 // ── A + B: live lifecycle — catalog birth, epoch reset, late-end immunity ──
 {
   const h = makeHarness()
-  const child: FakeChild = { status: 'running', session: { id: 'cat-child', seq: 0, events: [], header: {} }, options: { provider: 'fake-provider', model: 'model-00' } }
+  const child: FakeChild = { status: 'running', session: { id: 'cat-child', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }}, options: { provider: 'fake-provider', model: 'model-00' } }
   h.registry.set('cat-child', child)
 
   h.parentEvent(catalog('cat-child', '检索索引结构', 1_000))
@@ -104,7 +108,7 @@ const catalog = (childId: string, label: string, at: number) =>
 
   h.emit('subagent/start', { id: 'cat-child', runId: 'run-1', provider: 'fake-provider' })
   h.childEvent(child, { type: 'tool/call', data: { callId: 't1', name: 'Grep', arguments: '{}' } })
-  h.childEvent(child, { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: '第一轮输出' } } })
+  h.childEvent(child, { type: 'stream', data: { chunk: { type: 'text-delta', text: '第一轮输出' } } })
   await sleep(60) // 固定窗:探针 等 16ms 流 flush 落定后读投影
   check('A2 start 后会话事件归属正确（工具 + 输出可见）',
     h.panel('cat-child')?.toolCalls.length === 1 && (h.panel('cat-child')?.output.join('') ?? '').includes('第一轮输出'),
@@ -146,8 +150,8 @@ const catalog = (childId: string, label: string, at: number) =>
     // running session): registered before the fold runs. Another stays
     // REGISTERED BUT IDLE — a continuable child parked between epochs must
     // not count as live (no fake running row, no replay card).
-    registry.set('old-child', { status: 'running', session: { id: 'old-child', seq: 0, events: [], header: {} }, options: { provider: 'fake-provider' } })
-    registry.set('idle-child', { status: 'idle', session: { id: 'idle-child', seq: 0, events: [], header: {} } })
+    registry.set('old-child', { status: 'running', session: { id: 'old-child', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }}, options: { provider: 'fake-provider' } })
+    registry.set('idle-child', { status: 'idle', session: { id: 'idle-child', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }} })
   })
 
   const panelIds = h.channel.subagents.map(s => s.agentId).sort()
@@ -178,21 +182,21 @@ const catalog = (childId: string, label: string, at: number) =>
   const h = makeHarness()
   // Start arrives while the registry does NOT yet know the child.
   h.emit('subagent/start', { id: 'late-child', runId: 'run-l', provider: 'fake-provider' })
-  const child: FakeChild = { status: 'running', session: { id: 'late-child', seq: 0, events: [], header: {} } }
-  h.childEvent(child, { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: '孤儿输出' } } })
+  const child: FakeChild = { status: 'running', session: { id: 'late-child', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }} }
+  h.childEvent(child, { type: 'stream', data: { chunk: { type: 'text-delta', text: '孤儿输出' } } })
   await sleep(40) // 固定窗:探针 等 flush 落定后确认输出仍未归属
   check('D1 未绑定会话事件不产生输出', (h.panel('late-child')?.output.join('') ?? '') === '')
   // The registry catches up (service mounted / child registered late).
   h.registry.set('late-child', child)
-  h.childEvent(child, { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: '愈合输出' } } })
+  h.childEvent(child, { type: 'stream', data: { chunk: { type: 'text-delta', text: '愈合输出' } } })
   await sleep(60) // 固定窗:探针 等 16ms flush 后读愈合归属的输出
   check('D2 registry 补齐后事件归属愈合（H2 延迟绑定）',
     (h.panel('late-child')?.output.join('') ?? '').includes('愈合输出'),
     `out=${h.panel('late-child')?.output.join('') ?? ''}`)
   // A peer top-level session (parked /bg agent) also lives in the registry.
-  const peer: FakeChild = { session: { id: 'peer-session', seq: 0, events: [], header: {} } }
+  const peer: FakeChild = { session: { id: 'peer-session', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }} }
   h.registry.set('peer-session', peer)
-  h.childEvent(peer, { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: 'peer' } } })
+  h.childEvent(peer, { type: 'stream', data: { chunk: { type: 'text-delta', text: 'peer' } } })
   check('D3 peer 顶层会话不进子代理面板', h.panel('peer-session') === undefined,
     JSON.stringify(h.channel.subagents.map(s => s.agentId)))
 }
@@ -200,7 +204,7 @@ const catalog = (childId: string, label: string, at: number) =>
 // ── E: live workflow member lifecycle ──
 {
   const h = makeHarness()
-  const member: FakeChild = { status: 'running', session: { id: 'wf-live', seq: 0, events: [], header: {} } }
+  const member: FakeChild = { status: 'running', session: { id: 'wf-live', seq: 0, events: [], header: {} , snapshotEvents() { return this.events }} }
   // Registration races the member edge: agent-start lands FIRST, the registry
   // catches up only when the child starts streaming.
   h.parentEvent({ type: 'tool-workflow/agent-start', seq: 9, time: Date.now(), data: { runId: 'wr-2', seq: 3, label: '并行审计', childId: 'wf-live' } })
@@ -208,7 +212,7 @@ const catalog = (childId: string, label: string, at: number) =>
     h.panel('wf-live')?.status === 'unknown' && h.row('wf-live') === undefined && h.panel('wf-live')?.description === '并行审计',
     `status=${String(h.panel('wf-live')?.status)} card=${String(h.row('wf-live') !== undefined)}`)
   h.registry.set('wf-live', member)
-  h.childEvent(member, { type: 'assistant/chunk', data: { chunk: { type: 'text-delta', text: '成员输出' } } })
+  h.childEvent(member, { type: 'stream', data: { chunk: { type: 'text-delta', text: '成员输出' } } })
   await sleep(60) // 固定窗:探针 等 16ms flush 后读成员输出投影
   check('E2 注册补齐后升级 running、出卡、输出实时归属',
     h.panel('wf-live')?.status === 'running' && h.row('wf-live') !== undefined && (h.panel('wf-live')?.output.join('') ?? '').includes('成员输出'),

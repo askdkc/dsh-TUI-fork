@@ -1,3 +1,4 @@
+process.env.DSH_TUI_LANG = 'zh'
 /**
  * 压缩 × 会话切换生命周期回归（真实 channel.compact / switchModel + 可控
  * fake compaction 服务）：
@@ -75,7 +76,7 @@ function makeAgent(id: string, sessionEvents: readonly unknown[], onSnapshot?: (
         return sessionEvents
       },
       header: {},
-    },
+     snapshotEvents() { return this.events }},
     ctx: stubAgentCtx,
     followup() {},
     steer() {},

@@ -179,7 +179,7 @@ jobs:
   # Type-check the adapter and compose both patches against the installed
   # 0.2.0-rc.2 baseline's immutable upstream source SHA. Missing source
   # is a hard failure.
-  alpha-compat:
+  upstream-contract:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -187,7 +187,7 @@ jobs:
     env:
       DSH_TUI_LANG: zh
       DSH_HARNESS_SOURCE_ROOT: ${{ github.workspace }}/.upstream/deepseek-harness
-      DSH_REQUIRE_ALPHA_BASELINE: '1'
+      DSH_REQUIRE_UPSTREAM_BASELINE: '1'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -203,27 +203,6 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      # Keep the previous primary line source-checked while its peer range is supported.
-      - uses: actions/checkout@v7
-        with:
-          repository: deepseek-ai/deepseek-harness
-          ref: 477b4f420553e8a52c2fbccc464d7561b239c443
-          path: .upstream/deepseek-harness-rc2
-          fetch-depth: 1
-          persist-credentials: false
-
-      # deepseek-ai/deepseek-harness tag dsh-v0.1.5-alpha.2 — the compat line
-      # stays source-checked. verify:alpha-source type-checks the TUI against
-      # a source checkout, so checking only the primary line would leave an
-      # alpha.2-only regression undetected while alpha.2 is still validated.
-      - uses: actions/checkout@v7
-        with:
-          repository: deepseek-ai/deepseek-harness
-          ref: b2e3b2a0125854567a4a5fcba75782e42fe84901
-          path: .upstream/deepseek-harness-alpha2
-          fetch-depth: 1
-          persist-credentials: false
-
       # 版本来自 package.json 的 packageManager 字段，不在此内联 pin。
       - uses: pnpm/action-setup@v6
 
@@ -234,16 +213,8 @@ jobs:
           cache-dependency-path: |
             pnpm-lock.yaml
             .upstream/deepseek-harness/pnpm-lock.yaml
-            .upstream/deepseek-harness-rc2/pnpm-lock.yaml
-            .upstream/deepseek-harness-alpha2/pnpm-lock.yaml
 
       - run: pnpm --dir "$DSH_HARNESS_SOURCE_ROOT" install --frozen-lockfile --ignore-scripts
-
-      - run: pnpm --dir "$GITHUB_WORKSPACE/.upstream/deepseek-harness-rc2" install --frozen-lockfile --ignore-scripts
-
-      # The compat-line type-check resolves against that tree's own sources,
-      # so it needs that tree's dependencies too (its own lockfile, same pnpm).
-      - run: pnpm --dir "$GITHUB_WORKSPACE/.upstream/deepseek-harness-alpha2" install --frozen-lockfile --ignore-scripts
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
@@ -253,17 +224,9 @@ jobs:
         env:
           NODE_ENV: production
 
-      - run: pnpm verify:alpha-source
+      - run: pnpm verify:upstream-source
 
-      - run: DSH_HARNESS_SOURCE_ROOT="$GITHUB_WORKSPACE/.upstream/deepseek-harness-rc2" DSH_HARNESS_EXPECTED_VERSION=0.1.7-rc.2 pnpm verify:alpha-source
-
-      # Same source check against the alpha.2 compat line; the primary
-      # checkout above keeps driving build and live-session.
-      - run: DSH_HARNESS_SOURCE_ROOT="$GITHUB_WORKSPACE/.upstream/deepseek-harness-alpha2" DSH_HARNESS_EXPECTED_VERSION=0.1.5-alpha.2 pnpm verify:alpha-source
-
-      # Exercise the compatibility facade in both directions: it reads a real
-      # 0.2.0-rc.2 Session and the real constructor accepts its seed metadata.
-      # The ordinary CI groups also keep running the legacy fixture suite.
+      # Verify exact seed ownership with a real current-host Session.
       - run: TSX_TSCONFIG_PATH="$DSH_HARNESS_SOURCE_ROOT/tsconfig.base.json" pnpm verify:live-session -- --real-upstream
 
       # dsh-auth 的 provider 回归此前无任何 lane 执行（build 链只
@@ -600,7 +563,7 @@ jobs:
   # gate 仍然运行（被跳过的 check 不会阻塞合并，失败才会）；后续 CI 内部
   # 再拆组、改名、加 matrix，branch protection 只需盯住这一个稳定名字。
   ci-gate:
-    needs: [changes, build, gates, alpha-compat, render-scroll, input-terminal, session-workspace, channel-ui]
+    needs: [changes, build, gates, upstream-contract, render-scroll, input-terminal, session-workspace, channel-ui]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -611,7 +574,7 @@ jobs:
           CODE: ${{ needs.changes.outputs.code }}
           BUILD: ${{ needs.build.result }}
           GATES: ${{ needs.gates.result }}
-          ALPHA_COMPAT: ${{ needs.alpha-compat.result }}
+          UPSTREAM_CONTRACT: ${{ needs.upstream-contract.result }}
           RENDER_SCROLL: ${{ needs.render-scroll.result }}
           INPUT_TERMINAL: ${{ needs.input-terminal.result }}
           SESSION_WORKSPACE: ${{ needs.session-workspace.result }}
@@ -632,7 +595,7 @@ jobs:
           fi
           for pair in "build:${BUILD}" \
                       "gates:${GATES}" \
-                      "alpha-compat:${ALPHA_COMPAT}" \
+                      "upstream-contract:${UPSTREAM_CONTRACT}" \
                       "render-scroll:${RENDER_SCROLL}" \
                       "input-terminal:${INPUT_TERMINAL}" \
                       "session-workspace:${SESSION_WORKSPACE}" \

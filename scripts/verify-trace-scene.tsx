@@ -136,7 +136,6 @@ function sampleEvents(): Record<string, unknown>[] {
     out.push(ev('turn/start', { turn }))
     out.push(ev('user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: `prompt ${turn}` }] }))
     out.push(ev('step/start', { turn, step: 1 }))
-    out.push(ev('assistant/chunk', { turn, step: 1, chunk: {} }))
     out.push(ev('assistant/message', {
       turn, step: 1,
       message: { content: [{ type: 'text', text: `reply about turn ${turn}` }] },

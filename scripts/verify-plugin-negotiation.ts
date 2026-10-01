@@ -358,7 +358,7 @@ const overview = () => pluginsInfoLines('', { grants, host })
     get(name: string) { return name === 'tuiPluginHost' ? reportHost : undefined },
   } as never, {
     owner: { current: () => true },
-    capture: () => ({ agent: { id: 'report-agent', session: { events: [] } } as never, generation: 1 }),
+    capture: () => ({ agent: { id: 'report-agent', session: { events: [] , snapshotEvents() { return this.events }} } as never, generation: 1 }),
     current: () => true,
     cwd: () => fakeHome,
     model: () => 'report-model',

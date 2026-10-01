@@ -87,7 +87,7 @@ function encode(batches) {
 function seed(id, batches, { cwd = '/proj', ...extra } = {}) {
   const dir = join(root, '--proj--', id)
   mkdirSync(dir, { recursive: true })
-  const header = { type: 'session', version: 0, id, createdAt: 1000, cwd, ...extra }
+  const header = { type: 'session', version: 4, id, createdAt: 1000, cwd, ...extra }
   const file = join(dir, 'session.jsonl.zstd')
   writeFileSync(file, encode([[header], ...batches]))
   return file
@@ -109,7 +109,7 @@ const manualTitle = (title, seq) => ({ type: 'session/title', seq, time: 2000 + 
 
 // ── 1. Frame walking is structural, not a magic scan ────────────────────
 const batches = [
-  [{ type: 'session', version: 0, id: 'walk', createdAt: 1, cwd: '/proj' }],
+  [{ type: 'session', version: 4, id: 'walk', createdAt: 1, cwd: '/proj' }],
   [userPrompt('hello')],
   [autoTitle('Hello', 2)],
   [{ type: 'turn/end', seq: 3, time: 3, data: { turn: 1 } }],
@@ -157,9 +157,9 @@ const filler = (n) => {
   }
   return out
 }
-const bigBatches = [[{ type: 'session', version: 0, id: 'big', createdAt: 1, cwd: '/proj' }], [userPrompt('the real question')]]
+const bigBatches = [[{ type: 'session', version: 4, id: 'big', createdAt: 1, cwd: '/proj' }], [userPrompt('the real question')]]
 for (let i = 0; i < 400; i++) {
-  bigBatches.push([{ type: 'assistant/chunk', seq: 10 + i, time: 3000 + i, data: { text: filler(500) } }])
+  bigBatches.push([{ type: 'plugin/noise', seq: 10 + i, time: 3000 + i, data: { text: filler(500) } }])
 }
 bigBatches.push([manualTitle('renamed at the very end', 900)])
 const bigFile = seed('big', bigBatches.slice(1), { cwd: '/proj' })
@@ -258,7 +258,7 @@ const delayedHeader = {
   delegationDepth: 0,
 }
 const delayedSource = (revision) => ({
-  listSnapshots: async () => [{ header: delayedHeader, revision }],
+  list: async () => [{ header: delayedHeader, revision }],
   locate: () => ({ kind: 'jsonl', path: delayedFile }),
 })
 let recoveredDelayed
@@ -322,7 +322,7 @@ const deltaFile = seed('delta', [[{ type: 'sandbox/mode', data: { mode: 'workspa
 const deltaHeader = { id: 'delta', cwd: '/proj', createdAt: 1 }
 let deltaRevision = 'delta-r1'
 const deltaSource = {
-  listSnapshots: async () => [{ header: deltaHeader, revision: deltaRevision }],
+  list: async () => [{ header: deltaHeader, revision: deltaRevision }],
   locate: () => ({ kind: 'jsonl', path: deltaFile }),
 }
 check('delta fixture starts empty', (await listSummaries(deltaSource))[0].hasPrompt, false)
@@ -362,7 +362,12 @@ const headers = () => [
   { id: 'prompt', cwd: '/proj', createdAt: 1001 },
   { id: 'boot', cwd: '/proj', createdAt: 1002 },
 ]
-const source = { list: async () => headers() }
+const snapshot = header => {
+  const path = join(root, '--proj--', header.id, 'session.jsonl.zstd')
+  const stat = statSync(path)
+  return { header, revision: `${stat.size}:${stat.mtimeMs}` }
+}
+const source = { list: async () => headers().map(snapshot) }
 
 const first = await listSummaries(source)
 check('every listed session is summarized', first.map(s => s.id).sort(), ['auto', 'boot', 'prompt'])
@@ -377,7 +382,7 @@ check('one entry per session', readIndex().size, 3)
 // the file could not be held still while the file moves.
 let pinnedRevision = 'rev-1'
 const pinned = {
-  listSnapshots: async () =>
+  list: async () =>
     headers().map(header => ({
       header,
       revision: header.id === 'auto' ? pinnedRevision : `fixed-${header.id}`,
@@ -396,7 +401,7 @@ check('baseline title under a pinned revision', pinnedFirst.find(s => s.id === '
 writeFileSync(
   autoFile,
   encode([
-    [{ type: 'session', version: 0, id: 'auto', createdAt: 1000, cwd: '/proj' }],
+    [{ type: 'session', version: 4, id: 'auto', createdAt: 1000, cwd: '/proj' }],
     [userPrompt('what is this')],
     [autoTitle('IMPOSTOR TITLE — this log was rewritten', 2)],
   ]),
@@ -418,28 +423,8 @@ check(
   'IMPOSTOR TITLE — this log was rewritten',
 )
 
-// The degraded path has no backend token, so it derives one from the file
-// itself; a later mtime must invalidate it just the same.
-rmSync(INDEX_FILE, { force: true })
-await listSummaries(source)
-writeFileSync(
-  autoFile,
-  encode([
-    [{ type: 'session', version: 0, id: 'auto', createdAt: 1000, cwd: '/proj' }],
-    [userPrompt('what is this')],
-    [autoTitle('SECOND REWRITE', 2)],
-  ]),
-)
-const stat2 = statSync(autoFile)
-utimesSync(autoFile, new Date(stat2.mtime.getTime() + 5000), new Date(stat2.mtime.getTime() + 5000))
-check(
-  'the file-derived token invalidates on a later mtime',
-  (await listSummaries(source)).find(s => s.id === 'auto').title.text,
-  'SECOND REWRITE',
-)
-
 // Pruning: a session the backend stops listing loses its entry.
-const shrunk = { list: async () => headers().filter(h => h.id !== 'boot') }
+const shrunk = { list: async () => headers().filter(h => h.id !== 'boot').map(snapshot) }
 await listSummaries(shrunk)
 check('an unlisted session is pruned from the index', readIndex().has('boot'), false)
 check('the rest survive the prune', readIndex().size, 2)
@@ -457,23 +442,12 @@ ok('and rewritten at the current version', JSON.parse(readFileSync(INDEX_FILE, '
 
 // A version-3 index contains useful derivations but no cached mtime. It should
 // cost one metadata lookup per entry to upgrade, not a complete log digest.
-const v3 = JSON.parse(readFileSync(INDEX_FILE, 'utf8'))
-v3.version = 3
-for (const entry of Object.values(v3.entries)) delete entry.derived?.modifiedAt
-writeFileSync(INDEX_FILE, JSON.stringify(v3))
-const v3Source = {
-  listSnapshots: async () => headers().map(header => ({ header, revision: v3.entries[header.id].derived.revision })),
-  locate: meta => ({ kind: 'jsonl', path: join(root, '--proj--', meta.id, 'session.jsonl.zstd') }),
-}
-check('version-3 derivations are reused while adding mtime', (await listSummaries(v3Source)).find(s => s.id === 'auto').title.text, 'SECOND REWRITE')
-ok('the upgraded index stores mtime', typeof readIndex().get('auto')?.derived?.modifiedAt === 'number')
-
 // ── 5. Final-state equivalence ──────────────────────────────────────────
 // An index grown across a sequence of changes must equal one built fresh at
 // the same final state. Any difference is a stale or missing entry.
 seed('later', [[userPrompt('a session added along the way')]])
 const allHeaders = [...headers(), { id: 'later', cwd: '/proj', createdAt: 1003 }]
-const grown = { list: async () => allHeaders }
+const grown = { list: async () => allHeaders.map(snapshot) }
 await listSummaries(grown)
 utimesSync(promptFile, new Date(3e12), new Date(3e12))
 await listSummaries(grown)
@@ -495,9 +469,9 @@ check(
   JSON.stringify(fromCold),
 )
 
-// ── 6. The authoritative path: listSnapshots + locate ───────────────────
+// ── 6. The authoritative path: list snapshots + locate ───────────────────
 const snapshotSource = {
-  listSnapshots: async () =>
+  list: async () =>
     allHeaders.map(header => ({ header, revision: `rev:${header.id}:${statSync(join(root, '--proj--', header.id, 'session.jsonl.zstd')).size}` })),
   locate: meta => ({ kind: 'jsonl', path: join(root, '--proj--', meta.id, 'session.jsonl.zstd') }),
 }
@@ -515,7 +489,7 @@ const overlapHeader = { id: 'overlap', cwd: '/proj', createdAt: 1 }
 let releaseOlder
 let overlapCalls = 0
 const overlapSource = {
-  listSnapshots: () => ++overlapCalls === 1
+  list: () => ++overlapCalls === 1
     ? new Promise(resolve => { releaseOlder = () => resolve([{ header: overlapHeader, revision: 'older' }]) })
     : Promise.resolve([{ header: overlapHeader, revision: 'newer' }]),
   locate: () => ({ kind: 'jsonl', path: overlapFile }),

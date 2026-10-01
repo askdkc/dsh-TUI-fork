@@ -33,7 +33,7 @@ const userMessageEvent = (kind = 'user') => ({
   data: { source: { kind } },
 })
 const turnEvent = (type: 'turn/start' | 'turn/end') => ({ type, seq: ++seq, time: 0, data: {} })
-const fakeAgent = (events: unknown[]) => ({ session: { events } })
+const fakeAgent = (events: unknown[]) => ({ session: { events , snapshotEvents() { return this.events }} })
 
 const EMPTY = fakeAgent([])
 

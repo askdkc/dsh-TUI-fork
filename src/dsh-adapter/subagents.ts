@@ -159,8 +159,7 @@ export class SubagentActivityStore {
     }
   }
 
-  /** 0.1.5 live stream: transient attempt frames replace `assistant/chunk`
-   *  session events (the durable settlement keeps flowing as session events). */
+  /** Current transient stream frames; settlement arrives as session events. */
   onStreamFrame(agentId: string, frame: AssistantStreamFrame): void {
     const state = this.states.get(agentId)
     if (!state || (state.status !== 'running' && state.status !== 'starting')) return
@@ -231,13 +230,6 @@ export class SubagentActivityStore {
     const ev = event as { type?: string; seq?: number; data?: any }
     const data = ev.data ?? {}
     switch (ev.type) {
-      case 'assistant/chunk': {
-        const chunk = data.chunk ?? {}
-        if (chunk.type === 'text-delta' && chunk.text) this.appendOutput(agentId, chunk.text, 'text')
-        else if (chunk.type === 'reasoning-delta' && chunk.text) this.appendOutput(agentId, chunk.text, 'thinking')
-        else if (chunk.type === 'usage' && chunk.usage) this.setTokens(agentId, chunk.usage)
-        break
-      }
       case 'assistant/message': {
         if (Array.isArray(data.stream)) this.settleAssistant(agentId, data.message?.content, data.turn, data.step, ev.seq)
         if (data.usage) this.setTokens(agentId, data.usage)

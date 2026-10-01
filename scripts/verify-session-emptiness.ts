@@ -55,11 +55,11 @@ const corruptFrame = zstdCompressSync(Buffer.from(JSON.stringify(prompt()) + '\n
 corruptFrame[corruptFrame.length - 1] ^= 0xff
 
 function fixture(id: string, frames: readonly Buffer[]) {
-  const header = { type: 'session', version: 0, id, createdAt: 1, cwd }
+  const header = { type: 'session', version: 4, id, createdAt: 1, cwd }
   const path = join(root, `${id}.zstd`)
   writeFileSync(path, Buffer.concat([frame([header]), ...frames]))
   const source = {
-    listSnapshots: async () => [{ header, revision: String(statSync(path).size) }],
+    list: async () => [{ header, revision: String(statSync(path).size) }],
     locate: () => ({ kind: 'jsonl', path }),
   }
   return { path, source }
@@ -145,17 +145,6 @@ try {
       { type: 'plugin/noise', data: { text: randomBytes(1200).toString('hex') } },
     ]))))
     await assertVisible(source)
-  })
-  await test('old empty classifications are invalidated without losing branch notes', async () => {
-    const { source } = fixture('old-cache', [frame([prompt()])])
-    await listSummaries(source)
-    const cached = JSON.parse(readFileSync(indexFile, 'utf8')) as CachedIndex
-    cached.version = 2
-    cached.entries['old-cache'].branch = 'keep-this-branch'
-    cached.entries['old-cache'].derived.hasPrompt = false
-    writeFileSync(indexFile, JSON.stringify(cached))
-    await assertVisible(source)
-    assert.equal(readIndex().get('old-cache')?.branch, 'keep-this-branch')
   })
   await test('malformed cached hasPrompt is not treated as false', async () => {
     const { source } = fixture('bad-cache', [frame([prompt()])])

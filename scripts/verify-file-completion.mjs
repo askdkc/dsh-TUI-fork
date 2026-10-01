@@ -13,7 +13,7 @@ function makeAgent() {
     id: 'file-completion-agent',
     ctx: { on: () => () => {} },
     status: 'idle',
-    session: { id: 'file-completion-session', seq: 0, events: [] },
+    session: { id: 'file-completion-session', seq: 0, events: [] , snapshotEvents() { return this.events }},
   }
 }
 

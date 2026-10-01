@@ -22,7 +22,7 @@ const channel = createChannel({
   get: service => service === 'llm' ? llmStub : undefined,
   logger: { warn() {} },
 }, {
-  id: 'a1', status: 'idle', session: { id: 's1', seq: 0, events: [] },
+  id: 'a1', status: 'idle', session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: { on: () => () => {} }, followup() {}, steer() {},
   inbox: { remove() { return true } },
 }, { model: 'deepseek-chat', cwd: '/tmp', provider: 'deepseek', activity: false })

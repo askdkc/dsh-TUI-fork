@@ -63,7 +63,7 @@ function events(callId: string, opts: { resolved?: boolean } = {}): SessionEvent
 
 function approvalRequest(callId: string | undefined, sessionEvents: SessionEvent[]): never {
   return {
-    agent: { id: 'agent-1', session: { id: 's1', seq: 2, events: sessionEvents } },
+    agent: { id: 'agent-1', session: { id: 's1', seq: 2, events: sessionEvents , snapshotEvents() { return this.events }} },
     toolName: 'Bash',
     ...(callId !== undefined ? { callId } : {}),
     reason: '需要删除临时文件',
@@ -256,7 +256,7 @@ assert.equal(unknown!.command, undefined)
   store.decide('allowed-once') // A 会话消费 call-0；其 result 永不落地（执行中断）
   const logB = events('call-0') // B 会话（不同 agent）自己的 call-0 真审批
   const askB = store.park({
-    agent: { id: 'agent-2', session: { id: 's2', seq: 2, events: logB } },
+    agent: { id: 'agent-2', session: { id: 's2', seq: 2, events: logB , snapshotEvents() { return this.events }} },
     toolName: 'Bash',
     callId: 'call-0',
     reason: 'x',
@@ -273,7 +273,7 @@ assert.equal(unknown!.command, undefined)
 {
   const store = new ApprovalStore()
   const requestB = () => ({
-    agent: { id: 'agent-2', session: { id: 'agent-2', seq: 2, events: events('call-0') } },
+    agent: { id: 'agent-2', session: { id: 'agent-2', seq: 2, events: events('call-0') , snapshotEvents() { return this.events }} },
     toolName: 'Bash', callId: 'call-0', reason: 'x',
   } as never)
   const firstB = store.park(requestB())

@@ -33,7 +33,7 @@ const ctx = {
 const agent = {
   id: 'a1',
   status: 'idle',
-  session: { id: 's1', seq: 0, events: [] },
+  session: { id: 's1', seq: 0, events: [] , snapshotEvents() { return this.events }},
   ctx: { on: () => () => {} },
   followup() {},
   steer() {},
@@ -44,7 +44,20 @@ const channel = createChannel(ctx, agent, {
   provider: 'deepseek',
   activity: false,
 })
+let revision = 0
+let activeAttempt
 const emit = event => {
+  if (event.type === 'stream') {
+    const { turn, step, chunk } = event.data
+    const attemptId = `${turn}:${step}`
+    const handler = handlers.get('agent/assistant-stream')
+    if (activeAttempt !== attemptId) {
+      activeAttempt = attemptId
+      handler?.({ agent, frame: { type: 'start', attemptId, turn, step, revision: ++revision, time: event.seq } })
+    }
+    handler?.({ agent, frame: { type: 'chunk', attemptId, chunk, revision: ++revision, time: event.seq } })
+    return
+  }
   const handler = handlers.get('session/event')
   if (handler) handler(agent.session, event)
 }
@@ -57,7 +70,7 @@ emit({
 
 // Step 1: reasoning-only assistant step (thinking, then straight to tools).
 emit({
-  type: 'assistant/chunk',
+  type: 'stream',
   seq: 2,
   data: { turn: 1, step: 0, chunk: { type: 'reasoning-delta', text: '先想想' } },
 })
@@ -92,12 +105,12 @@ check(
 
 // Step 3: streamed text deltas settled by the final assistant/message.
 emit({
-  type: 'assistant/chunk',
+  type: 'stream',
   seq: 5,
   data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: '流式' } },
 })
 emit({
-  type: 'assistant/chunk',
+  type: 'stream',
   seq: 6,
   data: { turn: 1, step: 1, chunk: { type: 'text-delta', text: '文本' } },
 })

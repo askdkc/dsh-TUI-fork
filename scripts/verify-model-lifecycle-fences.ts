@@ -18,9 +18,9 @@ const deferred = <T>(): Deferred<T> => {
 }
 const tick = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
 
-const oldAgent = { ctx: { tag: 'old' }, session: { events: [], append: () => { throw new Error('old fact should not be appended') } } }
+const oldAgent = { ctx: { tag: 'old' }, session: { events: [], append: () => { throw new Error('old fact should not be appended') } , snapshotEvents() { return this.events }} }
 const newFacts: unknown[] = []
-const newAgent = { ctx: { tag: 'new' }, session: { events: [], append: (type: string, data: unknown) => newFacts.push([type, data]) } }
+const newAgent = { ctx: { tag: 'new' }, session: { events: [], append: (type: string, data: unknown) => newFacts.push([type, data]) , snapshotEvents() { return this.events }} }
 let agent = oldAgent
 let bindingGeneration = 1
 let ownerActive = true
