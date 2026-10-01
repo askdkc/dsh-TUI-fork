@@ -4,7 +4,7 @@
  * `dsh-tui` 直接跑的就是本仓库这份代码（改完即测）。
  *
  * 同步范围 = package.json `files` 列表（bin/、lib/、cordis.patch.yml、
- * dsh-ecosystem-spec/{registry,protocols,schemas}、presets、skills），
+ * dsh-ecosystem-spec/{registry,protocols,schemas}、presets），以及同捆 dsh-auth。
  * 与发布包完全一致。逐文件比较 hash，只复制有差异的文件；不删除 profile
  * 里多余的依赖文件（node_modules 等由 dsh plugin 管理）。
  *
@@ -12,7 +12,7 @@
  *   node scripts/sync-profile.mjs            # 对比并同步（打印变更清单）
  *   node scripts/sync-profile.mjs --check    # 只对比，不改动（退出码 2 = 有差异）
  *
- * profile 定位：$DSH_HOME/profiles/dsh-tui（未设置时按上游默认 ~/.dsh）。
+ * profile 定位：$DSH_HOME/profiles/dsh-cli（未设置时按上游默认 ~/.dsh）。
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -69,18 +69,32 @@ const rels = (pkg.files ?? []).flatMap(entry => collectFiles(entry, root))
 // package.json 不在 files 里，但版本号必须跟随 worktree——否则 launcher
 // 每次启动都打印 profile 对齐提示（profile 旧于启动器）。
 if (!rels.includes('package.json')) rels.push('package.json')
+const files = rels.map(rel => ({ rel, src: join(root, rel) }))
+// Auth is bundled under node_modules, outside the root package's files list.
+// Sync its publishable files as well so fresh model snapshots reach the host.
+const authRoot = join(root, 'dsh-auth')
+const authManifest = JSON.parse(readFileSync(join(authRoot, 'package.json'), 'utf8'))
+for (const entry of ['lib/index.js', 'lib/opencode-owned.generated.js']) {
+  if (!existsSync(join(authRoot, entry))) {
+    throw new Error(`[sync-profile] dsh-auth build missing: ${entry}; run pnpm --dir dsh-auth build`)
+  }
+}
+const authRels = new Set(['package.json', ...(authManifest.files ?? []).flatMap(entry => collectFiles(entry, authRoot))])
+for (const rel of authRels) {
+  files.push({ rel: join('node_modules', authManifest.name, rel), src: join(authRoot, rel) })
+}
 const changed = []
-for (const rel of rels) {
-  const src = join(root, rel)
+for (const file of files) {
+  const { rel, src } = file
   const dst = join(installed, rel)
   const same = existsSync(dst) && sha256(src) === sha256(dst)
-  if (!same) changed.push(rel)
+  if (!same) changed.push(file)
 }
 
 console.log(`[sync-profile] ${PACKAGE}@${pkg.version}`)
 console.log(`[sync-profile] worktree: ${root}`)
 console.log(`[sync-profile] profile:  ${installed}`)
-console.log(`[sync-profile] 对比 ${rels.length} 个发布文件，${changed.length} 个有差异`)
+console.log(`[sync-profile] 对比 ${files.length} 个发布文件，${changed.length} 个有差异`)
 
 if (changed.length === 0) {
   console.log('[sync-profile] profile 已与 worktree 一致 ✅')
@@ -88,13 +102,12 @@ if (changed.length === 0) {
 }
 
 if (checkOnly) {
-  for (const rel of changed) console.log(`  ! ${rel}`)
+  for (const { rel } of changed) console.log(`  ! ${rel}`)
   console.error('[sync-profile] 存在差异（--check）')
   process.exit(2)
 }
 
-for (const rel of changed) {
-  const src = join(root, rel)
+for (const { rel, src } of changed) {
   const dst = join(installed, rel)
   mkdirSync(dirname(dst), { recursive: true })
   copyFileSync(src, dst)

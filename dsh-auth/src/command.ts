@@ -8,7 +8,7 @@
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import type { DshAuthApi, DshAuthSignInStatus } from './service.js'
 
-const USAGE = 'Usage: /auth [status] | /auth login [provider] | /auth logout <provider>'
+const USAGE = 'Usage: /auth [status] | /auth login [provider] | /auth logout <provider> | /auth models [provider] | /auth refresh [provider]'
 
 function renderStatus(rows: readonly DshAuthSignInStatus[]): string {
   const lines = rows.map(row => {
@@ -39,6 +39,16 @@ export function createAuthCommandHandler(api: DshAuthApi): (invocation: CommandI
   return async invocation => {
     const { verb, target, extra } = parseArgs(invocation.rawInput)
     if (extra) return { kind: 'error', text: USAGE }
+    if (verb === 'models' || verb === 'refresh') {
+      try {
+        if (!api.catalogStatus || !api.refreshModels) throw new Error('Model catalog operations are unavailable')
+        const rows = verb === 'refresh' ? await api.refreshModels(target, invocation.signal) : api.catalogStatus(target)
+        if (!rows.length) throw new Error('No matching OpenCode catalog is mounted')
+        return { kind: rows.some(row => row.warning) && verb === 'refresh' ? 'error' : 'success', text: rows.map(row =>
+          `${row.provider}: ${row.available} models (${row.source}); last verified ${new Date(row.fetchedAt).toISOString()}${row.warning ? `; ${row.warning}` : ''}`
+          + row.excluded.map(entry => `\n  ${entry.id}: ${entry.reason}`).join('')).join('\n') }
+      } catch (error) { return { kind: 'error', text: error instanceof Error ? error.message : 'Model catalog operation failed' } }
+    }
     if (verb === undefined || verb === 'status') {
       if (target !== undefined) return { kind: 'error', text: USAGE }
       return { kind: 'success', text: renderStatus(await api.providers()) }

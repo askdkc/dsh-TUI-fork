@@ -10,40 +10,12 @@
  * @module dsh-auth/profiles
  */
 
-import { randomUUID } from 'node:crypto'
 import { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { adapterBuiltinProviders, type PiAiProvider } from './pi-ai.js'
-import { withFreshModels, type FreshRouteId } from './fresh-models.js'
 
-/** Provider routes this build mounts, in picker order. */
-export const OAUTH_PROVIDER_IDS = ['openai-codex', 'anthropic', 'xai'] as const
-export const CATALOG_PROVIDER_IDS = [...OAUTH_PROVIDER_IDS, 'opencode', 'opencode-go', 'openrouter'] as const
-export const AUTH_PROVIDER_IDS = [...CATALOG_PROVIDER_IDS, 'orcarouter', 'nous', 'infron'] as const
-export const PROVIDER_ALIASES: Readonly<Record<string, string>> = {
-  hermes: 'nous',
-  'infron.ai': 'infron',
-  'opencode-zen': 'opencode',
-}
-
-export function canonicalProvider(id: string): string {
-  return PROVIDER_ALIASES[id] ?? id
-}
-
-/** One routable provider id. */
-export type OAuthProviderId = (typeof OAUTH_PROVIDER_IDS)[number]
-
-/**
- * One per-model catalog override a deployment may name, keyed by model id.
- * Every field is optional; an absent field keeps the installed catalog's
- * value, so one model's capacity can be tuned without restating the rest.
- */
-export interface ModelOverride {
-  /** Override the installed catalog's context window, in tokens. */
-  contextWindow?: number
-  /** Override the installed catalog's max output tokens. */
-  maxTokens?: number
-}
+export { OAUTH_PROVIDER_IDS, CATALOG_PROVIDER_IDS, AUTH_PROVIDER_IDS, canonicalProvider, type ModelOverride } from './routes.js'
+import { CATALOG_PROVIDER_IDS, type ModelOverride } from './routes.js'
 
 /** llm-pi-ai `DEFAULT_MAX_REQUEST_IMAGE_BYTES` (20 MiB, base64 payload bound). */
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
@@ -66,25 +38,6 @@ function catalogProviderOf(id: string): PiAiProvider {
   return found
 }
 
-/** Add the per-request routing header that the installed pi-ai catalog omits. */
-function withOpenCodeSessionHeader(catalog: PiAiProvider): PiAiProvider {
-  return {
-    ...catalog,
-    streamSimple(model, context, options) {
-      return catalog.streamSimple(model, context, {
-        ...options,
-        headers: {
-          ...options?.headers,
-          // Agent turns keep their durable id; direct calls without one still
-          // need a distinct routing identity instead of a gateway 400.
-          'x-opencode-session': options?.sessionId || randomUUID(),
-        },
-      })
-    },
-  }
-}
-
-/** The OAuth flow object for one mounted route (login/refresh/toAuth live here). */
 export function oauthOf(route: PiAiProvider): NonNullable<PiAiProvider['auth']['oauth']> {
   const oauth = route.auth.oauth
   if (oauth === undefined) {
@@ -144,12 +97,8 @@ export function buildOAuthProfile(
     throw new Error(`dsh-auth: "${id}" is not a catalog provider this build mounts (${CATALOG_PROVIDER_IDS.join(', ')})`)
   }
   const provider = catalogProviderOf(id)
-  const routed = id === 'opencode' || id === 'opencode-go' ? withOpenCodeSessionHeader(provider) : provider
-  // OpenCode routes serve the live roster on top of the installed catalog:
-  // per-model wire protocols resolve from the nearest catalog sibling and
-  // installed models always win, so this only ever adds (see fresh-models).
-  const fresh = id === 'opencode' || id === 'opencode-go' ? withFreshModels(routed, id) : routed
-  const catalog = withModelOverrides(fresh, modelOverrides)
+  if (id === 'opencode' || id === 'opencode-go') throw new Error('OpenCode uses the native adapter')
+  const catalog = withModelOverrides(provider, modelOverrides)
   return {
     provider: id,
     displayName: catalog.name,

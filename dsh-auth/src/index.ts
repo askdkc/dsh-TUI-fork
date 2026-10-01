@@ -1,9 +1,10 @@
 /**
  * dsh-auth — provider sign-in as LLM provider routes.
  *
- * One cordis plugin mounts pi-ai catalog and custom provider profiles as
+ * One cordis plugin mounts owned OpenCode routes and legacy pi profiles as
  * `llm` registry routes, so
- * catalog models appear in every model picker after sign-in. `PiAiAdapter` runs with this
+ * catalog models appear in every model picker after sign-in. OpenCode owns
+ * its public catalog and bundled SDK transports. Other routes use `PiAiAdapter` with this
  * plugin's file-backed pi-ai `CredentialStore` injected
  * (`PiAiAuthInjection`): requests resolve stored credentials through the
  * provider's own auth or an explicit API key. Refreshes hold the store lock.
@@ -32,24 +33,21 @@
  * @module dsh-auth
  */
 
-import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { LlmAdapter, LlmModelInfo } from '@deepseek-ai/dsh-llm'
 import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
-import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
-import type { PiAiAdapterOptions } from '@deepseek-ai/dsh-llm-pi-ai'
 import { CredentialFile, defaultCredentialsFile } from './credentials.js'
-import { buildOAuthProfile, AUTH_PROVIDER_IDS, CATALOG_PROVIDER_IDS, OAUTH_PROVIDER_IDS, canonicalProvider, type ModelOverride } from './profiles.js'
-import { createCustomProfile, CUSTOM_PROVIDER_IDS, type CustomProviderId } from './custom-profiles.js'
+import { AUTH_PROVIDER_IDS, canonicalProvider, type ModelOverride } from './routes.js'
+import { OpenCodeAdapter } from './opencode-adapter.js'
+import { OpenCodeCatalog, OPEN_CODE_ROUTES, type OpenCodeRoute } from './opencode-catalog.js'
+import { OPEN_CODE_SNAPSHOTS } from './opencode-owned.generated.js'
+import type { AuthRoute } from './service.js'
+import type { CustomProviderId } from './custom-profiles.js'
 import { refreshNous } from './nous-oauth.js'
-import type { AskFn } from './interaction.js'
 import { createDshAuthApi, DshAuthService } from './service.js'
 import { createAuthCommandHandler } from './command.js'
-import type { PiAiAuthContext } from './pi-ai.js'
 
 export const name = 'dsh-auth'
 /**
@@ -111,55 +109,13 @@ export { QuestionBridge, describeEvent } from './interaction.js'
 export type { AskFn, QuestionBridgeHelpers } from './interaction.js'
 export { copyToClipboard, openInBrowser, openerFor } from './opener.js'
 export { CredentialFile, defaultCredentialsFile } from './credentials.js'
-export { OAUTH_PROVIDER_IDS, CATALOG_PROVIDER_IDS, AUTH_PROVIDER_IDS, canonicalProvider, buildOAuthProfile, type ModelOverride } from './profiles.js'
-export { freshRosterIds, type FreshRouteId } from './fresh-models.js'
+export { OAUTH_PROVIDER_IDS, CATALOG_PROVIDER_IDS, AUTH_PROVIDER_IDS, canonicalProvider, type ModelOverride } from './routes.js'
+export { OpenCodeAdapter } from './opencode-adapter.js'
+export { OpenCodeCatalog } from './opencode-catalog.js'
 
-/**
- * The ambient auth context providers may consult while resolving their own
- * auth. `env()` answers from the process environment; `fileExists()` answers
- * about the host process's filesystem (the paths a provider asks about —
- * `~/.aws/credentials` and friends — are facts about where this process
- * runs, not about the project under edit).
- */
-function hostAuthContext(): PiAiAuthContext {
-  return {
-    env: async name => process.env[name],
-    fileExists: path => Promise.resolve(
-      path.startsWith('~/') ? existsSync(join(homedir(), path.slice(2))) : existsSync(path),
-    ),
-  }
-}
-
-/**
- * The adapter the plugin registers: a {@link PiAiAdapter} whose *advisory
- * catalog* is credential-gated. A provider with no stored credential
- * lists no models — its rows never reach any model picker, which is the
- * whole point: picking a model that would only fail with "not signed in"
- * is noise. The gate only shapes `listModels`; `resolveModel` and requests
- * are untouched, so a model id already saved in a session (or named
- * explicitly) keeps resolving exactly as the registry contract promises
- * ("advisory and never changes routing").
- *
- * An expired-but-stored credential still lists: token refresh runs on the
- * next request, and a picker that hid a refreshable provider would look
- * signed-out when it is not.
- */
-export class CredentialGatedAdapter extends PiAiAdapter {
-  constructor(
-    options: PiAiAdapterOptions,
-    private readonly hasCredential: (provider: string) => Promise<boolean>,
-  ) {
-    super(options)
-  }
-
-  override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
-    if (!(await this.hasCredential(provider))) return []
-    return super.listModels(provider)
-  }
-}
 
 /** Mount the routes, the service, and the command. */
-export function apply(ctx: Context, config: Config): void {
+export async function apply(ctx: Context, config: Config): Promise<void> {
   const configured = (config.providers ?? [...AUTH_PROVIDER_IDS]).map(canonicalProvider)
   const unknown = configured.filter(id => !(AUTH_PROVIDER_IDS as readonly string[]).includes(id))
   if (unknown.length > 0 || configured.length === 0) {
@@ -177,14 +133,24 @@ export function apply(ctx: Context, config: Config): void {
       `dsh-auth: modelOverrides names provider "${unknownOverridden[0]}", which is not among the mounted providers [${configured.join(', ')}]`,
     )
   }
-  // Profile construction validates the installed catalog loudly: a pi-ai
-  // downgrade that dropped a provider fails the boot that asked for it, and
-  // a per-model miss is refused per route (see buildOAuthProfile).
-  const custom = new Map(CUSTOM_PROVIDER_IDS.filter(id => configured.includes(id))
-    .map(id => [id, createCustomProfile(id, overrides[id])] as const))
-  const profiles = new Map(configured.map(id => [id,
-    custom.get(id as CustomProviderId)?.profile ?? buildOAuthProfile(id, overrides[id]),
-  ] as const))
+  const piIds = configured.filter(id => !OPEN_CODE_ROUTES.includes(id as OpenCodeRoute))
+  const custom = new Map<CustomProviderId, ReturnType<typeof import('./custom-profiles.js').createCustomProfile>>()
+  const piProfiles = new Map<string, import('@deepseek-ai/dsh-llm-pi-ai').ResolvedPiAiProviderProfile>()
+  const profiles = new Map<string, AuthRoute>()
+  let pi: typeof import('./pi-routes.js') | undefined
+  if (piIds.length) {
+    try { pi = await import('./pi-routes.js') } catch { ctx.logger.warn('dsh-auth: pi routes unavailable; OpenCode routes remain available') }
+    if (pi) for (const id of piIds) {
+      try {
+        const entry = pi.CUSTOM_PROVIDER_IDS.includes(id as CustomProviderId) ? pi.createCustomProfile(id as CustomProviderId, overrides[id]) : undefined
+        if (entry) custom.set(id as CustomProviderId, entry)
+        const profile = entry?.profile ?? pi.buildOAuthProfile(id, overrides[id])
+        piProfiles.set(id, profile)
+        profiles.set(id, { provider: id, displayName: profile.displayName, oauth: profile.piProvider?.auth.oauth })
+      } catch { ctx.logger.warn(`dsh-auth: route ${id} unavailable; remaining routes stay mounted`) }
+    }
+  }
+  for (const id of configured.filter(id => OPEN_CODE_ROUTES.includes(id as OpenCodeRoute))) profiles.set(id, { provider: id, displayName: id === 'opencode' ? 'OpenCode Zen' : 'OpenCode Go' })
   const store = new CredentialFile(config.credentialsFile ?? defaultCredentialsFile())
 
   const credentialKey = async (provider: string): Promise<string | undefined> => {
@@ -211,29 +177,33 @@ export function apply(ctx: Context, config: Config): void {
     }
   }
 
-  const adapter = new CredentialGatedAdapter({
+  const adapter = pi ? new pi.CredentialGatedAdapter({
     // One immutable map for the plugin's lifetime: the snapshot memoizes on
     // identity, and route changes here always mean a plugin remount anyway.
-    profiles: () => profiles,
+    profiles: () => piProfiles,
     // Explicit API keys cover catalog routes too. OAuth catalog routes still
     // resolve their grants through pi-ai's injected credential store.
     resolveApiKey: credentialKey,
     auth: {
       credentials: store,
-      authContext: hostAuthContext(),
+      authContext: pi.hostAuthContext(),
     },
     resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
     onReplayDegrade: ({ provider, model, reason }) => {
       ctx.logger.warn(`dsh-auth: replay state on assistant history for ${provider}/${model} degraded: ${reason}`)
     },
-  }, hasCredential)
+  }, hasCredential) : undefined
 
+  const catalogs = new Map<OpenCodeRoute, OpenCodeCatalog>()
+  for (const id of OPEN_CODE_ROUTES) if (configured.includes(id)) catalogs.set(id, new OpenCodeCatalog(id, OPEN_CODE_SNAPSHOTS[id], { changed: () => service.api?.notifyModelsChanged?.(id) }))
+  const native = new OpenCodeAdapter({ catalogs, store, overrides, attachments: () => ctx.get('attachments') as AttachmentStore | undefined, warn: reason => ctx.logger.warn(reason) })
   // The service is a thin holder so UIs can find the api without importing
   // the plugin module; the defensive get-then-create matches how the TUI
   // mounts userQuestions.
   const service = (ctx.get('dshAuth') as DshAuthService | undefined) ?? new DshAuthService(ctx)
   const api = createDshAuthApi({
     profiles,
+    catalogs,
     store,
     resolveAsk: () => {
       const questions = ctx.get('userQuestions')
@@ -242,6 +212,10 @@ export function apply(ctx: Context, config: Config): void {
     logger: ctx.logger,
     nousClientId: config.nous?.clientId,
     credentialChanged: async (provider, credential) => {
+      if (catalogs.has(provider as OpenCodeRoute)) {
+        if (credential) { const status = await catalogs.get(provider as OpenCodeRoute)!.refresh(); if (status.warning) throw new Error(status.warning) }
+        return
+      }
       const entry = custom.get(provider as CustomProviderId)
       if (entry === undefined) return
       if (credential === undefined) { entry.clear(); return }
@@ -253,6 +227,8 @@ export function apply(ctx: Context, config: Config): void {
     },
   })
   service.api = api
+
+  for (const catalog of catalogs.values()) void catalog.start()
 
   for (const [provider, entry] of custom) {
     void credentialKey(provider).then(key => key === undefined ? undefined : entry.refresh(key))
@@ -272,9 +248,10 @@ export function apply(ctx: Context, config: Config): void {
     } else {
       // Individual registrations: one conflicting route must not strand the
       // rest (the registry keeps the previous owner serving).
-      for (const id of configured) {
+      for (const id of profiles.keys()) {
         try {
-          releases.push(llm.registerAdapter([id], adapter))
+          const owned = catalogs.has(id as OpenCodeRoute) ? native : adapter
+          if (owned) releases.push(llm.registerAdapter([id], owned))
         } catch (error: unknown) {
           ctx.logger.error(
             `dsh-auth: route "${id}" was not registered: ${error instanceof Error ? error.message : String(error)} `
@@ -290,7 +267,7 @@ export function apply(ctx: Context, config: Config): void {
       const handler = createAuthCommandHandler(api)
       releases.push(commands.register({
         name: 'auth',
-        description: 'Provider authentication: status, login, logout',
+        description: 'Provider authentication and catalogs: status, login, logout, models, refresh',
         handler: invocation => {
           const operation = handler(invocation)
           active.add(operation)
@@ -303,6 +280,7 @@ export function apply(ctx: Context, config: Config): void {
     // enter while already-started logins finish their final write.
     yield async () => { await Promise.allSettled([...active]) }
     yield () => {
+      for (const catalog of catalogs.values()) catalog.dispose()
       for (const release of releases) release()
     }
   }, 'dsh-auth lifecycle')

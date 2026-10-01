@@ -72,14 +72,19 @@ if (packed.has('lib/invariant.js')) {
 // The publish helper rewrites only known bundled workspace links; any other
 // `workspace:` range would land in the tarball and kill `dsh plugin add`
 // in the profile workspace
-// (ERR_PNPM_WORKSPACE_PKG_NOT_FOUND). Bundled names are fine — npm packs
-// their physical copies into the tarball, so the range never resolves for a
-// consumer. Workspace helpers (e.g. vendor/sqlite-island) are reached by
+// (ERR_PNPM_WORKSPACE_PKG_NOT_FOUND). Bundled manifests must also use concrete
+// ranges: npm resolves them when updating an existing installation.
+// Workspace helpers (e.g. vendor/sqlite-island) are reached by
 // relative import instead of a manifest entry.
 const bundled = new Set(manifest.bundledDependencies ?? manifest.bundleDependencies ?? [])
 for (const path of [
   'node_modules/@askdkc/dsh-auth/package.json',
   'node_modules/@askdkc/dsh-auth/lib/index.js',
+  'node_modules/@askdkc/dsh-auth/lib/opencode-owned.generated.js',
+  'node_modules/@askdkc/dsh-auth/lib/opencode-sdk.js',
+  'node_modules/@askdkc/dsh-auth/lib/THIRD_PARTY_NOTICES.txt',
+  'node_modules/@askdkc/dsh-auth/lib/opencode-adapter.js',
+  'node_modules/@askdkc/dsh-auth/lib/opencode-catalog.js',
 ]) {
   if (!bundled.has('@askdkc/dsh-auth') || !packed.has(path)) {
     throw new Error(`bundled dsh-auth missing from tarball: ${path}`)

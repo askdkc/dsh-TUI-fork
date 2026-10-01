@@ -43,11 +43,12 @@ signed-in providers' catalogs (credential-gated — see below).
 ## What it does
 
 - Mounts pi-ai catalog providers as `llm` registry routes:
-  `openai-codex`, `anthropic`, `xai`, `opencode`, `opencode-go`, and `openrouter`.
+  `openai-codex`, `anthropic`, `xai`, and `openrouter`. OpenCode Zen/Go use an owned DSH adapter with bundled Messages, Responses, Chat Completions and Google transports.
   **Models appear in a picker
   only after that provider is signed in** (credential-gated listing) — sign
-  in and the catalog appears, sign out and it disappears; model ids already
-  saved in sessions stay resolvable either way.
+  in and the catalog appears, sign out and it disappears. Verified current
+  models stay resolvable after logout; retired models fail explicitly and
+  never trigger an automatic switch.
 - Loads those Provider objects from the exact pi-ai dependency owned by the
   installed `dsh-llm-pi-ai`. rc and alpha hosts therefore keep their supported
   pi-ai versions without passing Provider objects across package instances.
@@ -88,6 +89,8 @@ signed-in providers' catalogs (credential-gated — see below).
 /auth login nous               # device code or manual Bearer
 /auth login infron             # Infron API key
 /auth logout anthropic
+/auth models opencode          # source, last success, excluded models
+/auth refresh opencode         # immediate catalog refresh
 ```
 
 Model requests against a provider you have not signed in to fail loudly with
@@ -118,11 +121,19 @@ the `/auth login <provider>` hint — never silently.
   profile naming the same provider — is refused by the registry; the plugin
   logs the refusal and mounts the remaining routes. Keep one provider on one
   adapter.
-- `opencode` / `opencode-go` serve the live Zen roster on top of the installed
-  pi-ai catalog (per-model wire protocols resolve from the nearest catalog
-  sibling; installed models always win). Refresh the checked-in snapshot with
-  `pnpm --dir dsh-auth sync:models` (reads `models.dev` plus the live Zen
-  `/v1/models` rosters); runtime stays offline-safe.
+- OpenCode Zen/Go own their catalog and transports independently of the host's
+  pi version. Official `/models` rosters and exact-route models.dev metadata
+  refresh hourly. Startup uses the verified cache or bundled snapshot immediately.
+  `/auth models [provider]` shows freshness and excluded model reasons;
+  `/auth refresh [provider]` requests an update. Failed updates keep the last
+  verified catalog. Unsupported or incomplete models are excluded individually;
+  no sibling metadata or another route's prices are guessed.
+- Public catalog caches live at `$DSH_HOME/dsh-auth/catalog-v1/` and contain no
+  credentials. Existing provider IDs, API keys and capacity overrides are retained.
+  A new wire protocol requires a package update; new IDs on supported protocols
+  do not require a pi update.
+- In auth 0.2, pi-specific construction helpers are internal to `pi-routes`;
+  consumers should use `DshAuthApi` and the DSH adapter contract.
 
 ## Security notes
 

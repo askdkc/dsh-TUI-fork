@@ -28,11 +28,13 @@ const [
 ])
 
 class FakeStdout extends Writable {
+  constructor(private readonly writeFrame?: (chunk: string, callback: () => void) => void) { super() }
   columns = 100
   rows = 28
   isTTY = true
   _write(_chunk: unknown, _encoding: BufferEncoding, callback: () => void) {
-    callback()
+    if (this.writeFrame) this.writeFrame(String(_chunk), callback)
+    else callback()
   }
 }
 
@@ -217,6 +219,56 @@ assert.ok(await settled(() => invalidations === 1 && modelReads > initialReads),
   'auth change must invalidate /model completion and refetch models without a restart')
 await eventInstance.unmount()
 assert.ok(unsubscribed, 'Chat must release the auth subscription on unmount')
+
+// Catalog notifications reach the real Chat and terminal renderer while a
+// search is open. They never select a replacement model behind the user.
+const { Terminal } = await import('@xterm/headless')
+const { viewportLines } = await import('./lib/term-test.mjs')
+const term = new Terminal({ cols: 100, rows: 28, allowProposedApi: true })
+const modelStdin = new FakeStdin()
+const modelChannel = makeChannel(undefined)
+let catalogChanged: ((provider: string) => void) | undefined
+let modelsFail = false
+let reads = 0
+let switches = 0
+let catalog = [
+  { provider: 'opencode', id: 'future-keep', name: 'Future Keep' },
+  { provider: 'opencode', id: 'future-other', name: 'Future Other' },
+]
+Object.assign(modelChannel, {
+  provider: 'opencode', model: 'future-keep',
+  providerSetup: () => ({ oauth: { onCredentialChange: (listener: (provider: string) => void) => {
+    catalogChanged = listener; return () => { catalogChanged = undefined }
+  } } }),
+  invalidateModelCompletion() {},
+  listModels: async () => { reads++; if (modelsFail) throw new Error('offline'); return catalog },
+  listProviders: async () => [{ id: 'opencode', name: 'OpenCode Zen' }],
+  switchModel: async () => { switches++; return true },
+})
+const screen = () => viewportLines(term).join('\n')
+const modelInstance = await render(
+  <Chat channel={modelChannel as never} questionStore={new QuestionStore()} />,
+  { stdout: new FakeStdout((chunk, done) => term.write(chunk, done)), stdin: modelStdin, stderr: new FakeStderr(), exitOnCtrlC: false, patchConsole: false },
+)
+try {
+  assert.ok(await settled(() => catalogChanged !== undefined))
+  modelStdin.write('/model future\r')
+  assert.ok(await settled(() => screen().includes('Future Keep') && screen().includes('opencode/future-keep')), 'model search opens at the current route')
+  catalog = [{ provider: 'opencode', id: 'future-added', name: 'Future Added' }, ...catalog]
+  catalogChanged!('opencode')
+  assert.ok(await settled(() => screen().includes('Future Added') && screen().includes('opencode/future-keep')), 'catalog addition preserves search and focused route')
+  assert.ok(screen().includes('future'), 'search input survives the update')
+  modelsFail = true; const beforeFailure = reads; catalogChanged!('opencode')
+  assert.ok(await settled(() => reads > beforeFailure))
+  assert.ok(screen().includes('Future Keep') && screen().includes('opencode/future-keep'), 'failed update retains the visible catalog and focus')
+  modelsFail = false; catalog = [...catalog, { provider: 'opencode', id: 'future-retry', name: 'Future Retry' }]
+  modelStdin.write('\x12')
+  assert.ok(await settled(() => screen().includes('Future Retry')), 'Ctrl+R retries without closing the search')
+  catalog = catalog.filter(model => model.id !== 'future-keep'); catalogChanged!('opencode')
+  assert.ok(await settled(() => !screen().includes('Future Keep') && screen().includes('Future Retry')), 'successful roster removes the retired row')
+  assert.equal(modelChannel.model, 'future-keep'); assert.equal(switches, 0, 'retirement must not select another model')
+} finally { await modelInstance.unmount(); term.dispose() }
+assert.equal(catalogChanged, undefined)
 
 for (const lines of [configured, missing, unavailable, rejected]) {
   assert.ok(

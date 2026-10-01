@@ -25,11 +25,14 @@ if (command === undefined) throw new Error('usage: node with-publish-manifest.mj
 const originalManifest = await readFile(manifestPath)
 const manifest = JSON.parse(originalManifest)
 manifest.optionalDependencies ??= {}
+const stdBundles = []
 for (const packageName of bundledPackages) {
   const name = `@dsh-std/${packageName}`
+  const sourceDir = join(projectRoot, 'vendor', 'dsh-std', 'packages', packageName)
   const packageManifest = JSON.parse(await readFile(
-    join(projectRoot, 'vendor', 'dsh-std', 'packages', packageName, 'package.json'),
+    join(sourceDir, 'package.json'),
   ))
+  stdBundles.push({ sourceDir, installedPath: join(projectRoot, 'node_modules', name), packageManifest })
   delete manifest.dependencies?.[name]
   manifest.optionalDependencies[name] = packageManifest.version
 }
@@ -50,6 +53,24 @@ const activityManifest = JSON.parse(await readFile(join(activityDir, 'package.js
 delete manifest.dependencies?.['dsh-working-activity']
 manifest.optionalDependencies['dsh-working-activity'] = activityManifest.version
 
+// npm reads bundled manifests again during upgrades. Workspace ranges there
+// fail resolution even though a first installation can unpack the bundle.
+const bundledVersions = new Map(stdBundles.map(({ packageManifest }) => [packageManifest.name, packageManifest.version]))
+const publishManifest = (packageManifest, bundledName) => {
+  const published = { ...packageManifest, name: bundledName }
+  for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies']) {
+    if (published[section] === undefined) continue
+    published[section] = { ...published[section] }
+    for (const [name, range] of Object.entries(published[section])) {
+      if (typeof range !== 'string' || !range.startsWith('workspace:')) continue
+      const version = bundledVersions.get(name)
+      if (version === undefined) throw new Error(`cannot publish unresolved workspace dependency ${name}`)
+      published[section][name] = version
+    }
+  }
+  return published
+}
+
 /**
  * Stage one linked dependency for packing. npm pack otherwise follows the
  * workspace link into its installed dependencies; the bundle must contain
@@ -57,7 +78,10 @@ manifest.optionalDependencies['dsh-working-activity'] = activityManifest.version
  */
 const stageBundledPackage = async (sourceDir, installedPath, packageManifest, bundledName = packageManifest.name) => {
   const installed = await lstat(installedPath).catch(() => undefined)
-  if (installed === undefined || !installed.isSymbolicLink()) return () => {}
+  if (installed === undefined || !installed.isSymbolicLink()) {
+    throw new Error(`${installedPath} must be a workspace link; run pnpm install --frozen-lockfile before packing`)
+  }
+  const published = publishManifest(packageManifest, bundledName)
   await rm(installedPath, { recursive: true, force: true })
   const entries = new Set([
     'package.json',
@@ -79,10 +103,7 @@ const stageBundledPackage = async (sourceDir, installedPath, packageManifest, bu
     }
     // npm/Bun identify bundles by the dependency key. The workspace fork has
     // a scoped name, while the existing runtime imports the unscoped alias.
-    await writeFile(join(installedPath, 'package.json'), `${JSON.stringify({
-      ...packageManifest,
-      name: bundledName,
-    }, null, 2)}\n`)
+    await writeFile(join(installedPath, 'package.json'), `${JSON.stringify(published, null, 2)}\n`)
   } catch (error) {
     await restore()
     throw error
@@ -93,6 +114,9 @@ const stageBundledPackage = async (sourceDir, installedPath, packageManifest, bu
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 const restorers = []
 try {
+  for (const { sourceDir, installedPath, packageManifest } of stdBundles) {
+    restorers.push(await stageBundledPackage(sourceDir, installedPath, packageManifest))
+  }
   restorers.push(await stageBundledPackage(dshAuthDir, dshAuthInstalled, dshAuthManifest))
   restorers.push(await stageBundledPackage(activityDir, activityInstalled, activityManifest, 'dsh-working-activity'))
   const result = spawnSync(command, args, {

@@ -1,5 +1,5 @@
 /**
- * File-backed credential persistence: a pi-ai `CredentialStore` over
+ * Auth-owned credential persistence, structurally compatible with pi stores, over
  * one JSON document, one credential per provider id.
  *
  * Writes are atomic (temp file + rename) with 0700 directory / 0600 file
@@ -17,31 +17,28 @@
 import { mkdirSync, readFileSync, renameSync, rmdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
-import type { PiAiCredential, PiAiCredentialInfo, PiAiCredentialStore } from './pi-ai.js'
-
-/** The stored credential shapes from pi-ai. */
-export type StoredOAuthCredential = Extract<PiAiCredential, { type: 'oauth' }>
-export type StoredApiKeyCredential = Extract<PiAiCredential, { type: 'api_key' }>
+import type { StoredCredential, CredentialInfo } from './auth-contract.js'
+export type { StoredOAuthCredential, StoredApiKeyCredential } from './auth-contract.js'
 
 /** On-disk document shape. */
 interface CredentialsDocument {
   version: 1
-  providers: Record<string, PiAiCredential>
+  providers: Record<string, StoredCredential>
 }
 
 /** Narrow an unknown parsed value into a stored credential, or reject it. */
-export function asStoredCredential(value: unknown): PiAiCredential | undefined {
+export function asStoredCredential(value: unknown): StoredCredential | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const record = value as Record<string, unknown>
   if (record['type'] === 'api_key') {
     return typeof record['key'] === 'string' && record['key'].length > 0
-      ? value as StoredApiKeyCredential
+      ? value as Extract<StoredCredential, { type: 'api_key' }>
       : undefined
   }
   if (record['type'] !== 'oauth') return undefined
   if (typeof record['access'] !== 'string' || typeof record['refresh'] !== 'string') return undefined
   if (typeof record['expires'] !== 'number' || !Number.isFinite(record['expires'])) return undefined
-  return value as StoredOAuthCredential
+  return value as Extract<StoredCredential, { type: 'oauth' }>
 }
 
 /** Default credential file location: `$DSH_HOME/dsh-auth/credentials.json` (or `~/.dsh/…`). */
@@ -60,7 +57,7 @@ const EMPTY_DOCUMENT: CredentialsDocument = { version: 1, providers: {} }
  * credential file as "signed out everywhere" would strand every route behind
  * a fresh login for no reason.
  */
-export class CredentialFile implements PiAiCredentialStore {
+export class CredentialFile {
   readonly path: string
   /** Serialize all updates in this process; the file lock covers other processes. */
   private chainTail: Promise<void> = Promise.resolve()
@@ -70,12 +67,12 @@ export class CredentialFile implements PiAiCredentialStore {
   }
 
   /** The stored credential for one provider, possibly expired. */
-  async read(providerId: string): Promise<PiAiCredential | undefined> {
+  async read(providerId: string): Promise<StoredCredential | undefined> {
     return (await this.load()).providers[providerId]
   }
 
   /** Stored credential metadata without resolving or exposing secrets. */
-  async list(): Promise<readonly PiAiCredentialInfo[]> {
+  async list(): Promise<readonly CredentialInfo[]> {
     const document = await this.load()
     return Object.entries(document.providers).map(([providerId, credential]) => ({
       providerId,
@@ -91,8 +88,8 @@ export class CredentialFile implements PiAiCredentialStore {
    */
   async modify(
     providerId: string,
-    fn: (current: PiAiCredential | undefined) => Promise<PiAiCredential | undefined>,
-  ): Promise<PiAiCredential | undefined> {
+    fn: (current: StoredCredential | undefined) => Promise<StoredCredential | undefined>,
+  ): Promise<StoredCredential | undefined> {
     return this.withLock(async () => {
       const document = await this.load()
       const current = document.providers[providerId]
@@ -194,7 +191,7 @@ export class CredentialFile implements PiAiCredentialStore {
       || record['providers'] === null || Array.isArray(record['providers'])) {
       throw new Error(`dsh-auth: credential file ${this.path} has an unexpected shape; fix or remove it by hand`)
     }
-    const providers: Record<string, PiAiCredential> = Object.create(null)
+    const providers: Record<string, StoredCredential> = Object.create(null)
     for (const [provider, value] of Object.entries(record['providers'] as Record<string, unknown>)) {
       const credential = asStoredCredential(value)
       if (credential === undefined) {

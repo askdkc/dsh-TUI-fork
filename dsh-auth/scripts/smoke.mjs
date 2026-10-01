@@ -17,11 +17,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
-const { CredentialFile, buildOAuthProfile, OAUTH_PROVIDER_IDS, canonicalProvider, QuestionBridge, createDshAuthApi, openerFor, CredentialGatedAdapter, apply, freshRosterIds } =
+const { CredentialFile, OAUTH_PROVIDER_IDS, canonicalProvider, QuestionBridge, createDshAuthApi, openerFor, apply } =
   await import('../lib/index.js')
 const { createCustomProfile } = await import('../lib/custom-profiles.js')
 const { loginNous, refreshNous } = await import('../lib/nous-oauth.js')
-const { withFreshModels } = await import('../lib/fresh-models.js')
+const { buildOAuthProfile, CredentialGatedAdapter } = await import('../lib/pi-routes.js')
+const { OPEN_CODE_SNAPSHOTS } = await import('../lib/opencode-owned.generated.js')
+const { parseSnapshot } = await import('../lib/opencode-catalog.js')
 const { adapterBuiltinProviders } = await import('../lib/pi-ai.js')
 
 /** Adapter options over one profile — enough for listModels/resolveModel offline. */
@@ -208,63 +210,17 @@ try {
   }
   ok(crossProviderOverride.includes('does not ship in the installed catalog'), 'an override naming a model another provider ships is refused on this provider')
 
-  const zen = buildOAuthProfile('opencode').piProvider
-  const go = buildOAuthProfile('opencode-go').piProvider
   const router = buildOAuthProfile('openrouter').piProvider
-  ok(zen.getModels().some(model => model.api === 'anthropic-messages')
-    && zen.getModels().some(model => model.api === 'openai-responses')
-    && zen.getModels().some(model => model.api === 'openai-completions'),
-  'OpenCode Zen retains catalog-specific wire protocols')
-  ok(go.getModels().some(model => model.api === 'anthropic-messages')
-    && go.getModels().some(model => model.api === 'openai-completions')
-    && go.getModels().every(model => model.baseUrl.startsWith('https://opencode.ai/zen/go')),
-  'OpenCode Go keeps the catalog route and per-model protocol')
-  ok(router.auth.oauth !== undefined && router.auth.apiKey !== undefined,
-    'OpenRouter keeps both catalog OAuth and API-key methods')
-
-  // Fresh rosters: the snapshot union only ever adds beyond the frozen pi-ai
-  // catalog, with clean unique ids (no `chat:`-style namespacing leaks).
-  for (const [id, beyond] of [
-    ['opencode', ['gpt-5.3-codex-spark', 'deepseek-v4-flash-free', 'gpt-6.1-sol', 'mimo-v2.5-free', 'muse-spark-1.2-contributor-free']],
-    ['opencode-go', ['omen-alpha', 'deepseek-flash', 'glm-5', 'mimo-v2-omni', 'grok-4.5', 'kimi-k2.6']],
-  ]) {
-    const models = buildOAuthProfile(id).piProvider.getModels()
-    const roster = freshRosterIds(id)
-    ok(beyond.every(wanted => models.some(model => model.id === wanted)),
-      `${id} serves live models beyond the frozen catalog (${models.length} total)`)
-    ok(roster.every(wanted => models.some(model => model.id === wanted)) && models.length >= roster.length,
-      `${id} covers its snapshot roster without shrinking`)
-    ok(models.every(model => !model.id.includes(':'))
-      && new Set(models.map(model => model.id)).size === models.length,
-      `${id} exposes clean unique model ids`)
-  }
-
-  // A released host can resolve an older catalog than the snapshot generator.
-  // Keep one sibling plus an unrelated installed model, forcing every other
-  // roster id (including claude-sonnet-5-5) through the snapshot merge.
+  ok(router.auth.oauth !== undefined && router.auth.apiKey !== undefined, 'OpenRouter keeps both authentication methods')
   for (const id of ['opencode', 'opencode-go']) {
-    const catalog = adapterBuiltinProviders().find(provider => provider.id === id)
-    const sibling = catalog.getModels()[0]
-    const local = { ...sibling, id: 'local-catalog-model' }
-    const olderModels = [sibling, local]
-    const older = { ...catalog, getModels: () => olderModels }
-    const merged = withFreshModels(older, id).getModels()
-    ok(freshRosterIds(id).every(wanted => merged.some(model => model.id === wanted)),
-      `${id} covers the snapshot with an older catalog`)
-    ok(olderModels.every(model => merged.find(candidate => candidate.id === model.id) === model)
-      && catalog.getModels().length > olderModels.length,
-      `${id} preserves installed model identity without mutating the catalog`)
-    ok(new Set(merged.map(model => model.id)).size === merged.length,
-      `${id} older-catalog merge has unique ids`)
+    const snapshot = parseSnapshot(OPEN_CODE_SNAPSHOTS[id], id)
+    ok(snapshot.models.length > 0, `${id} owns a pi-independent model catalog`)
+    ok(snapshot.models.length + snapshot.excluded.length === snapshot.roster.length, `${id} classifies every roster id`)
+    ok(new Set(snapshot.roster).size === snapshot.roster.length, `${id} has unique roster ids`)
   }
-
   const catalogFetch = globalThis.fetch
   try {
     for (const [id, modelId, expectedUrl] of [
-      ['opencode', 'deepseek-v4-flash', 'https://opencode.ai/zen/v1/chat/completions'],
-      ['opencode-go', 'deepseek-v4-flash', 'https://opencode.ai/zen/go/v1/chat/completions'],
-      // Sibling-cloned fresh model: same Chat Completions boundary as catalog.
-      ['opencode-go', 'omen-alpha', 'https://opencode.ai/zen/go/v1/chat/completions'],
       ['openrouter', 'aion-labs/aion-2.0', 'https://openrouter.ai/api/v1/chat/completions'],
     ]) {
       let request
@@ -293,60 +249,6 @@ try {
       `${id} catalog model streams to the exact Chat Completions URL with its API key`)
     }
 
-    for (const id of ['opencode', 'opencode-go']) {
-      const route = buildOAuthProfile(id)
-      const adapter = new CredentialGatedAdapter({
-        ...gateAdapterOptions(), profiles: () => new Map([[id, route]]),
-        resolveApiKey: async () => 'catalog-fixture-key',
-      }, async () => true)
-      const otherApis = id === 'opencode'
-        ? ['anthropic-messages', 'openai-responses', 'google-generative-ai']
-        : ['anthropic-messages', 'openai-responses']
-      for (const api of otherApis) {
-        let session
-        globalThis.fetch = async (_url, options) => {
-          session = new Headers(options.headers).get('x-opencode-session')
-          return new Response('fixture rejection', { status: 418 })
-        }
-        const model = route.piProvider.getModels().find(model => model.api === api)
-        try {
-          for await (const _chunk of adapter.stream({ provider: id, model: model.id,
-            sessionId: 'dsh-session-123', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [],
-          })) { /* A rejected fixture only needs to reach the HTTP boundary. */ }
-        } catch { /* Expected fixture rejection. */ }
-        ok(session === 'dsh-session-123', `${id} ${api} sends the stable session header`)
-      }
-      const fallbackSessions = []
-      globalThis.fetch = async (_url, options) => {
-        fallbackSessions.push(new Headers(options.headers).get('x-opencode-session'))
-        return new Response('fixture rejection', { status: 418 })
-      }
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        try {
-          for await (const _chunk of adapter.stream({ provider: id, model: 'deepseek-v4-flash',
-            messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [],
-          })) { /* A rejected fixture only needs to reach the HTTP boundary. */ }
-        } catch { /* Expected fixture rejection. */ }
-      }
-      ok(fallbackSessions.length === 2 && fallbackSessions.every(Boolean) && fallbackSessions[0] !== fallbackSessions[1],
-        `${id} direct calls without a session id receive distinct routing headers`)
-      // A synthesized openai-responses model routes its own wire protocol
-      // through the same boundary (fixture rejects; URL + header prove it).
-      if (id === 'opencode') {
-        let seen
-        globalThis.fetch = async (url, options) => {
-          seen = { url: String(url), session: new Headers(options.headers).get('x-opencode-session') }
-          return new Response('fixture rejection', { status: 418 })
-        }
-        try {
-          for await (const _chunk of adapter.stream({ provider: id, model: 'gpt-5.3-codex-spark',
-            sessionId: 'dsh-session-123', messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], tools: [],
-          })) { /* A rejected fixture only needs to reach the HTTP boundary. */ }
-        } catch { /* Expected fixture rejection. */ }
-        ok(seen?.url === 'https://opencode.ai/zen/v1/responses' && seen?.session === 'dsh-session-123',
-          'synthesized responses model routes its own protocol with the session header')
-      }
-    }
   } finally { globalThis.fetch = catalogFetch }
 
   // ── credential-gated adapter ─────────────────────────────────────────────
@@ -373,7 +275,7 @@ try {
   const registrationErrors = []
   const effects = []
   const holder = { api: undefined }
-  apply({
+  await apply({
     get: service => service === 'dshAuth' ? holder
       : service === 'llm' ? { registerAdapter: providers => {
         const id = providers[0]
@@ -635,7 +537,7 @@ try {
       },
     },
   }
-  const fakeProfile = { provider: 'fake', displayName: 'Fake Provider', streamIdleTimeoutMs: 300_000, retryPolicy: { mode: 'normal', maxRetries: 2, retryDelayMs: () => 1 }, configuredMaxTokens: new Map(), piProvider: fakeProvider, maxRequestImageBytes: 1, requestImagePixelBudget: 1, requestImageMaxBytes: 1 }
+  const fakeProfile = { provider: 'fake', displayName: 'Fake Provider', streamIdleTimeoutMs: 300_000, retryPolicy: { mode: 'normal', maxRetries: 2, retryDelayMs: () => 1 }, configuredMaxTokens: new Map(), piProvider: fakeProvider, oauth: fakeProvider.auth.oauth, maxRequestImageBytes: 1, requestImagePixelBudget: 1, requestImageMaxBytes: 1 }
   const api = createDshAuthApi({
     profiles: new Map([['fake', fakeProfile]]),
     store: apiStore,
@@ -663,7 +565,7 @@ try {
   } } }
   const raceStore = new CredentialFile(join(root, 'logout-race', 'credentials.json'))
   const raceApi = createDshAuthApi({
-    profiles: new Map([['fake', { ...fakeProfile, piProvider: raceProvider }]]),
+    profiles: new Map([['fake', { ...fakeProfile, oauth: raceProvider.auth.oauth }]]),
     store: raceStore, resolveAsk: () => fakeAsk, logger: { warn() {} },
   })
   const lateLogin = raceApi.login('fake').catch(error => error.message)
@@ -676,7 +578,7 @@ try {
   console.log('API key and aliases')
   const keyStore = new CredentialFile(join(root, 'api-key', 'credentials.json'))
   const keyApi = createDshAuthApi({
-    profiles: new Map([['opencode', buildOAuthProfile('opencode')], ['openrouter', buildOAuthProfile('openrouter')]]),
+    profiles: new Map([['opencode', { provider: 'opencode', displayName: 'OpenCode Zen' }], ['openrouter', { provider: 'openrouter', displayName: 'OpenRouter', oauth: buildOAuthProfile('openrouter').piProvider.auth.oauth }]]),
     store: keyStore,
     resolveAsk: () => fakeAsk,
     logger: { warn() {} },

@@ -2,9 +2,9 @@
   "$schema": "https://dsh.community/schemas/dsh-plugin-0.15.json",
   "id": "com.dsh-tui.dsh-auth",
   "name": "dsh-auth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "manifestVersion": "0.15",
-  "description": "Subscription OAuth sign-in (ChatGPT/Codex, Claude Pro/Max, SuperGrok) as LLM provider routes for DeepSeek Harness. Registers llm adapter routes through the cordis llm registry; interactive login runs over the user-questions seam and degrades to a clear refusal when no interactive surface is present.",
+  "description": "Provider authentication and OpenCode Zen/Go model routes for DeepSeek Harness. Registers llm adapter routes through the cordis llm registry; interactive login runs over the user-questions seam.",
   "facets": {
     "host": {
       "entry": "lib/index.js",
@@ -29,7 +29,7 @@
     "commands": [
       {
         "id": "dsh.auth",
-        "title": "Sign in with a provider subscription (OAuth)"
+        "title": "Manage provider authentication and models"
       }
     ]
   },

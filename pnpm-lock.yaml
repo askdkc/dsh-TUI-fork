@@ -427,6 +427,9 @@ importers:
       '@xterm/headless':
         specifier: ^6.0.0
         version: 6.0.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       tar:
         specifier: ^7.5.22
         version: 7.5.22

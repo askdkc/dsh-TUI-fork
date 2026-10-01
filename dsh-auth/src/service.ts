@@ -10,25 +10,22 @@
 
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { asStoredCredential, CredentialFile } from './credentials.js'
-import { canonicalProvider, oauthOf } from './profiles.js'
+import { canonicalProvider } from './routes.js'
+import type { OpenCodeCatalog, OpenCodeRoute, OpenCodeCatalogStatus } from './opencode-catalog.js'
 import { QuestionBridge, type AskFn } from './interaction.js'
-import type { PiAiProvider } from './pi-ai.js'
+import type { OAuthFlow } from './auth-contract.js'
 import { loginNous } from './nous-oauth.js'
 
-/**
- * The constructed catalog provider one mounted route carries. 0.1.5 made
- * `ResolvedPiAiProviderProfile.piProvider` optional (a stored route that
- * cannot be constructed stays editable without one); this plugin mounts only
- * constructible routes, so an absent provider here is a mount defect —
- * surfaced loudly rather than as an `undefined` dereference mid-flow.
- */
-function mountedProvider(profile: ResolvedPiAiProviderProfile): PiAiProvider {
-  if (profile.piProvider === undefined) {
-    throw new Error(`dsh-auth: provider "${profile.provider}" mounted without a constructed catalog provider`)
-  }
-  return profile.piProvider
+export interface AuthRoute {
+  provider: string
+  displayName: string
+  oauth?: OAuthFlow
+}
+function oauthOf(profile: AuthRoute): NonNullable<AuthRoute['oauth']> {
+  const oauth = profile.oauth
+  if (!oauth) throw new Error(`dsh-auth: OAuth flow unavailable for ${profile.provider}`)
+  return oauth
 }
 
 /** One provider's sign-in state; never carries token material. */
@@ -62,6 +59,8 @@ export interface DshAuthLoginResult {
 export interface DshAuthApi {
   /** Every mounted provider with masked sign-in state. */
   providers(): Promise<readonly DshAuthSignInStatus[]>
+  catalogStatus?(provider?: string): readonly OpenCodeCatalogStatus[]
+  refreshModels?(provider?: string, signal?: AbortSignal): Promise<readonly OpenCodeCatalogStatus[]>
   /**
    * Run one provider's login. `provider` omitted asks the interactive
    * surface to choose among providers not currently signed in.
@@ -88,7 +87,8 @@ export class DshAuthService extends Service {
 
 /** Everything the api factory needs; all cordis surface is injected, so tests run without a host. */
 export interface DshAuthApiDeps {
-  profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>
+  profiles: ReadonlyMap<string, AuthRoute>
+  catalogs?: ReadonlyMap<OpenCodeRoute, OpenCodeCatalog>
   store: CredentialFile
   /** The interactive ask surface, resolved per call so mounting order never matters. */
   resolveAsk: () => AskFn | undefined
@@ -127,7 +127,7 @@ export function createDshAuthApi(deps: DshAuthApiDeps): DshAuthApi {
     const described = new Map((await deps.store.describe()).map(row => [row.provider, row]))
     return [...deps.profiles.entries()].map(([id, profile]) => {
       const methods = authMethodsOf(id)
-      const oauth = methods.includes('oauth') ? oauthOf(mountedProvider(profile)) : undefined
+      const oauth = methods.includes('oauth') ? oauthOf(profile) : undefined
       const row = described.get(id)
       return {
         provider: id,
@@ -179,7 +179,7 @@ export function createDshAuthApi(deps: DshAuthApiDeps): DshAuthApi {
       if (runAbort.signal.aborted) throw new Error('dsh-auth: sign-in cancelled')
       let credential: ReturnType<typeof asStoredCredential>
       if (method === 'oauth') {
-        const oauth = oauthOf(mountedProvider(profile))
+        const oauth = oauthOf(profile)
         credential = asStoredCredential(await oauth.login(bridge))
         if (credential?.type !== 'oauth') throw new Error(`dsh-auth: the ${oauth.name} flow returned an unusable credential`)
       } else if (method === 'api-key' || method === 'bearer') {
@@ -211,7 +211,7 @@ export function createDshAuthApi(deps: DshAuthApiDeps): DshAuthApi {
       }
       changed(provider)
       const expiresAt = credential.type === 'oauth' && provider !== 'openrouter' ? credential.expires : undefined
-      return { provider, oauthLabel: method === 'oauth' ? oauthOf(mountedProvider(profile)).name : profile.displayName, authMethods: methods,
+      return { provider, oauthLabel: method === 'oauth' ? oauthOf(profile).name : profile.displayName, authMethods: methods,
         credentialKind: credential.type === 'api_key' || provider === 'openrouter' ? 'api-key' : 'oauth-token',
         ...(expiresAt === undefined ? {} : { expiresAt }),
         ...(modelWarning === undefined ? {} : { modelWarning }) }
@@ -222,6 +222,20 @@ export function createDshAuthApi(deps: DshAuthApiDeps): DshAuthApi {
 
   return {
     providers: statusOf,
+    catalogStatus: provider => [...(deps.catalogs?.values() ?? [])].filter(catalog => provider === undefined || catalog.provider === canonicalProvider(provider)).map(catalog => catalog.status()),
+    refreshModels: async (provider, signal) => {
+      signal?.throwIfAborted()
+      const selected = [...(deps.catalogs?.values() ?? [])].filter(catalog => provider === undefined || catalog.provider === canonicalProvider(provider))
+      if (!selected.length) throw new Error('No matching OpenCode catalog is mounted')
+      const refresh = Promise.all(selected.map(catalog => catalog.refresh()))
+      if (!signal) return refresh
+      return new Promise((resolve, reject) => {
+        const abort = () => reject(new Error('Catalog update wait cancelled; shared background refresh may continue'))
+        signal.addEventListener('abort', abort, { once: true })
+        void refresh.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+        if (signal.aborted) abort()
+      })
+    },
     login: async (provider, signal) => {
       const ask = deps.resolveAsk()
       let target = provider === undefined ? undefined : canonicalProvider(provider)

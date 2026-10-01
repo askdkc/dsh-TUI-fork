@@ -43,12 +43,13 @@ dsh plugin --profile <name> add @askdkc/dsh-auth
 
 ## 主な機能
 
-- pi-ai のカタログにあるプロバイダーを `llm` レジストリのルートとして登録します：
+- 対応するプロバイダーを `llm` レジストリのルートとして登録します：
   `openai-codex`、`anthropic`、`xai`、`opencode`、`opencode-go`、`openrouter`。
   **モデル選択画面に表示されるのは、そのプロバイダーにログインした後だけです。**
   ログインするとカタログが現れ、ログアウトすると消えます。
-  セッションに保存済みのモデル ID は、どちらの状態でも解決できます。
-- Provider オブジェクトは、インストール済みの `dsh-llm-pi-ai` が使う
+  ログアウト後も、現在の検証済みカタログにあるモデル ID は解決できます。
+  提供終了したモデルへは送信せず、別モデルへ自動切替もしません。
+- OpenCode 以外の Provider オブジェクトは、インストール済みの `dsh-llm-pi-ai` が使う
   **同じ pi-ai 依存関係**から読み込みます。これにより、rc 版や alpha 版のホストでも
   対応する pi-ai のバージョンを使え、別々のパッケージインスタンス間で
   Provider オブジェクトを受け渡さずに済みます。
@@ -88,6 +89,8 @@ dsh plugin --profile <name> add @askdkc/dsh-auth
 /auth login nous               # device code or manual Bearer
 /auth login infron             # Infron API key
 /auth logout anthropic
+/auth models opencode          # 情報源・更新日時・除外理由
+/auth refresh opencode         # 即時更新
 ```
 
 未ログインのプロバイダーにモデルを要求すると、`/auth login <provider>` の案内を添えて
@@ -119,12 +122,11 @@ dsh plugin --profile <name> add @askdkc/dsh-auth
   （`llm-pi-ai` の設定プロファイルなど）、レジストリはそのルートの登録を拒否します。
   プラグインは拒否をログに記録し、残りのルートを登録します。
   1 つのプロバイダーには 1 つのアダプターを割り当ててください。
-- `opencode` / `opencode-go` は、インストール済み pi-ai カタログの上に
-  Zen の最新モデル一覧を提供します（モデルごとの通信プロトコルは最も近い
-  カタログの兄弟モデルから解決し、既存モデルは常に優先されるため、追加のみで
-  削除は起きません）。`pnpm --dir dsh-auth sync:models` でスナップショットを
-  更新できます（`models.dev` と Zen の `/v1/models` を参照）。
-  実行時にネットワークは使いません。
+- `opencode` / `opencode-go` は dsh-auth の専用アダプターを使います。
+  モデルと通信方式は pi のカタログを参照せず、公式一覧と models.dev の
+  同じルート・同じ ID の情報から確定します。オフライン起動に対応し、
+  期限切れの情報はバックグラウンドで更新します。
+  `pnpm --dir dsh-auth sync:models` は配布用スナップショットを更新します。
 
 ## セキュリティ上の注意
 
@@ -173,3 +175,20 @@ smoke テストは cordis や Harness を起動せずに、純粋なモジュー
 
 [MIT](LICENSE)。元の ccch1mneyyy の著作権表示を残し、独自開発分について
 dkc の著作権表示を追加しています。
+
+## OpenCode Zen／Go のモデル更新
+
+Zen／Go は dsh-auth 専用アダプターと同梱 SDK で通信し、ホストの pi の
+モデル定義を参照しません。公式 `/models` と対応ルートの models.dev 情報を
+1時間ごとに更新します。起動時は検証済みキャッシュまたは同梱情報を使い、
+取得失敗時も最後の一覧を維持します。情報不足・非対応モデルは理由付きで
+除外し、別モデルの設定や別ルートの料金で補いません。
+
+- `/auth models [provider]`：最終更新日時・情報源・除外理由
+- `/auth refresh [provider]`：手動更新
+- キャッシュ：`$DSH_HOME/dsh-auth/catalog-v1/`（認証情報を含まない）
+
+既存のキー・プロバイダー ID・容量設定は引き続き利用できます。対応済み
+通信方式の新モデルには pi の更新が不要です。新しい通信方式への対応には
+パッケージの更新が必要です。auth 0.2 では pi 専用構築ヘルパーを内部に移し、
+公開連携には `DshAuthApi` と DSH アダプターを使用します。

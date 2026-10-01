@@ -271,6 +271,13 @@ jobs:
       # verify 零额外装配。（勘误：minimal-preset-tools 本就在
       # verify:build 聚合链里，原 PR 草稿里加的那步是重复执行，已移除。）
       - run: pnpm --dir dsh-auth verify
+      - run: pnpm verify:profile-sync
+      - run: pnpm verify:opencode-profile
+        env:
+          DSH_AUTH_TEST_PI: 0.87.1
+      - run: pnpm verify:opencode-profile
+        env:
+          DSH_AUTH_TEST_PI: 0.99.1
 
   # 渲染 · 滚动 · resize · 子代理 · picker——与其余组并行；失败互不遮蔽。
   # needs: build：编译只在 build job 发生一次，本组经 artifact 复用产物。

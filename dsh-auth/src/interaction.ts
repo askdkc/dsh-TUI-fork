@@ -31,7 +31,7 @@
 
 import type { AskUserQuestionItem, AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions'
 import { copyToClipboard, openInBrowser } from './opener.js'
-import type { PiAiAuthEvent, PiAiAuthInteraction, PiAiAuthPrompt } from './pi-ai.js'
+import type { AuthEvent, AuthInteraction, AuthPrompt } from './auth-contract.js'
 
 /** The ask surface this bridge drives (usually `ctx.userQuestions.ask`). */
 export type AskFn = (request: {
@@ -46,7 +46,7 @@ export interface QuestionBridgeHelpers {
 }
 
 /** Human-readable copy for one notify event. */
-export function describeEvent(event: PiAiAuthEvent): string {
+export function describeEvent(event: AuthEvent): string {
   switch (event.type) {
     case 'auth_url':
       return `Open this URL to authorize (a local callback completes sign-in):\n${event.url}`
@@ -102,7 +102,7 @@ function deviceCodeView(userCode: string, verificationUri: string, opened: boole
  * `settle()` retires it when the flow ends (any outcome), so a completed or
  * failed login never leaves an interactive dead end on screen.
  */
-export class QuestionBridge implements PiAiAuthInteraction {
+export class QuestionBridge implements AuthInteraction {
   readonly signal: AbortSignal
   private readonly openUrl: (url: string) => boolean
   private readonly copy: (text: string) => Promise<boolean>
@@ -119,7 +119,7 @@ export class QuestionBridge implements PiAiAuthInteraction {
     this.copy = helpers.copyText ?? copyToClipboard
   }
 
-  async prompt(prompt: PiAiAuthPrompt): Promise<string> {
+  async prompt(prompt: AuthPrompt): Promise<string> {
     const question: AskUserQuestionItem = prompt.type === 'select'
       ? {
         id: 'dsh-auth-prompt',
@@ -154,7 +154,7 @@ export class QuestionBridge implements PiAiAuthInteraction {
     return custom
   }
 
-  notify(event: PiAiAuthEvent): void {
+  notify(event: AuthEvent): void {
     if (event.type === 'auth_url') {
       if (this.waiting !== undefined) return
       const opened = this.openUrl(event.url)
