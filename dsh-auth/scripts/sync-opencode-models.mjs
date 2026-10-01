@@ -157,12 +157,12 @@ const liveGo = idList(await fetchJson(LIVE['opencode-go'], 'go gateway'), LIVE['
 const installed = await installedCatalog()
 
 function buildRoute(route, live, mdModels, mdFallbackModels) {
-  const builtIn = route === 'opencode' ? installed.zen : installed.go
   const roster = live.filter(id => !installed.classifiers.has(id))
   const entries = {}
   const fallback = []
   for (const id of roster) {
-    if (builtIn.has(id)) continue
+    // Consumers may resolve an older pi-ai than the generator. Every roster
+    // id needs metadata or a fallback; the runtime still prefers its catalog.
     const source = Object.hasOwn(mdModels, id) ? mdModels
       : Object.hasOwn(mdFallbackModels, id) ? mdFallbackModels : undefined
     if (source === undefined) fallback.push(id)
@@ -182,8 +182,8 @@ const snapshot = {
   'opencode-go': buildRoute('opencode-go', liveGo, goMdModels, zenMdModels),
 }
 
-const zenExtra = Object.keys(snapshot.opencode.entries).length + snapshot.opencode.fallback.length
-const goExtra = Object.keys(snapshot['opencode-go'].entries).length + snapshot['opencode-go'].fallback.length
+const zenExtra = snapshot.opencode.roster.filter(id => !installed.zen.has(id)).length
+const goExtra = snapshot['opencode-go'].roster.filter(id => !installed.go.has(id)).length
 console.log(`sync-opencode-models: pi-ai ${installed.version}; live roster zen=${snapshot.opencode.roster.length} go=${snapshot['opencode-go'].roster.length}; beyond catalog zen=+${zenExtra} go=+${goExtra}`)
 for (const id of snapshot['opencode-go'].fallback) console.log(`  go sibling-fallback (no models.dev entry): ${id}`)
 for (const id of snapshot.opencode.fallback) console.log(`  zen sibling-fallback (no models.dev entry): ${id}`)
@@ -199,8 +199,8 @@ const body = `/**
  *
  * Shape contract (see src/fresh-models.ts parseSnapshotData):
  * version=1, per route { roster (live chat ids, sorted), entries
- * (allowlisted models.dev metadata for roster ids the installed catalog
- * lacks), fallback (roster ids neither source describes — runtime clones
+ * (allowlisted models.dev metadata for all described roster ids), fallback
+ * (roster ids models.dev does not describe — runtime clones
  * the nearest catalog sibling and flags nothing on the model object;
  * provenance lives here) }, classifiers (live ids pi-ai serves on its
  * classifier path, excluded from the chat merge).

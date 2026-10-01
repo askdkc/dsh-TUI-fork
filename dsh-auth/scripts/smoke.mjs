@@ -21,6 +21,8 @@ const { CredentialFile, buildOAuthProfile, OAUTH_PROVIDER_IDS, canonicalProvider
   await import('../lib/index.js')
 const { createCustomProfile } = await import('../lib/custom-profiles.js')
 const { loginNous, refreshNous } = await import('../lib/nous-oauth.js')
+const { withFreshModels } = await import('../lib/fresh-models.js')
+const { adapterBuiltinProviders } = await import('../lib/pi-ai.js')
 
 /** Adapter options over one profile — enough for listModels/resolveModel offline. */
 function gateAdapterOptions() {
@@ -235,6 +237,25 @@ try {
     ok(models.every(model => !model.id.includes(':'))
       && new Set(models.map(model => model.id)).size === models.length,
       `${id} exposes clean unique model ids`)
+  }
+
+  // A released host can resolve an older catalog than the snapshot generator.
+  // Keep one sibling plus an unrelated installed model, forcing every other
+  // roster id (including claude-sonnet-5-5) through the snapshot merge.
+  for (const id of ['opencode', 'opencode-go']) {
+    const catalog = adapterBuiltinProviders().find(provider => provider.id === id)
+    const sibling = catalog.getModels()[0]
+    const local = { ...sibling, id: 'local-catalog-model' }
+    const olderModels = [sibling, local]
+    const older = { ...catalog, getModels: () => olderModels }
+    const merged = withFreshModels(older, id).getModels()
+    ok(freshRosterIds(id).every(wanted => merged.some(model => model.id === wanted)),
+      `${id} covers the snapshot with an older catalog`)
+    ok(olderModels.every(model => merged.find(candidate => candidate.id === model.id) === model)
+      && catalog.getModels().length > olderModels.length,
+      `${id} preserves installed model identity without mutating the catalog`)
+    ok(new Set(merged.map(model => model.id)).size === merged.length,
+      `${id} older-catalog merge has unique ids`)
   }
 
   const catalogFetch = globalThis.fetch
