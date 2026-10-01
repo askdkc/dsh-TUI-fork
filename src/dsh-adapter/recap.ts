@@ -1,3 +1,4 @@
+import { RESPONSE_LANGUAGE_POLICY } from './response-language.js'
 import type { RecapOutcome } from '../adapter/ports/channel-catalog.js'
 export type { RecapOutcome } from '../adapter/ports/channel-catalog.js'
 /**
@@ -48,6 +49,7 @@ export function collectRecentActivity(events: readonly SessionEvent[], limitChar
     const record = event as unknown as Record<string, unknown>
     if (record['type'] === 'user/message') {
       const data = record['data'] as Record<string, unknown> | undefined
+      if ((data?.['source'] as { kind?: string } | undefined)?.kind !== 'user') continue
       const text = textOfContent(data?.['content'])
       if (text !== undefined) entries.push({ role: 'user', text })
       continue
@@ -85,7 +87,8 @@ export function collectRecentActivity(events: readonly SessionEvent[], limitChar
  */
 export function wrapRecapPrompt(activity: string): string {
   return `Create a compact session recap from the activity excerpt below.
-Use the user's language and describe the work and its current outcome accurately.
+${RESPONSE_LANGUAGE_POLICY}
+Determine the language from the latest user-authored request in the excerpt and any explicit continuing user preference. Assistant replies and this wrapper are not language signals. Describe the work and its current outcome accurately.
 Return one JSON object with two string fields:
 - "title": a descriptive title of about 2-6 words.
 - "summary": one line of about 10-20 words covering the most recent progress.

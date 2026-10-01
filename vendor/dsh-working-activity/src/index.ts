@@ -30,7 +30,7 @@ import type { TrackerConfig } from './status.js'
 import { feedStreamFrame } from './compat/assistant-stream.js'
 import { createActivityProjection, ACTIVITY_PROJECTION_KEY } from './projection.js'
 import { registerActivityEventType } from './registration.js'
-import { langNow, setLangOverride, t } from './lang.js'
+import { NARRATE_INSTRUCTION, langNow, setLangOverride, t } from './lang.js'
 import { DEFAULT_PRESET } from './frames.js'
 import { featureOn, type FeatureFlag } from './config.js'
 import type { ActivityState } from './status.js'
@@ -211,16 +211,14 @@ export function apply(ctx: Context, config: Config = {}): void {
   const promptHandle = prompt?.register('activity', undefined)
 
   // The `⏵` self-narration contract rides the stable system-prompt sections:
-  // injected when the systemPrompt service is composed (agent assemblies
-  // always mount it), removed with this fiber. The text is resolved at every
-  // assembly in the live language, so a `/lang` switch applies to the next
-  // turn without rebuilding the agent.
+  // injected when the systemPrompt service is composed and removed with this
+  // fiber. Model instructions stay in English independently of UI settings.
   if (resolved.narrate) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
       promptCtx.systemPrompt.section({
         name: 'working-activity:narrate',
         order: 60,
-        text: () => t('narrate-instruction'),
+        text: NARRATE_INSTRUCTION,
       })
     })
   }

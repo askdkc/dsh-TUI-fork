@@ -84,7 +84,7 @@ export interface Config {
    *  override DSH_TUI_DISABLE_TERMINAL_IMAGES can always force previews off. */
   terminalImages?: boolean
   /** UI language: `en` / `zh`. When absent, the `DSH_TUI_LANG` env var wins,
-   *  then the `/lang` choice persisted in `~/.dsh-tui/lang.json`, then `zh`. */
+   *  then the `/lang` choice persisted in `~/.dsh-tui/lang.json`, then the locale, falling back to `en`. */
   lang?: string
   /** Agent preset id new sessions compose from (standard/ptc/minimal/
    *  cordis/… when the roster is mounted). When absent, the `/preset` choice

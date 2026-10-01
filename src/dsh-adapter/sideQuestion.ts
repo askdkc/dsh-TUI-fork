@@ -1,3 +1,4 @@
+import { RESPONSE_LANGUAGE_POLICY } from './response-language.js'
 /**
  * Side Question (`/btw`): a single-turn call without tools, replaying the
  * live session's derived history (prompt-cache reuse, compaction-style
@@ -15,6 +16,8 @@ import { BlockAssembler, type StreamChunk } from '@deepseek-ai/dsh-llm'
  */
 export function wrapSideQuestion(question: string): string {
   return `<side-question-context>
+${RESPONSE_LANGUAGE_POLICY}
+Determine the request language from the question after this wrapper, not from this wrapper.
 Give one concise answer to the question below using the conversation already provided.
 This auxiliary call runs alongside the main session. The main task continues independently;
 do not describe it as interrupted, resumed, or as work performed by this call.

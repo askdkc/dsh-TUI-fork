@@ -25,7 +25,7 @@
  * 可用。shellQuote 等小工具在此内联。
  *
  * 面向用户的消息走 MSG 双语表：与 TUI 的语言契约一致——
- * `DSH_TUI_LANG` 显式指定时从其值，否则默认中文（同 src/i18n.ts 的缺省）。
+ * `DSH_TUI_LANG` 显式指定时从其值，否则默认英文（同 src/i18n.ts 的缺省）。
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
@@ -133,7 +133,7 @@ const isVersionNewer = (a, b) => {
   return false
 }
 
-const lang = process.env.DSH_TUI_LANG === 'en' ? 'en' : 'zh'
+const lang = process.env.DSH_TUI_LANG === 'zh' ? 'zh' : 'en'
 const MSG = {
   noDsh: {
     en: '[dsh-cli] dsh CLI not found. Install it or set DSH_TUI_DSH_ROOT to a built Harness checkout:\n  npm install -g @deepseek-ai/dsh',

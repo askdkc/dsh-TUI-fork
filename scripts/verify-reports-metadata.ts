@@ -113,7 +113,7 @@ assert.ok(streamSignal !== undefined, 'side-question request receives a signal')
 const recapGate = deferred<void>()
 let recapAgent = { ...oldAgent, session: {
   ...oldAgent.session,
-  events: [{ type: 'user/message', data: { content: [{ type: 'text', text: 'recap source' }] } }] as never[],
+  events: [{ type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'recap source' }] } }] as never[],
  snapshotEvents() { return this.events }} }
 let recapGeneration = 1
 const recapOwner = createChannelOwner()

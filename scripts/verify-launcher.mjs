@@ -304,14 +304,14 @@ check('shim: no bin fails loud with the reinstall hint', r.status === 1 && r.std
 check('shim: reinstall hint names the npm command', r.stderr.includes(`npm install -g --legacy-peer-deps ${PACKAGE}`))
 
 
-// --- 5. 消息双语：缺 dsh 时的报错（契约同 TUI：DSH_TUI_LANG 指定才生效，否则默认中文）
+// --- 5. 消息双语：缺 dsh 时的报错（契约同 TUI：DSH_TUI_LANG 指定才生效，否则默认英文）
 const envNoDsh = { PATH: noDshPath }
 r = runBin([], { ...envNoDsh, DSH_TUI_LANG: 'en' })
 check('i18n: DSH_TUI_LANG=en prints English', r.stderr.includes('dsh CLI not found'))
 r = runBin([], { ...envNoDsh, DSH_TUI_LANG: 'zh' })
 check('i18n: DSH_TUI_LANG=zh prints Chinese', r.stderr.includes('未检测到 dsh CLI'))
 r = runBin([], envNoDsh)
-check('i18n: default (unset) prints Chinese', r.stderr.includes('未检测到 dsh CLI'))
+check('i18n: default (unset) prints English', r.stderr.includes('dsh CLI not found'))
 
 // --- 5.5 Local Harness clone: keep the caller's project directory ----------
 const sourceRoot = join(tmp, 'harness source')

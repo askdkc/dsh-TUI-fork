@@ -3,9 +3,9 @@
  *
  * The plugin follows the dsh-tui UI language without importing it: the same
  * chain dsh-tui resolves (`DSH_TUI_LANG` env → `~/.dsh-tui/lang.json` → OS
- * locale → zh) is read here directly, so a `/lang en|zh` switch (or the
- * /settings language pick) hot-swaps this plugin's narration and status-line
- * copy on the next render tick.
+ * locale → en) is read here directly, so a `/lang en|zh` switch (or the
+ * /settings language pick) hot-swaps rendered status-line copy. Model-facing
+ * narration instructions are locale-independent.
  *
  * Resolution order:
  *   1. `setLangOverride()` — a plugin-level `lang: zh|en` config key
@@ -15,7 +15,7 @@
  *      so the per-tick status render never re-reads an unchanged file.
  *   4. OS locale guess (`LC_ALL` / `LC_MESSAGES` / `LANG`); POSIX/C means
  *      "no locale selected" and maps to English.
- *   5. `zh` — the original hard-coded language.
+ *   5. `en` — the fallback for unsupported or absent locales.
  *
  * The dictionary is a flat key → per-language string map; `t(key, params)`
  * substitutes `{{name}}` placeholders. Missing keys render the key itself so
@@ -67,13 +67,12 @@ export function detectInputLanguage(input: string): Lang | undefined {
 /** The dsh-tui prefs file this plugin mirrors (shared language contract). */
 const LANG_FILE = join(homedir(), '.dsh-tui', 'lang.json')
 
-const dict = {
-  // ── ⏵ self-narration contract (system prompt, /lang aware) ──────────
-  'narrate-instruction': {
-    zh: '[状态栏] 你有一个状态栏展示给用户。【必须】在每个步骤/子任务开始时（不只是调用工具前），在回复正文的最前面单独写一行：⏵ 你在做的具体事情（不超过20字），然后换行继续正常回复。整轮回复只写一行 ⏵，不要重复。信息为主——让人一眼知道你在干什么，风格自然、可以带点俏皮。例：⏵ 修复登录页样式、⏵ 查一下报错原因、⏵ 给补丁跑个验证。切换任务时必须更新。',
-    en: '[Status line] You have a status line visible to the user. [Required] At the start of each step or subtask (not only before tool calls), write exactly one standalone line at the very beginning of your response: ⏵ a concrete description of what you are doing (20 words max), then continue with the normal response on the next line. Write only one ⏵ line per response and do not repeat it. Prioritize information so the user can understand the current work at a glance; keep the style natural and optionally playful. Examples: ⏵ Fixing the login page styles, ⏵ Investigating the error, ⏵ Running validation for the patch. Update it when the task changes.',
-  },
+/** Model instructions never inherit the interface or terminal language. */
+export const NARRATE_INSTRUCTION = '[Status line] You have a status line visible to the user. [Required] At the start of each step or subtask (not only before tool calls), write exactly one standalone line at the very beginning of your response: ⏵ a concrete description of what you are doing (20 words max), then continue with the normal response on the next line. Write only one ⏵ line per response and do not repeat it. Prioritize information so the user can understand the current work at a glance; keep the style natural and optionally playful. Examples: ⏵ Fixing the login page styles, ⏵ Investigating the error, ⏵ Running validation for the patch. Update it when the task changes. Write the status description in the same response language chosen for the user request; use English when unclear.'
 
+const dict = {
+  // Retain the existing translation key without localizing model instructions.
+  'narrate-instruction': { zh: NARRATE_INSTRUCTION, en: NARRATE_INSTRUCTION },
   // ── status-line structural copy ─────────────────────────────────────
   /** Plain (non-playful) phase labels. */
   'waiting-label': { zh: '等待模型响应', en: 'Waiting for model', ja: 'モデルの応答待ち' },
@@ -203,9 +202,9 @@ let lastProbeAt = 0
 
 /**
  * Guess the language from the OS locale (`LC_ALL`, `LC_MESSAGES`, `LANG`),
- * defaulting to `zh`. POSIX/C means "no locale selected" and conventionally
+ * defaulting to `en`. POSIX/C means "no locale selected" and conventionally
  * maps to English (what CI runners report). An absent locale variable
- * (typical on Windows) defaults to `zh`.
+ * (typical on Windows) defaults to `en`.
  */
 export function detectLocaleLang(): Lang {
   const raw =
@@ -217,5 +216,5 @@ export function detectLocaleLang(): Lang {
   if (locale.startsWith('zh')) return 'zh'
   if (locale.startsWith('en')) return 'en'
   if (locale === 'c' || locale === 'posix') return 'en'
-  return 'zh'
+  return 'en'
 }

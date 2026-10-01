@@ -842,7 +842,7 @@ for (const method of ['writeProfile', 'mutateProfile', 'removeProfile'] as const
     finally { completed = true }
   } }
   Object.assign(agent.session, {
-    events: [{ type: 'user/message', data: { content: [{ type: 'text', text: 'resumed conversation' }] } }],
+    events: [{ type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'resumed conversation' }] } }],
     requestHeader: () => undefined, deriveMessages: () => [],
   })
   raw.rows.push({ id: 1, kind: 'user', text: 'resumed conversation' })

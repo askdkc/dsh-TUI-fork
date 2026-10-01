@@ -76,7 +76,8 @@
   config: !!js >-
     (() => {
       const shared = { complete: true, includeRuntimeContext: false }
-      const persona = 'You are a helpful software engineer assistant.'
+      const policy = process.getBuiltinModule('node:fs').readFileSync(new URL('../response-language.txt', ctx.baseUrl), 'utf8').trim()
+      const persona = 'You are a helpful software engineer assistant.\n\n' + policy
       try {
         const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
         const fs = process.getBuiltinModule('node:fs')

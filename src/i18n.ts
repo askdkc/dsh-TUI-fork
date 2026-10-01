@@ -1,5 +1,5 @@
 /**
- * dsh-tui localization — UI strings for Chinese (`zh`, the default) and
+ * dsh-tui localization — UI strings for Chinese (`zh`) and
  * English (`en`).
  *
  * Resolution order mirrors the `/theme` mechanism (see themePrefs.ts):
@@ -8,7 +8,7 @@
  *   2. `lang` cordis.yml config key (see Config in index.ts)
  *   3. the persisted `/lang` choice in `~/.dsh-tui/lang.json`
  *   4. the OS locale guess (`LC_ALL` / `LC_MESSAGES` / `LANG`)
- *   5. `zh` (the original hard-coded language)
+ *   5. `en` (the fallback language)
  *
  * `/lang` switches at runtime and hot-swaps the whole UI. The dictionary is
  * a flat key → per-language text map; `t(key, params)` substitutes
@@ -1559,9 +1559,8 @@ export function writeLangPref(lang: Lang, dir: string = PREFS_DIR): boolean {
  * user must not get a Chinese UI. The POSIX/C locale means "no locale
  * selected" and conventionally maps to English — importantly it is what
  * CI runners (LANG=C.UTF-8) report, so tests asserting English UI copy
- * stay deterministic. Only an ABSENT locale (typical on Windows, where
- * these POSIX vars don't exist and imply nothing about the user) keeps
- * the zh default.
+ * stay deterministic. An absent locale (typical on Windows) also uses
+ * the English fallback.
  */
 export function detectLocaleLang(): Lang {
   // `||` (not `??`): an EMPTY locale variable means "unset" and must fall
@@ -1572,7 +1571,7 @@ export function detectLocaleLang(): Lang {
     process.env.LANG ||
     ''
   const locale = raw.split('.')[0]?.toLowerCase() ?? ''
-  if (locale === '') return 'zh'
+  if (locale === '') return 'en'
   return locale.startsWith('zh') ? 'zh' : 'en'
 }
 
@@ -1580,7 +1579,7 @@ export function detectLocaleLang(): Lang {
  * Resolve the startup language: `DSH_TUI_LANG` when it holds a valid value
  * (pinned at process start — the repro/verify scripts rely on this for
  * deterministic UI copy), else the persisted `/lang` choice, else the OS
- * locale guess, else `zh` (the original hard-coded language). The
+ * locale guess, else `en` (the fallback language). The
  * cordis.yml `lang` precedence lives in plugin.apply.
  */
 export function resolveStartupLang(): Lang {

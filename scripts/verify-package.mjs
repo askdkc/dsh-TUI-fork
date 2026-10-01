@@ -45,6 +45,7 @@ if (missing.length > 0) {
   throw new Error(`package exports missing from tarball: ${missing.join(', ')}`)
 }
 for (const presetFile of [
+  'presets/response-language.txt',
   'presets/liangshen/agent.cordis.yml',
   'presets/liangshen/preset.yml',
   'presets/liangshen/tool-bootstrap.mjs',

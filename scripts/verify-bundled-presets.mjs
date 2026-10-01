@@ -88,9 +88,10 @@ try {
   const assets = join(relocatedRoot, 'presets', 'liangshen')
   mkdirSync(modules, { recursive: true })
   mkdirSync(assets, { recursive: true })
-  for (const name of ['bundled-presets.js', 'packaged-presets.js']) {
+  for (const name of ['bundled-presets.js', 'packaged-presets.js', 'response-language.js']) {
     copyFileSync(new URL(`../lib/types/dsh-adapter/${name}`, import.meta.url), join(modules, name))
   }
+  copyFileSync(new URL('../presets/response-language.txt', import.meta.url), join(relocatedRoot, 'presets', 'response-language.txt'))
   // Different metadata makes a hard-coded copy fail, including name and order.
   const relocatedMetadata = { name: 'Relocated 梁神', description: 'Metadata from preset.yml', order: 17 }
   writeFileSync(join(assets, 'preset.yml'), JSON.stringify(relocatedMetadata))

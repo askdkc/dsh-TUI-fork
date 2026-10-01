@@ -1,3 +1,4 @@
+import { registerResponseLanguage } from './response-language.js'
 import { randomUUID } from 'node:crypto'
 import React from 'react'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -223,12 +224,13 @@ export async function apply(ctx: Context, runtimeConfig: RuntimeConfig<Config>, 
   // Validate settings before creating an agent or taking over the terminal.
   const tuiSettingsNs = resolveSettingsNamespace(configOwner, Config) as SettingsNamespace
 
+  registerResponseLanguage(ctx)
   await registerBundledPresets(ctx)
 
   // UI language resolution: DSH_TUI_LANG env var wins, then the
   // active profile `dsh-tui.lang` configuration (applied once the settings
   // namespace registers below), then cordis.yml `lang`, then the
-  // persisted `/lang` choice, then `zh`. Must settle before the first
+  // persisted `/lang` choice, then the locale, falling back to `en`. Must settle before the first
   // render so every module resolves strings in the same language.
   const envLang = process.env.DSH_TUI_LANG
   setLang(isLang(envLang) ? envLang : isLang(config.lang) ? config.lang : resolveStartupLang())

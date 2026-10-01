@@ -1,3 +1,4 @@
+import { RESPONSE_LANGUAGE_POLICY } from './response-language.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PresetDefinition } from '@deepseek-ai/dsh-agent-preset-registry'
 import { readFileSync } from 'node:fs'
@@ -20,6 +21,14 @@ function readPresetPatch(path: string): PresetDefinition {
     const row = patches[0]?.insert?.[0]
     if (row?.name === '@deepseek-ai/dsh-agent-preset'
       && typeof row.config?.id === 'string' && Array.isArray(row.config.plugins)) {
+      // Only adapt our bundled complete persona; profile-owned declarations bypass this reader.
+      if (row.config.id === 'minimal') {
+        const persona = row.config.plugins.find((plugin: { id?: string }) => plugin.id === 'persona')
+        if (persona?.config?.complete !== true || typeof persona.config.prefix !== 'string') {
+          throw new Error('dsh-tui: bundled Minimal complete persona is missing')
+        }
+        persona.config.prefix += `\n\n${RESPONSE_LANGUAGE_POLICY}`
+      }
       return row.config as PresetDefinition
     }
   }
