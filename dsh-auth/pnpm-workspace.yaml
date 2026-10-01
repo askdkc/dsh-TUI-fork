@@ -52,3 +52,12 @@ overrides:
 minimumReleaseAgeExclude:
   - '@deepseek-ai/*'
   - '@earendil-works/*'
+  # Exact SDK versions selected and fixture-tested for the owned OpenCode
+  # transports, including their lockfile-pinned provider-utils dependency.
+  # Keep the default 24h gate for every other version; do not exempt @ai-sdk/*.
+  - '@ai-sdk/anthropic@4.0.71'
+  - '@ai-sdk/google@4.0.87'
+  - '@ai-sdk/openai-compatible@3.0.62'
+  - '@ai-sdk/openai@4.0.83'
+  - '@ai-sdk/provider-utils@5.0.53'
+  - '@ai-sdk/provider@4.0.21'
